@@ -61,18 +61,18 @@ pub const MAX_TICKETS: u32 = 250;
 pub const MAX_RELAYERS: usize = 32;
 
 // Information for the XRP token
-const XRP_SYMBOL: &str = "XRP";
-const XRP_SUBUNIT: &str = "drop";
-const XRP_DECIMALS: u32 = 6;
+pub const XRP_SYMBOL: &str = "XRP";
+pub const XRP_SUBUNIT: &str = "factory";
+pub const XRP_DECIMALS: u32 = 6;
 pub const XRP_CURRENCY: &str = "XRP";
 pub const XRP_ISSUER: &str = "rrrrrrrrrrrrrrrrrrrrrhoLvTp";
-const XRP_DEFAULT_SENDING_PRECISION: i32 = 6;
-const XRP_DEFAULT_MAX_HOLDING_AMOUNT: u128 =
+pub const XRP_DEFAULT_SENDING_PRECISION: i32 = 6;
+pub const XRP_DEFAULT_MAX_HOLDING_AMOUNT: u128 =
     10u128.pow(16 - XRP_DEFAULT_SENDING_PRECISION as u32 + XRP_DECIMALS);
 const XRP_DEFAULT_FEE: Uint128 = Uint128::zero();
 
 const COREUM_CURRENCY_PREFIX: &str = "coreum";
-const XRPL_DENOM_PREFIX: &str = "xrpl";
+pub const XRPL_DENOM_PREFIX: &str = "xrpl";
 
 const ALLOWED_CURRENCY_SYMBOLS: [char; 18] = [
     '?', '!', '@', '#', '$', '%', '^', '&', '*', '<', '>', '(', ')', '{', '}', '[', ']', '|',
@@ -98,7 +98,7 @@ pub const INITIAL_PROHIBITED_XRPL_ADDRESSES: [&str; 5] = [
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: DepsMut,
-    env: Env,
+    _env: Env,
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> ContractResult<Response> {
@@ -152,7 +152,7 @@ pub fn instantiate(
 
     // We will issue the XRP token during instantiation. We don't need to register it
     let xrp_issue_msg = wasm_execute(
-        config.token_factory_addr,
+        config.token_factory_addr.to_string(),
         &tokenfactory::msg::ExecuteMsg::CreateDenom {
             subdenom: XRP_SYMBOL.to_string(),
             metadata: Some(Metadata {
@@ -171,7 +171,7 @@ pub fn instantiate(
         vec![],
     )?;
 
-    let xrp_coreum_denom = format!("{}-{}", XRP_SUBUNIT, env.contract.address).to_lowercase();
+    let xrp_coreum_denom = format!("{}/{}", XRP_SUBUNIT, config.token_factory_addr.as_str());
 
     // We store the representation of XRP in our XRPLTokens list using the issuer+currency as key
     let token = XRPLToken {

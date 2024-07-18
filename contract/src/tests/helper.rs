@@ -1,51 +1,13 @@
-use cosmwasm_std::{Addr, Coin, HexBinary, Uint128};
+use cosmwasm_std::{Addr, Coin, HexBinary};
 use derive_more::{Deref, DerefMut};
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use ripple_keypairs::Seed;
 use sha2::{Digest, Sha256};
-// use coreum_test_tube::{Account, AssetFT, Bank, CoreumTestApp, Module, SigningAccount, Wasm};
-// use coreum_wasm_sdk::types::coreum::asset::ft::v1::{MsgFreeze, MsgUnfreeze};
-// use coreum_wasm_sdk::types::cosmos::bank::v1beta1::QueryTotalSupplyRequest;
-// use coreum_wasm_sdk::types::cosmos::base::v1beta1::Coin as BaseCoin;
-// use coreum_wasm_sdk::{
-//     assetft::{FREEZING, IBC, MINTING},
-//     types::{
-//         coreum::asset::ft::v1::{
-//             MsgIssue, QueryBalanceRequest, QueryParamsRequest, QueryTokensRequest, Token,
-//         },
-//         cosmos::bank::v1beta1::MsgSend,
-//     },
-// };
 
 use cw_multi_test::ContractWrapper;
 
 pub const FEE_DENOM: &str = "ucore";
-pub const XRP_SYMBOL: &str = "XRP";
-pub const XRP_SUBUNIT: &str = "drop";
-pub const XRPL_DENOM_PREFIX: &str = "xrpl";
 pub const TRUST_SET_LIMIT_AMOUNT: u128 = 1000000000000000000; // 1e18
-pub const XRP_DECIMALS: u32 = 6;
-pub const XRP_DEFAULT_SENDING_PRECISION: i32 = 6;
-pub const XRP_DEFAULT_MAX_HOLDING_AMOUNT: u128 =
-    10u128.pow(16 - XRP_DEFAULT_SENDING_PRECISION as u32 + XRP_DECIMALS);
-
-#[derive(Clone)]
-pub struct XRPLToken {
-    pub issuer: String,
-    pub currency: String,
-    pub sending_precision: i32,
-    pub max_holding_amount: Uint128,
-    pub bridging_fee: Uint128,
-}
-
-#[derive(Clone)]
-pub struct CoreumToken {
-    pub denom: String,
-    pub decimals: u32,
-    pub sending_precision: i32,
-    pub max_holding_amount: Uint128,
-    pub bridging_fee: Uint128,
-}
 
 #[derive(Deref, DerefMut)]
 pub struct MockApp {
