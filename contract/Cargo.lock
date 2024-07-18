@@ -213,6 +213,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2459377285ad874054d797f3ccebf984978aa39129f6eafde5cdc8315b612f8"
 
 [[package]]
+name = "convert_case"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
+
+[[package]]
 name = "corosensei"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -547,27 +553,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cw-bridge-xrpl"
-version = "0.1.0"
-dependencies = [
- "bs58",
- "cosmwasm-schema",
- "cosmwasm-std",
- "cosmwasm-testing-util",
- "cw-multi-test",
- "cw-ownable",
- "cw-storage-plus 1.1.0",
- "cw-utils",
- "cw2",
- "rand",
- "ripple-keypairs",
- "sha2 0.10.8",
- "thiserror",
- "token-bindings",
- "tokenfactory",
-]
-
-[[package]]
 name = "cw-multi-test"
 version = "0.16.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -647,6 +632,28 @@ dependencies = [
  "semver",
  "serde",
  "thiserror",
+]
+
+[[package]]
+name = "cw-xrpl-bridge"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cosmwasm-testing-util",
+ "cw-multi-test",
+ "cw-ownable",
+ "cw-storage-plus 1.1.0",
+ "cw-utils",
+ "cw2",
+ "derive_more",
+ "rand",
+ "ripple-keypairs",
+ "sha2 0.10.8",
+ "thiserror",
+ "token-bindings",
+ "tokenfactory",
 ]
 
 [[package]]
@@ -757,6 +764,19 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "derive_more"
+version = "0.99.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f33878137e4dafd7fa914ad4e259e18a4e8e532b9617a2d0150262bf53abfce"
+dependencies = [
+ "convert_case",
+ "proc-macro2",
+ "quote",
+ "rustc_version",
+ "syn 2.0.60",
 ]
 
 [[package]]

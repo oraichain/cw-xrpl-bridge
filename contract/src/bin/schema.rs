@@ -1,5 +1,5 @@
 use cosmwasm_schema::write_api;
-use cw_bridge_xrpl::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use cw_xrpl_bridge::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
 //run cargo schema to generate
 fn main() {
