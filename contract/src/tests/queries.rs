@@ -113,7 +113,7 @@ fn queries() {
         XRPLToken {
             issuer: XRP_ISSUER.to_string(),
             currency: XRP_CURRENCY.to_string(),
-            coreum_denom: format!("{}/{}", XRP_SUBUNIT, token_factory_addr),
+            coreum_denom: format!("{}/{}", XRP_SUBUNIT, contract_addr),
             sending_precision: XRP_DEFAULT_SENDING_PRECISION,
             max_holding_amount: Uint128::new(XRP_DEFAULT_MAX_HOLDING_AMOUNT),
             state: TokenState::Enabled,

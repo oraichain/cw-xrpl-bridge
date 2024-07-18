@@ -62,7 +62,7 @@ pub const MAX_RELAYERS: usize = 32;
 
 // Information for the XRP token
 pub const XRP_SYMBOL: &str = "XRP";
-pub const XRP_SUBUNIT: &str = "factory";
+pub const XRP_SUBUNIT: &str = "drop";
 pub const XRP_DECIMALS: u32 = 6;
 pub const XRP_CURRENCY: &str = "XRP";
 pub const XRP_ISSUER: &str = "rrrrrrrrrrrrrrrrrrrrrhoLvTp";
@@ -98,7 +98,7 @@ pub const INITIAL_PROHIBITED_XRPL_ADDRESSES: [&str; 5] = [
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> ContractResult<Response> {
@@ -152,7 +152,7 @@ pub fn instantiate(
 
     // We will issue the XRP token during instantiation. We don't need to register it
     let xrp_issue_msg = wasm_execute(
-        config.token_factory_addr.to_string(),
+        config.token_factory_addr,
         &tokenfactory::msg::ExecuteMsg::CreateDenom {
             subdenom: XRP_SYMBOL.to_string(),
             metadata: Some(Metadata {
@@ -171,7 +171,7 @@ pub fn instantiate(
         vec![],
     )?;
 
-    let xrp_coreum_denom = format!("{}/{}", XRP_SUBUNIT, config.token_factory_addr.as_str());
+    let xrp_coreum_denom = format!("{}/{}", XRP_SUBUNIT, env.contract.address);
 
     // We store the representation of XRP in our XRPLTokens list using the issuer+currency as key
     let token = XRPLToken {
