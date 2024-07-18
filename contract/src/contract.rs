@@ -34,12 +34,12 @@ use crate::{
 };
 
 use coreum_wasm_sdk::{
-    assetft::{self, Msg::Issue, ParamsResponse, Query, IBC, MINTING},
+    // assetft::{self, Msg::Issue, ParamsResponse, Query, IBC, MINTING},
     core::{CoreumMsg, CoreumQueries, CoreumResult},
 };
 use cosmwasm_std::{
-    coin, coins, entry_point, to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Deps,
-    DepsMut, Empty, Env, MessageInfo, Order, Response, StdResult, Storage, Uint128,
+    coin, coins, entry_point, to_json_binary, wasm_execute, Addr, BankMsg, Binary, Coin, CosmosMsg,
+    Deps, DepsMut, Empty, Env, MessageInfo, Order, Response, StdResult, Storage, Uint128,
 };
 use cw2::set_contract_version;
 use cw_ownable::{get_ownership, initialize_owner, is_owner, Action};
@@ -152,23 +152,19 @@ pub fn instantiate(
         bridge_xrpl_address: msg.bridge_xrpl_address,
         bridge_state: BridgeState::Active,
         xrpl_base_fee: msg.xrpl_base_fee,
+        token_factory_addr: msg.token_factory_addr,
     };
 
     CONFIG.save(deps.storage, &config)?;
 
     // We will issue the XRP token during instantiation. We don't need to register it
-    let xrp_issue_msg = CosmosMsg::from(CoreumMsg::AssetFT(Issue {
-        symbol: XRP_SYMBOL.to_string(),
-        subunit: XRP_SUBUNIT.to_string(),
-        precision: XRP_DECIMALS,
-        initial_amount: Uint128::zero(),
-        description: None,
-        features: Some(vec![MINTING, IBC]),
-        burn_rate: "0.0".to_string(),
-        send_commission_rate: "0.0".to_string(),
-        uri: None,
-        uri_hash: None,
-    }));
+    let xrp_issue_msg = wasm_execute(
+        config.token_factory_addr,
+        &tokenfactory::msg::ExecuteMsg::CreateDenom {
+            subdenom: XRP_SYMBOL.to_string(),
+        },
+        vec![],
+    )?;
 
     let xrp_coreum_denom = format!("{}-{}", XRP_SUBUNIT, env.contract.address).to_lowercase();
 
@@ -466,18 +462,27 @@ fn register_xrpl_token(
     // Symbol and subunit we will use for the issued token in Coreum
     let symbol_and_subunit = format!("{XRPL_DENOM_PREFIX}{hex_string}");
 
-    let issue_msg = CosmosMsg::from(CoreumMsg::AssetFT(Issue {
-        symbol: symbol_and_subunit.to_uppercase(),
-        subunit: symbol_and_subunit.clone(),
-        precision: XRPL_TOKENS_DECIMALS,
-        initial_amount: Uint128::zero(),
-        description: None,
-        features: Some(vec![MINTING, IBC]),
-        burn_rate: "0.0".to_string(),
-        send_commission_rate: "0.0".to_string(),
-        uri: None,
-        uri_hash: None,
-    }));
+    // let issue_msg = CosmosMsg::from(CoreumMsg::AssetFT(Issue {
+    //     symbol: symbol_and_subunit.to_uppercase(),
+    //     subunit: symbol_and_subunit.clone(),
+    //     precision: XRPL_TOKENS_DECIMALS,
+    //     initial_amount: Uint128::zero(),
+    //     description: None,
+    //     features: Some(vec![MINTING, IBC]),
+    //     burn_rate: "0.0".to_string(),
+    //     send_commission_rate: "0.0".to_string(),
+    //     uri: None,
+    //     uri_hash: None,
+    // }));
+    let config = CONFIG.load(deps.storage)?;
+
+    let issue_msg = wasm_execute(
+        config.token_factory_addr,
+        &tokenfactory::msg::ExecuteMsg::CreateDenom {
+            subdenom: symbol_and_subunit.to_uppercase(),
+        },
+        vec![],
+    )?;
 
     // Denom that token will have in Coreum
     let denom = format!("{}-{}", symbol_and_subunit, env.contract.address).to_lowercase();
@@ -501,7 +506,6 @@ fn register_xrpl_token(
     XRPL_TOKENS.save(deps.storage, key, &token)?;
 
     // Create the pending operation to approve the token
-    let config = CONFIG.load(deps.storage)?;
     let ticket = allocate_ticket(deps.storage)?;
 
     // We create the TrustSet operation. If this operation is accepted, the token will be enabled, if not, it will be in Inactive state
@@ -549,7 +553,7 @@ fn save_evidence(
 
     let mut response = Response::new()
         .add_attribute("action", ContractActions::SaveEvidence.as_str())
-        .add_attribute("sender", sender);
+        .add_attribute("sender", sender.as_str());
 
     match evidence {
         Evidence::XRPLToCoreumTransfer {
@@ -618,16 +622,36 @@ fn save_evidence(
                         remainder,
                     )?;
 
-                    let mint_msg_fees = CosmosMsg::from(CoreumMsg::AssetFT(assetft::Msg::Mint {
-                        coin: coin(fee_collected.u128(), token.coreum_denom.clone()),
-                        recipient: None,
-                    }));
+                    // let mint_msg_fees = CosmosMsg::from(CoreumMsg::AssetFT(assetft::Msg::Mint {
+                    //     coin: coin(fee_collected.u128(), token.coreum_denom.clone()),
+                    //     recipient: None,
+                    // }));
 
-                    let mint_msg_for_recipient =
-                        CosmosMsg::from(CoreumMsg::AssetFT(assetft::Msg::Mint {
-                            coin: coin(amount_to_send.u128(), token.coreum_denom),
-                            recipient: Some(recipient.to_string()),
-                        }));
+                    // let mint_msg_for_recipient =
+                    //     CosmosMsg::from(CoreumMsg::AssetFT(assetft::Msg::Mint {
+                    //         coin: coin(amount_to_send.u128(), token.coreum_denom),
+                    //         recipient: Some(recipient.to_string()),
+                    //     }));
+
+                    let mint_msg_fees = wasm_execute(
+                        config.token_factory_addr.to_string(),
+                        &tokenfactory::msg::ExecuteMsg::MintTokens {
+                            denom: token.coreum_denom.clone(),
+                            amount: fee_collected,
+                            mint_to_address: sender.to_string(),
+                        },
+                        vec![],
+                    )?;
+
+                    let mint_msg_for_recipient = wasm_execute(
+                        config.token_factory_addr,
+                        &tokenfactory::msg::ExecuteMsg::MintTokens {
+                            denom: token.coreum_denom,
+                            amount: amount_to_send,
+                            mint_to_address: recipient.to_string(),
+                        },
+                        vec![],
+                    )?;
 
                     response = response.add_messages([mint_msg_fees, mint_msg_for_recipient]);
                 }
@@ -1659,13 +1683,13 @@ fn query_prohibited_xrpl_addresses(deps: Deps) -> ProhibitedXRPLAddressesRespons
 // ********** Helpers **********
 
 fn check_issue_fee(deps: &DepsMut<CoreumQueries>, info: &MessageInfo) -> Result<(), ContractError> {
-    let query_params_res: ParamsResponse = deps
-        .querier
-        .query(&CoreumQueries::AssetFT(Query::Params {}).into())?;
+    // let query_params_res: ParamsResponse = deps
+    //     .querier
+    //     .query(&CoreumQueries::AssetFT(Query::Params {}).into())?;
 
-    if query_params_res.params.issue_fee != one_coin(info)? {
-        return Err(ContractError::InvalidFundsAmount {});
-    }
+    // if query_params_res.params.issue_fee != one_coin(info)? {
+    //     return Err(ContractError::InvalidFundsAmount {});
+    // }
 
     Ok(())
 }

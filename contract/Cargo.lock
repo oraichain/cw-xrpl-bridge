@@ -338,7 +338,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-ownable",
- "cw-storage-plus",
+ "cw-storage-plus 1.2.0",
  "cw-utils",
  "cw2",
  "hex",
@@ -347,6 +347,8 @@ dependencies = [
  "serde_json",
  "sha2 0.10.8",
  "thiserror",
+ "token-bindings",
+ "tokenfactory",
 ]
 
 [[package]]
@@ -448,6 +450,16 @@ dependencies = [
  "sha2 0.10.8",
  "static_assertions",
  "thiserror",
+]
+
+[[package]]
+name = "cosmwasm-storage"
+version = "1.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "66de2ab9db04757bcedef2b5984fbe536903ada4a8a9766717a4a71197ef34f6"
+dependencies = [
+ "cosmwasm-std",
+ "serde",
 ]
 
 [[package]]
@@ -579,7 +591,7 @@ dependencies = [
  "cosmwasm-std",
  "cw-address-like",
  "cw-ownable-derive",
- "cw-storage-plus",
+ "cw-storage-plus 1.2.0",
  "cw-utils",
  "thiserror",
 ]
@@ -593,6 +605,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "cw-storage-plus"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d9b6f91c0b94481a3e9ef1ceb183c37d00764f8751e39b45fc09f4d9b970d469"
+dependencies = [
+ "cosmwasm-std",
+ "schemars",
+ "serde",
 ]
 
 [[package]]
@@ -629,7 +652,7 @@ checksum = "c6c120b24fbbf5c3bedebb97f2cc85fbfa1c3287e09223428e7e597b5293c1fa"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
- "cw-storage-plus",
+ "cw-storage-plus 1.2.0",
  "schemars",
  "semver",
  "serde",
@@ -2409,6 +2432,33 @@ name = "tinyvec_macros"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
+
+[[package]]
+name = "token-bindings"
+version = "0.11.0"
+source = "git+https://github.com/oraichain/token-bindings.git?rev=e85d734#e85d7348b07c3d0403c60435c0a7d291af81f987"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "schemars",
+ "serde",
+]
+
+[[package]]
+name = "tokenfactory"
+version = "0.11.0"
+source = "git+https://github.com/oraichain/token-bindings.git?rev=e85d734#e85d7348b07c3d0403c60435c0a7d291af81f987"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "cw-storage-plus 0.16.0",
+ "cw2",
+ "schemars",
+ "serde",
+ "thiserror",
+ "token-bindings",
+]
 
 [[package]]
 name = "tokio"

@@ -26,6 +26,9 @@ pub struct InstantiateMsg {
     pub bridge_xrpl_address: String,
     // XRPL base fee used for executing transactions on XRPL
     pub xrpl_base_fee: u64,
+
+    // token factory contract, to simplify Execute Msg
+    pub token_factory_addr: Addr,
 }
 
 #[cw_serde]

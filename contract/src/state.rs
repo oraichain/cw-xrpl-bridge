@@ -46,6 +46,7 @@ pub struct Config {
     pub bridge_xrpl_address: String,
     pub bridge_state: BridgeState,
     pub xrpl_base_fee: u64,
+    pub token_factory_addr: Addr,
 }
 
 #[cw_serde]
