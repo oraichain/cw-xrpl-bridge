@@ -1,4 +1,5 @@
 use cosmwasm_std::{coin, coins, to_vec, Addr, Coin, HexBinary, Uint128};
+use cw_ownable::Ownership;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use ripple_keypairs::Seed;
 use sha2::{Digest, Sha256};
@@ -309,90 +310,83 @@ fn contract_instantiation() {
     );
 }
 
-// #[test]
-// fn transfer_ownership() {
-//     let app = CoreumTestApp::new();
-//     let signer = app
-//         .init_account(&coins(100_000_000_000, FEE_DENOM))
-//         .unwrap();
+#[test]
+fn transfer_ownership() {
+    let mut app = MockApp::new(&[
+        ("signer", &[coin(100_000_000_000, FEE_DENOM)]),
+        ("new_owner", &[coin(100_000_000_000, FEE_DENOM)]),
+    ]);
 
-//     let new_owner = app
-//         .init_account(&coins(100_000_000_000, FEE_DENOM))
-//         .unwrap();
-//     let wasm = Wasm::new(&app);
-//     let asset_ft = AssetFT::new(&app);
-//     let relayer = Relayer {
-//         coreum_address: Addr::unchecked("signer"),
-//         xrpl_address: generate_xrpl_address(),
-//         xrpl_pub_key: generate_xrpl_pub_key(),
-//     };
+    let relayer = Relayer {
+        coreum_address: Addr::unchecked("signer"),
+        xrpl_address: generate_xrpl_address(),
+        xrpl_pub_key: generate_xrpl_pub_key(),
+    };
 
-//     let contract_addr = store_and_instantiate(
-//         &wasm,
-//         &signer,
-//         Addr::unchecked("signer"),
-//         vec![relayer],
-//         1,
-//         50,
-//         Uint128::new(TRUST_SET_LIMIT_AMOUNT),
-//         query_issue_fee(&asset_ft),
-//         generate_xrpl_address(),
-//         10,
-//     );
+    let token_factory_addr = app.create_tokenfactory(Addr::unchecked("signer")).unwrap();
 
-//     // Query current owner
-//     let query_owner = wasm
-//         .query::<QueryMsg, cw_ownable::Ownership<String>>(&contract_addr, &QueryMsg::Ownership {})
-//         .unwrap();
+    let contract_addr = app
+        .create_bridge(
+            Addr::unchecked("signer"),
+            &&InstantiateMsg {
+                owner: Addr::unchecked("signer"),
+                relayers: vec![relayer],
+                evidence_threshold: 1,
+                used_ticket_sequence_threshold: 50,
+                trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
+                bridge_xrpl_address: generate_xrpl_address(),
+                xrpl_base_fee: 10,
+                token_factory_addr: token_factory_addr.clone(),
+            },
+        )
+        .unwrap();
 
-//     assert_eq!(query_owner.owner.unwrap(), "signer".to_string());
+    // Query current owner
+    let query_owner: Ownership<Addr> = app
+        .query(contract_addr.clone(), &QueryMsg::Ownership {})
+        .unwrap();
 
-//     // Current owner is going to transfer ownership to another address (new_owner)
-//     wasm.execute::<ExecuteMsg>(
-//         &contract_addr,
-//         &ExecuteMsg::UpdateOwnership(cw_ownable::Action::TransferOwnership {
-//             new_owner: new_owner.address(),
-//             expiry: None,
-//         }),
-//         &vec![],
-//         &signer,
-//     )
-//     .unwrap();
+    assert_eq!(query_owner.owner, Some(Addr::unchecked("signer")));
 
-//     // New owner is going to accept the ownership
-//     wasm.execute::<ExecuteMsg>(
-//         &contract_addr,
-//         &ExecuteMsg::UpdateOwnership(cw_ownable::Action::AcceptOwnership {}),
-//         &vec![],
-//         &new_owner,
-//     )
-//     .unwrap();
+    // Current owner is going to transfer ownership to another address (new_owner)
+    app.execute(
+        Addr::unchecked("signer"),
+        contract_addr.clone(),
+        &ExecuteMsg::UpdateOwnership(cw_ownable::Action::TransferOwnership {
+            new_owner: "new_owner".to_string(),
+            expiry: None,
+        }),
+        &vec![],
+    )
+    .unwrap();
 
-//     let query_owner = wasm
-//         .query::<QueryMsg, cw_ownable::Ownership<String>>(&contract_addr, &QueryMsg::Ownership {})
-//         .unwrap();
+    // New owner is going to accept the ownership
+    app.execute(
+        Addr::unchecked("new_owner"),
+        contract_addr.clone(),
+        &ExecuteMsg::UpdateOwnership(cw_ownable::Action::AcceptOwnership {}),
+        &vec![],
+    )
+    .unwrap();
 
-//     assert_eq!(query_owner.owner.unwrap(), new_owner.address().to_string());
+    let query_owner: Ownership<Addr> = app
+        .query(contract_addr.clone(), &QueryMsg::Ownership {})
+        .unwrap();
 
-//     // Try transfering from old owner again, should fail
-//     let transfer_error = wasm
-//         .execute::<ExecuteMsg>(
-//             &contract_addr,
-//             &ExecuteMsg::UpdateOwnership(cw_ownable::Action::TransferOwnership {
-//                 new_owner: new_owner.address(),
-//                 expiry: None,
-//             }),
-//             &vec![],
-//             &signer,
-//         )
-//         .unwrap_err();
+    assert_eq!(query_owner.owner, Some(Addr::unchecked("new_owner")));
 
-//     assert!(transfer_error.to_string().contains(
-//         ContractError::Ownership(cw_ownable::OwnershipError::NotOwner)
-//             .to_string()
-//             .as_str()
-//     ));
-// }
+    // Try transfering from old owner again, should fail
+    app.execute(
+        Addr::unchecked("signer"),
+        contract_addr.clone(),
+        &ExecuteMsg::UpdateOwnership(cw_ownable::Action::TransferOwnership {
+            new_owner: "new_owner".to_string(),
+            expiry: None,
+        }),
+        &[],
+    )
+    .unwrap_err();
+}
 
 // #[test]
 // fn queries() {
