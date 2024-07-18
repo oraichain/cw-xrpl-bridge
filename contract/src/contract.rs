@@ -41,6 +41,7 @@ use cw2::set_contract_version;
 use cw_ownable::{get_ownership, initialize_owner, is_owner, Action};
 use cw_storage_plus::Bound;
 use cw_utils::one_coin;
+use token_bindings::{DenomUnit, Metadata};
 
 // version info for migration info
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -154,6 +155,18 @@ pub fn instantiate(
         config.token_factory_addr,
         &tokenfactory::msg::ExecuteMsg::CreateDenom {
             subdenom: XRP_SYMBOL.to_string(),
+            metadata: Some(Metadata {
+                symbol: Some(XRP_SYMBOL.to_string()),
+                denom_units: vec![DenomUnit {
+                    exponent: XRP_DECIMALS,
+                    denom: XRP_SYMBOL.to_string(),
+                    aliases: vec![],
+                }],
+                description: None,
+                base: None,
+                display: None,
+                name: Some(XRP_CURRENCY.to_string()),
+            }),
         },
         vec![],
     )?;
@@ -438,24 +451,24 @@ fn register_xrpl_token(
     // Symbol and subunit we will use for the issued token in Coreum
     let symbol_and_subunit = format!("{XRPL_DENOM_PREFIX}{hex_string}");
 
-    // let issue_msg = CosmosMsg::from(CoreumMsg::AssetFT(Issue {
-    //     symbol: symbol_and_subunit.to_uppercase(),
-    //     subunit: symbol_and_subunit.clone(),
-    //     precision: XRPL_TOKENS_DECIMALS,
-    //     initial_amount: Uint128::zero(),
-    //     description: None,
-    //     features: Some(vec![MINTING, IBC]),
-    //     burn_rate: "0.0".to_string(),
-    //     send_commission_rate: "0.0".to_string(),
-    //     uri: None,
-    //     uri_hash: None,
-    // }));
     let config = CONFIG.load(deps.storage)?;
 
     let issue_msg = wasm_execute(
         config.token_factory_addr,
         &tokenfactory::msg::ExecuteMsg::CreateDenom {
             subdenom: symbol_and_subunit.to_uppercase(),
+            metadata: Some(Metadata {
+                symbol: Some(symbol_and_subunit.clone()),
+                denom_units: vec![DenomUnit {
+                    exponent: XRPL_TOKENS_DECIMALS,
+                    denom: symbol_and_subunit.clone(),
+                    aliases: vec![],
+                }],
+                description: None,
+                base: None,
+                display: None,
+                name: Some(XRP_CURRENCY.to_string()),
+            }),
         },
         vec![],
     )?;

@@ -34,11 +34,11 @@ cw2 = "1.0.1"
 sha2 = "0.10.8"
 thiserror = "1.0.56"
 derive_more = "0.99.17"
-tokenfactory = { git = "https://github.com/oraichain/token-bindings.git", rev = "e85d734" }
-token-bindings = { git = "https://github.com/oraichain/token-bindings.git", rev = "e85d734" }
+tokenfactory = { git = "https://github.com/oraichain/token-bindings.git", rev = "d379675" }
+token-bindings = { git = "https://github.com/oraichain/token-bindings.git", rev = "d379675" }
 
 [dev-dependencies]
-cosmwasm-testing-util = { git = "https://github.com/oraichain/cosmwasm-testing-util.git", rev = "aaa09cf" }
+cosmwasm-testing-util = { git = "https://github.com/oraichain/cosmwasm-testing-util.git", rev = "53c270e" }
 cw-multi-test = "0.16.6"
 ripple-keypairs = "0.1.0"
 rand = "0.8.5"

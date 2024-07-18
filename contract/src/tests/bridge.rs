@@ -3,6 +3,7 @@ use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use ripple_keypairs::Seed;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
+use token_bindings::{DenomUnit, FullDenomResponse, Metadata, MetadataResponse};
 
 use crate::address::validate_xrpl_address_format;
 use crate::contract::{INITIAL_PROHIBITED_XRPL_ADDRESSES, MAX_COREUM_TOKEN_DECIMALS, MAX_RELAYERS};
@@ -13,6 +14,7 @@ use crate::msg::{
 use crate::state::BridgeState;
 use crate::tests::helper::{
     generate_xrpl_address, generate_xrpl_pub_key, MockApp, FEE_DENOM, TRUST_SET_LIMIT_AMOUNT,
+    XRP_SYMBOL,
 };
 use crate::{
     contract::{XRP_CURRENCY, XRP_ISSUER},
@@ -89,306 +91,222 @@ fn contract_instantiation() {
                 trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
                 bridge_xrpl_address: generate_xrpl_address(),
                 xrpl_base_fee: 10,
-                token_factory_addr,
+                token_factory_addr: token_factory_addr.clone(),
             },
         )
         .unwrap();
 
     println!("contract_addr {}", contract_addr);
 
-    // // We check that trying to instantiate with relayers with the same xrpl address fails
-    // let error = wasm
-    //     .instantiate(
-    //         1,
-    //         &InstantiateMsg {
-    //             owner: Addr::unchecked("signer"),
-    //             relayers: vec![relayer.clone(), relayer_duplicated_xrpl_address.clone()],
-    //             evidence_threshold: 1,
-    //             used_ticket_sequence_threshold: 50,
-    //             trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
-    //             bridge_xrpl_address: generate_xrpl_address(),
-    //             xrpl_base_fee: 10,
-    //             token_factory_addr: Addr::unchecked("token_factory_addr"),
-    //         },
-    //         None,
-    //         "label".into(),
-    //         &query_issue_fee(&asset_ft),
-    //         &signer,
-    //     )
-    //     .unwrap_err();
+    // We check that trying to instantiate with relayers with the same xrpl address fails
+    app.create_bridge(
+        Addr::unchecked("signer"),
+        &InstantiateMsg {
+            owner: Addr::unchecked("signer"),
+            relayers: vec![relayer.clone(), relayer_duplicated_xrpl_address.clone()],
+            evidence_threshold: 1,
+            used_ticket_sequence_threshold: 50,
+            trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
+            bridge_xrpl_address: generate_xrpl_address(),
+            xrpl_base_fee: 10,
+            token_factory_addr: token_factory_addr.clone(),
+        },
+    )
+    .unwrap_err();
 
-    // assert!(error
-    //     .to_string()
-    //     .contains(ContractError::DuplicatedRelayer {}.to_string().as_str()));
+    // We check that trying to instantiate with relayers with the same xrpl public key fails
+    app.create_bridge(
+        Addr::unchecked("signer"),
+        &InstantiateMsg {
+            owner: Addr::unchecked("signer"),
+            relayers: vec![relayer.clone(), relayer_duplicated_xrpl_pub_key.clone()],
+            evidence_threshold: 1,
+            used_ticket_sequence_threshold: 50,
+            trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
+            bridge_xrpl_address: generate_xrpl_address(),
+            xrpl_base_fee: 10,
+            token_factory_addr: token_factory_addr.clone(),
+        },
+    )
+    .unwrap_err();
 
-    // // We check that trying to instantiate with relayers with the same xrpl public key fails
-    // let error = wasm
-    //     .instantiate(
-    //         1,
-    //         &InstantiateMsg {
-    //             owner: Addr::unchecked("signer"),
-    //             relayers: vec![relayer.clone(), relayer_duplicated_xrpl_pub_key.clone()],
-    //             evidence_threshold: 1,
-    //             used_ticket_sequence_threshold: 50,
-    //             trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
-    //             bridge_xrpl_address: generate_xrpl_address(),
-    //             xrpl_base_fee: 10,
-    //             token_factory_addr: Addr::unchecked("token_factory_addr"),
-    //         },
-    //         None,
-    //         "label".into(),
-    //         &query_issue_fee(&asset_ft),
-    //         &signer,
-    //     )
-    //     .unwrap_err();
+    // We check that trying to instantiate with relayers with the same coreum address fails
+    app.create_bridge(
+        Addr::unchecked("signer"),
+        &InstantiateMsg {
+            owner: Addr::unchecked("signer"),
+            relayers: vec![relayer.clone(), relayer_duplicated_coreum_address.clone()],
+            evidence_threshold: 1,
+            used_ticket_sequence_threshold: 50,
+            trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
+            bridge_xrpl_address: generate_xrpl_address(),
+            xrpl_base_fee: 10,
+            token_factory_addr: token_factory_addr.clone(),
+        },
+    )
+    .unwrap_err();
 
-    // assert!(error
-    //     .to_string()
-    //     .contains(ContractError::DuplicatedRelayer {}.to_string().as_str()));
+    // We check that trying to use a relayer with a prohibited address fails
+    app.create_bridge(
+        Addr::unchecked("signer"),
+        &InstantiateMsg {
+            owner: Addr::unchecked("signer"),
+            relayers: vec![relayer.clone(), relayer_prohibited_xrpl_address.clone()],
+            evidence_threshold: 1,
+            used_ticket_sequence_threshold: 50,
+            trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
+            bridge_xrpl_address: generate_xrpl_address(),
+            xrpl_base_fee: 10,
+            token_factory_addr: token_factory_addr.clone(),
+        },
+    )
+    .unwrap_err();
 
-    // // We check that trying to instantiate with relayers with the same coreum address fails
-    // let error = wasm
-    //     .instantiate(
-    //         1,
-    //         &InstantiateMsg {
-    //             owner: Addr::unchecked("signer"),
-    //             relayers: vec![relayer.clone(), relayer_duplicated_coreum_address.clone()],
-    //             evidence_threshold: 1,
-    //             used_ticket_sequence_threshold: 50,
-    //             trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
-    //             bridge_xrpl_address: generate_xrpl_address(),
-    //             xrpl_base_fee: 10,
-    //             token_factory_addr: Addr::unchecked("token_factory_addr"),
-    //         },
-    //         None,
-    //         "label".into(),
-    //         &query_issue_fee(&asset_ft),
-    //         &signer,
-    //     )
-    //     .unwrap_err();
+    // We check that trying to instantiate with invalid bridge_xrpl_address fails
+    let invalid_address = "rf0BiGeXwwQoi8Z2ueFYTEXSwuJYfV2Jpn".to_string(); //invalid because contains a 0
+    app.create_bridge(
+        Addr::unchecked("signer"),
+        &InstantiateMsg {
+            owner: Addr::unchecked("signer"),
+            relayers: vec![relayer.clone()],
+            evidence_threshold: 1,
+            used_ticket_sequence_threshold: 50,
+            trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
+            bridge_xrpl_address: invalid_address.clone(),
+            xrpl_base_fee: 10,
+            token_factory_addr: token_factory_addr.clone(),
+        },
+    )
+    .unwrap_err();
 
-    // assert!(error
-    //     .to_string()
-    //     .contains(ContractError::DuplicatedRelayer {}.to_string().as_str()));
+    // We check that trying to instantiate with invalid issue fee fails.
+    app.create_bridge(
+        Addr::unchecked("signer"),
+        &InstantiateMsg {
+            owner: Addr::unchecked("signer"),
+            relayers: vec![relayer.clone()],
+            evidence_threshold: 1,
+            used_ticket_sequence_threshold: 50,
+            trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
+            bridge_xrpl_address: generate_xrpl_address(),
+            xrpl_base_fee: 10,
+            token_factory_addr: token_factory_addr.clone(),
+        },
+    )
+    .unwrap_err();
 
-    // // We check that trying to use a relayer with a prohibited address fails
-    // let error = wasm
-    //     .instantiate(
-    //         1,
-    //         &InstantiateMsg {
-    //             owner: Addr::unchecked("signer"),
-    //             relayers: vec![relayer.clone(), relayer_prohibited_xrpl_address.clone()],
-    //             evidence_threshold: 1,
-    //             used_ticket_sequence_threshold: 50,
-    //             trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
-    //             bridge_xrpl_address: generate_xrpl_address(),
-    //             xrpl_base_fee: 10,
-    //             token_factory_addr: Addr::unchecked("token_factory_addr"),
-    //         },
-    //         None,
-    //         "label".into(),
-    //         &query_issue_fee(&asset_ft),
-    //         &signer,
-    //     )
-    //     .unwrap_err();
+    // We check that trying to instantiate with invalid max allowed ticket fails.
+    app.create_bridge(
+        Addr::unchecked("signer"),
+        &InstantiateMsg {
+            owner: Addr::unchecked("signer"),
+            relayers: vec![relayer.clone()],
+            evidence_threshold: 1,
+            used_ticket_sequence_threshold: 1,
+            trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
+            bridge_xrpl_address: generate_xrpl_address(),
+            xrpl_base_fee: 10,
+            token_factory_addr: token_factory_addr.clone(),
+        },
+    )
+    .unwrap_err();
 
-    // assert!(error
-    //     .to_string()
-    //     .contains(ContractError::ProhibitedAddress {}.to_string().as_str()));
+    // Instantiating with threshold 0 will fail
+    app.create_bridge(
+        Addr::unchecked("signer"),
+        &InstantiateMsg {
+            owner: Addr::unchecked("signer"),
+            relayers: vec![],
+            evidence_threshold: 0,
+            used_ticket_sequence_threshold: 50,
+            trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
+            bridge_xrpl_address: generate_xrpl_address(),
+            xrpl_base_fee: 10,
+            token_factory_addr: token_factory_addr.clone(),
+        },
+    )
+    .unwrap_err();
 
-    // // We check that trying to instantiate with invalid bridge_xrpl_address fails
-    // let invalid_address = "rf0BiGeXwwQoi8Z2ueFYTEXSwuJYfV2Jpn".to_string(); //invalid because contains a 0
-    // let error = wasm
-    //     .instantiate(
-    //         1,
-    //         &InstantiateMsg {
-    //             owner: Addr::unchecked("signer"),
-    //             relayers: vec![relayer.clone()],
-    //             evidence_threshold: 1,
-    //             used_ticket_sequence_threshold: 50,
-    //             trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
-    //             bridge_xrpl_address: invalid_address.clone(),
-    //             xrpl_base_fee: 10,
-    //             token_factory_addr: Addr::unchecked("token_factory_addr"),
-    //         },
-    //         None,
-    //         "label".into(),
-    //         &coins(10, FEE_DENOM),
-    //         &signer,
-    //     )
-    //     .unwrap_err();
+    // Instantiating with too many relayers (> 32) should fail
+    let mut too_many_relayers = vec![];
+    for i in 0..MAX_RELAYERS + 1 {
+        too_many_relayers.push(Relayer {
+            coreum_address: Addr::unchecked(format!("coreum_address_{}", i)),
+            xrpl_address: generate_xrpl_address(),
+            xrpl_pub_key: generate_xrpl_pub_key(),
+        });
+    }
 
-    // assert!(error.to_string().contains(
-    //     ContractError::InvalidXRPLAddress {
-    //         address: invalid_address
-    //     }
-    //     .to_string()
-    //     .as_str()
-    // ));
+    app.create_bridge(
+        Addr::unchecked("signer"),
+        &InstantiateMsg {
+            owner: Addr::unchecked("signer"),
+            relayers: too_many_relayers,
+            evidence_threshold: 1,
+            used_ticket_sequence_threshold: 50,
+            trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
+            bridge_xrpl_address: generate_xrpl_address(),
+            xrpl_base_fee: 10,
+            token_factory_addr: token_factory_addr.clone(),
+        },
+    )
+    .unwrap_err();
 
-    // // We check that trying to instantiate with invalid issue fee fails.
-    // let error = wasm
-    //     .instantiate(
-    //         1,
-    //         &InstantiateMsg {
-    //             owner: Addr::unchecked("signer"),
-    //             relayers: vec![relayer.clone()],
-    //             evidence_threshold: 1,
-    //             used_ticket_sequence_threshold: 50,
-    //             trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
-    //             bridge_xrpl_address: generate_xrpl_address(),
-    //             xrpl_base_fee: 10,
-    //             token_factory_addr: Addr::unchecked("token_factory_addr"),
-    //         },
-    //         None,
-    //         "label".into(),
-    //         &coins(10, FEE_DENOM),
-    //         &signer,
-    //     )
-    //     .unwrap_err();
+    // We check that trying to instantiate with an invalid trust set amount will fail
+    app.create_bridge(
+        Addr::unchecked("signer"),
+        &InstantiateMsg {
+            owner: Addr::unchecked("signer"),
+            relayers: vec![relayer, relayer_correct],
+            evidence_threshold: 1,
+            used_ticket_sequence_threshold: 50,
+            trust_set_limit_amount: Uint128::new(10000000000000001),
+            bridge_xrpl_address: generate_xrpl_address(),
+            xrpl_base_fee: 10,
+            token_factory_addr: token_factory_addr.clone(),
+        },
+    )
+    .unwrap_err();
 
-    // assert!(error
-    //     .to_string()
-    //     .contains(ContractError::InvalidFundsAmount {}.to_string().as_str()));
+    let FullDenomResponse { denom } = app
+        .query(
+            token_factory_addr.clone(),
+            &tokenfactory::msg::QueryMsg::GetDenom {
+                creator_address: token_factory_addr.to_string(),
+                subdenom: XRP_SYMBOL.to_string(),
+            },
+        )
+        .unwrap();
 
-    // // We check that trying to instantiate with invalid max allowed ticket fails.
-    // let error = wasm
-    //     .instantiate(
-    //         1,
-    //         &InstantiateMsg {
-    //             owner: Addr::unchecked("signer"),
-    //             relayers: vec![relayer.clone()],
-    //             evidence_threshold: 1,
-    //             used_ticket_sequence_threshold: 1,
-    //             trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
-    //             bridge_xrpl_address: generate_xrpl_address(),
-    //             xrpl_base_fee: 10,
-    //             token_factory_addr: Addr::unchecked("token_factory_addr"),
-    //         },
-    //         None,
-    //         "label".into(),
-    //         &query_issue_fee(&asset_ft),
-    //         &signer,
-    //     )
-    //     .unwrap_err();
+    // We query the issued token by the contract instantiation (XRP)
+    let token_response: MetadataResponse = app
+        .query(
+            token_factory_addr.clone(),
+            &tokenfactory::msg::QueryMsg::GetMetadata {
+                denom: denom.to_string(),
+            },
+        )
+        .unwrap();
 
-    // assert!(error.to_string().contains(
-    //     ContractError::InvalidUsedTicketSequenceThreshold {}
-    //         .to_string()
-    //         .as_str()
-    // ));
+    println!("{:?}", token_response);
 
-    // // Instantiating with threshold 0 will fail
-    // let error = wasm
-    //     .instantiate(
-    //         1,
-    //         &InstantiateMsg {
-    //             owner: Addr::unchecked("signer"),
-    //             relayers: vec![],
-    //             evidence_threshold: 0,
-    //             used_ticket_sequence_threshold: 50,
-    //             trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
-    //             bridge_xrpl_address: generate_xrpl_address(),
-    //             xrpl_base_fee: 10,
-    //             token_factory_addr: Addr::unchecked("token_factory_addr"),
-    //         },
-    //         None,
-    //         "label".into(),
-    //         &query_issue_fee(&asset_ft),
-    //         &signer,
-    //     )
-    //     .unwrap_err();
-
-    // assert!(error
-    //     .to_string()
-    //     .contains(ContractError::InvalidThreshold {}.to_string().as_str()));
-
-    // // Instantiating with too many relayers (> 32) should fail
-    // let mut too_many_relayers = vec![];
-    // for _ in 0..MAX_RELAYERS + 1 {
-    //     let coreum_address = app.init_account(&vec![]).unwrap().address();
-    //     too_many_relayers.push(Relayer {
-    //         coreum_address: Addr::unchecked(coreum_address),
-    //         xrpl_address: generate_xrpl_address(),
-    //         xrpl_pub_key: generate_xrpl_pub_key(),
-    //     });
-    // }
-
-    // let error = wasm
-    //     .instantiate(
-    //         1,
-    //         &InstantiateMsg {
-    //             owner: Addr::unchecked("signer"),
-    //             relayers: too_many_relayers,
-    //             evidence_threshold: 1,
-    //             used_ticket_sequence_threshold: 50,
-    //             trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
-    //             bridge_xrpl_address: generate_xrpl_address(),
-    //             xrpl_base_fee: 10,
-    //             token_factory_addr: Addr::unchecked("token_factory_addr"),
-    //         },
-    //         None,
-    //         "label".into(),
-    //         &query_issue_fee(&asset_ft),
-    //         &signer,
-    //     )
-    //     .unwrap_err();
-
-    // assert!(error
-    //     .to_string()
-    //     .contains(ContractError::TooManyRelayers {}.to_string().as_str()));
-
-    // // We check that trying to instantiate with an invalid trust set amount will fail
-    // let error = wasm
-    //     .instantiate(
-    //         1,
-    //         &InstantiateMsg {
-    //             owner: Addr::unchecked("signer"),
-    //             relayers: vec![relayer, relayer_correct],
-    //             evidence_threshold: 1,
-    //             used_ticket_sequence_threshold: 50,
-    //             trust_set_limit_amount: Uint128::new(10000000000000001),
-    //             bridge_xrpl_address: generate_xrpl_address(),
-    //             xrpl_base_fee: 10,
-    //             token_factory_addr: Addr::unchecked("token_factory_addr"),
-    //         },
-    //         None,
-    //         "label".into(),
-    //         &query_issue_fee(&asset_ft),
-    //         &signer,
-    //     )
-    //     .unwrap_err();
-
-    // assert!(error
-    //     .to_string()
-    //     .contains(ContractError::InvalidXRPLAmount {}.to_string().as_str()));
-
-    // // We query the issued token by the contract instantiation (XRP)
-    // let query_response = asset_ft
-    //     .query_tokens(&QueryTokensRequest {
-    //         pagination: None,
-    //         issuer: contract_addr.clone(),
-    //     })
-    //     .unwrap();
-
-    // assert_eq!(
-    //     query_response.tokens[0],
-    //     Token {
-    //         denom: format!("{}-{}", XRP_SUBUNIT, contract_addr.to_lowercase()),
-    //         issuer: contract_addr.clone(),
-    //         symbol: XRP_SYMBOL.to_string(),
-    //         subunit: XRP_SUBUNIT.to_string(),
-    //         precision: 6,
-    //         description: "".to_string(),
-    //         globally_frozen: false,
-    //         features: vec![MINTING.try_into().unwrap(), IBC.try_into().unwrap()],
-    //         burn_rate: "0".to_string(),
-    //         send_commission_rate: "0".to_string(),
-    //         uri: "".to_string(),
-    //         uri_hash: "".to_string(),
-    //         version: 1
-    //     }
-    // );
+    assert_eq!(
+        token_response,
+        MetadataResponse {
+            metadata: Some(Metadata {
+                description: None,
+                denom_units: vec![DenomUnit {
+                    denom: XRP_SYMBOL.to_string(),
+                    exponent: 6,
+                    aliases: vec![]
+                }],
+                base: None,
+                display: None,
+                name: Some(XRP_CURRENCY.to_string()),
+                symbol: Some(XRP_SYMBOL.to_string())
+            })
+        }
+    );
 }
 
 // #[test]
