@@ -31,8 +31,8 @@ pub enum ContractError {
     #[error("DuplicatedRelayer: All relayers must have different XRPL addresses, public keys and coreum addresses")]
     DuplicatedRelayer {},
 
-    #[error("CoreumTokenAlreadyRegistered: Token {} already registered", denom)]
-    CoreumTokenAlreadyRegistered { denom: String },
+    #[error("OraiTokenAlreadyRegistered: Token {} already registered", denom)]
+    OraiTokenAlreadyRegistered { denom: String },
 
     #[error(
         "XRPLTokenAlreadyRegistered: Token with issuer: {} and currency: {} is already registered",
@@ -130,7 +130,7 @@ pub enum ContractError {
     InvalidSendingPrecision {},
 
     #[error(
-        "InvalidDecimals: registered Coreum token can't have more than {} decimals",
+        "InvalidDecimals: registered Orai token can't have more than {} decimals",
         MAX_COREUM_TOKEN_DECIMALS
     )]
     InvalidDecimals {},

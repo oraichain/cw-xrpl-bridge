@@ -1,4 +1,4 @@
-# Coreumbridge XRPL spec.
+# OraiBridge XRPL spec.
 
 The spec describes the technical solution of the XRPL two-way bridge.
 
@@ -186,11 +186,11 @@ all relayers since it influences the operation signature. It is required for the
 in time the XRPL chain might be under a high load and transactions from the Coreum to XRPL might be not accepted by the
 nodes and get stuck. The fee update process helps to resolve such issues:
 
-* owner calls the contract a provides new `xrpl_base_fee`
-* the contract
-    * updates the `xrpl_base_fee` in config
-    * removes signatures from all pending operations
-    * increment the version of the pending operations
+- owner calls the contract a provides new `xrpl_base_fee`
+- the contract
+  - updates the `xrpl_base_fee` in config
+  - removes signatures from all pending operations
+  - increment the version of the pending operations
 
 Since the version of the operations is updated and `xrpl_base_fee` is changed (increased for example) the relayers will
 resign the transaction and a new fee will be used for the XRPL node to execute the transaction.
@@ -204,7 +204,7 @@ unexpected behavior of any bridge component. Only the owner can resume the bridg
 
 All accounts that can interact with the contract or multi-signing account are registered on the contract. And can be
 rotated using the keys rotation. The workflow is started by the owner, and can be confirmed by the current relayer set.
-The owner provides the new proposed relayer Coreum addresses, XRPL public keys and signing/evidence threshold. This 
+The owner provides the new proposed relayer Coreum addresses, XRPL public keys and signing/evidence threshold. This
 action will automatically halt the bridge in case it is not halted yet and start the keys rotation workflow.
 If there is a keys rotation in process, the owner cannot trigger another keys rotation. Once the keys rotation
 operation has been confirmed by the relayers, the owner can trigger another keys rotation (if needed/it failed) and/or
@@ -215,7 +215,7 @@ Check [workflow](#rotate-keys) for more details.
 
 The relayer is a connector of the XRPL bridge account on XRPL chain and smart contract. There are multiple instances
 of relayers, one for each key pair in the smart contract and multi-signing account. Most of the workflows are
-implemented as event processing produced by the contract and multi-signing account. The relayer source code is 
+implemented as event processing produced by the contract and multi-signing account. The relayer source code is
 open-sourced and public, so can be updatable at any time by any relayer.
 
 ## Amount rounding handling

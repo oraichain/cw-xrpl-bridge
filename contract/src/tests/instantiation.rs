@@ -286,7 +286,7 @@ fn contract_instantiation() {
 
 // #[test]
 // fn send_xrpl_originated_tokens_from_xrpl_to_coreum() {
-//     let app = CoreumTestApp::new();
+//     let app = OraiTestApp::new();
 //     let accounts_number = 4;
 //     let accounts = app
 //         .init_accounts(&coins(100_000_000_000, FEE_DENOM), accounts_number)
@@ -404,7 +404,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: hash.clone(),
 //                     issuer: test_token.issuer.clone(),
 //                     currency: test_token.currency.clone(),
@@ -454,7 +454,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToCoreumTransfer {
+//             evidence: Evidence::XRPLToOraiTransfer {
 //                 tx_hash: hash.clone(),
 //                 issuer: test_token.issuer.clone(),
 //                 currency: test_token.currency.clone(),
@@ -481,7 +481,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: test_token.issuer.clone(),
 //                     currency: test_token.currency.clone(),
@@ -643,7 +643,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: hash.clone(),
 //                     issuer: test_token.issuer.clone(),
 //                     currency: test_token.currency.clone(),
@@ -665,7 +665,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: hash.clone(),
 //                     issuer: "not_registered".to_string(),
 //                     currency: "not_registered".to_string(),
@@ -687,7 +687,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: hash.clone(),
 //                     issuer: test_token.issuer.clone(),
 //                     currency: test_token.currency.clone(),
@@ -708,7 +708,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToCoreumTransfer {
+//             evidence: Evidence::XRPLToOraiTransfer {
 //                 tx_hash: hash.clone(),
 //                 issuer: test_token.issuer.clone(),
 //                 currency: test_token.currency.clone(),
@@ -736,7 +736,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: hash.clone(),
 //                     issuer: test_token.issuer.clone(),
 //                     currency: test_token.currency.clone(),
@@ -759,7 +759,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToCoreumTransfer {
+//             evidence: Evidence::XRPLToOraiTransfer {
 //                 tx_hash: hash.clone(),
 //                 issuer: test_token.issuer.clone(),
 //                 currency: test_token.currency.clone(),
@@ -787,7 +787,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: hash.clone(),
 //                     issuer: test_token.issuer.clone(),
 //                     currency: test_token.currency.clone(),
@@ -812,7 +812,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: hash.clone(),
 //                     issuer: test_token.issuer.clone(),
 //                     currency: test_token.currency.clone(),
@@ -834,7 +834,7 @@ fn contract_instantiation() {
 
 // #[test]
 // fn send_coreum_originated_tokens_from_xrpl_to_coreum() {
-//     let app = CoreumTestApp::new();
+//     let app = OraiTestApp::new();
 //     let accounts_number = 3;
 //     let accounts = app
 //         .init_accounts(&coins(100_000_000_000, FEE_DENOM), accounts_number)
@@ -942,7 +942,7 @@ fn contract_instantiation() {
 
 //     app.execute(
 //         contract_addr.clone(),
-//         &ExecuteMsg::RegisterCoreumToken {
+//         &ExecuteMsg::RegisterOraiToken {
 //             denom: denom.clone(),
 //             decimals,
 //             sending_precision: 5,
@@ -1032,9 +1032,9 @@ fn contract_instantiation() {
 
 //     // Get the token information
 //     let query_coreum_tokens = wasm
-//         .query::<QueryMsg, CoreumTokensResponse>(
+//         .query::<QueryMsg, OraiTokensResponse>(
 //             contract_addr.clone(),
-//             &QueryMsg::CoreumTokens {
+//             &QueryMsg::OraiTokens {
 //                 start_after_key: None,
 //                 limit: None,
 //             },
@@ -1062,7 +1062,7 @@ fn contract_instantiation() {
 //     assert_eq!(query_pending_operations.operations.len(), 1);
 //     assert_eq!(
 //         query_pending_operations.operations[0].operation_type,
-//         OperationType::CoreumToXRPLTransfer {
+//         OperationType::OraiToXRPLTransfer {
 //             issuer: bridge_xrpl_address.clone(),
 //             currency: coreum_originated_token.xrpl_currency.clone(),
 //             amount: amount_truncated_and_converted,
@@ -1299,7 +1299,7 @@ fn contract_instantiation() {
 
 //     assert_eq!(query_pending_operations.operations.len(), 0);
 
-//     // Test sending the amount back from XRPL to Coreum
+//     // Test sending the amount back from XRPL to Orai
 //     // 10000000000 (1e10) is the minimum we can send back (15 - 5 (sending precision))
 //     let amount_to_send_back = Uint128::new(10000000000);
 
@@ -1308,7 +1308,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: generate_xrpl_address(),
 //                     currency: coreum_originated_token.xrpl_currency.clone(),
@@ -1330,7 +1330,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: bridge_xrpl_address.clone(),
 //                     currency: "invalid_currency".to_string(),
@@ -1352,7 +1352,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: bridge_xrpl_address.clone(),
 //                     currency: coreum_originated_token.xrpl_currency.clone(),
@@ -1375,7 +1375,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToCoreumTransfer {
+//             evidence: Evidence::XRPLToOraiTransfer {
 //                 tx_hash: generate_hash(),
 //                 issuer: bridge_xrpl_address.clone(),
 //                 currency: coreum_originated_token.xrpl_currency.clone(),
@@ -1453,7 +1453,7 @@ fn contract_instantiation() {
 
 //     app.execute(
 //         contract_addr.clone(),
-//         &ExecuteMsg::RegisterCoreumToken {
+//         &ExecuteMsg::RegisterOraiToken {
 //             denom: denom.clone(),
 //             decimals,
 //             sending_precision: 10,
@@ -1507,9 +1507,9 @@ fn contract_instantiation() {
 
 //     // Get the token information
 //     let query_coreum_tokens = wasm
-//         .query::<QueryMsg, CoreumTokensResponse>(
+//         .query::<QueryMsg, OraiTokensResponse>(
 //             contract_addr.clone(),
-//             &QueryMsg::CoreumTokens {
+//             &QueryMsg::OraiTokens {
 //                 start_after_key: None,
 //                 limit: None,
 //             },
@@ -1537,7 +1537,7 @@ fn contract_instantiation() {
 //     assert_eq!(query_pending_operations.operations.len(), 1);
 //     assert_eq!(
 //         query_pending_operations.operations[0].operation_type,
-//         OperationType::CoreumToXRPLTransfer {
+//         OperationType::OraiToXRPLTransfer {
 //             issuer: bridge_xrpl_address.clone(),
 //             currency: coreum_originated_token.xrpl_currency.clone(),
 //             amount: amount_truncated_and_converted,
@@ -1691,7 +1691,7 @@ fn contract_instantiation() {
 
 //     assert_eq!(query_pending_operations.operations.len(), 0);
 
-//     // Test sending the amount back from XRPL to Coreum
+//     // Test sending the amount back from XRPL to Orai
 //     // 100000 (1e5) is the minimum we can send back (15 - 10 (sending precision))
 //     let amount_to_send_back = Uint128::new(100000);
 
@@ -1700,7 +1700,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: generate_xrpl_address(),
 //                     currency: coreum_originated_token.xrpl_currency.clone(),
@@ -1722,7 +1722,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: bridge_xrpl_address.clone(),
 //                     currency: "invalid_currency".to_string(),
@@ -1744,7 +1744,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: bridge_xrpl_address.clone(),
 //                     currency: coreum_originated_token.xrpl_currency.clone(),
@@ -1767,7 +1767,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToCoreumTransfer {
+//             evidence: Evidence::XRPLToOraiTransfer {
 //                 tx_hash: generate_hash(),
 //                 issuer: bridge_xrpl_address.clone(),
 //                 currency: coreum_originated_token.xrpl_currency.clone(),
@@ -1820,7 +1820,7 @@ fn contract_instantiation() {
 
 // #[test]
 // fn send_from_coreum_to_xrpl() {
-//     let app = CoreumTestApp::new();
+//     let app = OraiTestApp::new();
 //     let accounts_number = 3;
 //     let accounts = app
 //         .init_accounts(&coins(100_000_000_000, FEE_DENOM), accounts_number)
@@ -1935,7 +1935,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToCoreumTransfer {
+//             evidence: Evidence::XRPLToOraiTransfer {
 //                 tx_hash: generate_hash(),
 //                 issuer: XRP_ISSUER.to_string(),
 //                 currency: XRP_CURRENCY.to_string(),
@@ -2010,7 +2010,7 @@ fn contract_instantiation() {
 //             ticket_sequence: Some(1),
 //             account_sequence: None,
 //             signatures: vec![],
-//             operation_type: OperationType::CoreumToXRPLTransfer {
+//             operation_type: OperationType::OraiToXRPLTransfer {
 //                 issuer: XRP_ISSUER.to_string(),
 //                 currency: XRP_CURRENCY.to_string(),
 //                 amount: amount_to_send_back,
@@ -2022,7 +2022,7 @@ fn contract_instantiation() {
 //         }
 //     );
 
-//     // If we try to send tokens from Coreum to XRPL using the multisig address as recipient, it should fail.
+//     // If we try to send tokens from Orai to XRPL using the multisig address as recipient, it should fail.
 //     let bridge_error = wasm
 //         .execute(
 //             contract_addr.clone(),
@@ -2039,7 +2039,7 @@ fn contract_instantiation() {
 //         .to_string()
 //         .contains(ContractError::ProhibitedAddress {}.to_string().as_str()));
 
-//     // If we try to send tokens from Coreum to XRPL using a prohibited address, it should fail.
+//     // If we try to send tokens from Orai to XRPL using a prohibited address, it should fail.
 //     let bridge_error = wasm
 //         .execute(
 //             contract_addr.clone(),
@@ -2056,7 +2056,7 @@ fn contract_instantiation() {
 //         .to_string()
 //         .contains(ContractError::ProhibitedAddress {}.to_string().as_str()));
 
-//     // Sending a CoreumToXRPLTransfer evidence with account sequence should fail.
+//     // Sending a OraiToXRPLTransfer evidence with account sequence should fail.
 //     let invalid_evidence = wasm
 //         .execute(
 //             contract_addr.clone(),
@@ -2243,7 +2243,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToCoreumTransfer {
+//             evidence: Evidence::XRPLToOraiTransfer {
 //                 tx_hash: generate_hash(),
 //                 issuer: test_token.issuer.to_string(),
 //                 currency: test_token.currency.to_string(),
@@ -2359,7 +2359,7 @@ fn contract_instantiation() {
 //             ticket_sequence: Some(4),
 //             account_sequence: None,
 //             signatures: vec![],
-//             operation_type: OperationType::CoreumToXRPLTransfer {
+//             operation_type: OperationType::OraiToXRPLTransfer {
 //                 issuer: xrpl_originated_token.issuer.clone(),
 //                 currency: xrpl_originated_token.currency.clone(),
 //                 amount: amount_to_send_back,
@@ -2639,7 +2639,7 @@ fn contract_instantiation() {
 //             ticket_sequence: Some(6),
 //             account_sequence: None,
 //             signatures: vec![],
-//             operation_type: OperationType::CoreumToXRPLTransfer {
+//             operation_type: OperationType::OraiToXRPLTransfer {
 //                 issuer: xrpl_originated_token.issuer.clone(),
 //                 currency: xrpl_originated_token.currency.clone(),
 //                 amount: deliver_amount.unwrap(),
@@ -2727,7 +2727,7 @@ fn contract_instantiation() {
 
 //     assert_eq!(request_balance.balance, request_initial_balance.balance);
 
-//     // *** Test sending Coreum originated tokens to XRPL
+//     // *** Test sending Orai originated tokens to XRPL
 
 //     // Let's issue a token to the sender and register it.
 
@@ -2758,7 +2758,7 @@ fn contract_instantiation() {
 
 //     app.execute(
 //         contract_addr.clone(),
-//         &ExecuteMsg::RegisterCoreumToken {
+//         &ExecuteMsg::RegisterOraiToken {
 //             denom: denom.clone(),
 //             decimals,
 //             sending_precision: 5,
@@ -2801,9 +2801,9 @@ fn contract_instantiation() {
 //         .bridge_xrpl_address;
 
 //     let query_coreum_tokens = wasm
-//         .query::<QueryMsg, CoreumTokensResponse>(
+//         .query::<QueryMsg, OraiTokensResponse>(
 //             contract_addr.clone(),
-//             &QueryMsg::CoreumTokens {
+//             &QueryMsg::OraiTokens {
 //                 start_after_key: None,
 //                 limit: None,
 //             },
@@ -2830,7 +2830,7 @@ fn contract_instantiation() {
 //     let amount = amount_to_send
 //         .checked_sub(Uint128::one()) //Truncated amount
 //         .unwrap()
-//         .checked_mul(Uint128::new(10u128.pow(9))) // XRPL Decimals - Coreum Decimals -> (15 - 6) = 9
+//         .checked_mul(Uint128::new(10u128.pow(9))) // XRPL Decimals - Orai Decimals -> (15 - 6) = 9
 //         .unwrap();
 //     assert_eq!(
 //         query_pending_operations.operations[0],
@@ -2840,7 +2840,7 @@ fn contract_instantiation() {
 //             ticket_sequence: Some(7),
 //             account_sequence: None,
 //             signatures: vec![],
-//             operation_type: OperationType::CoreumToXRPLTransfer {
+//             operation_type: OperationType::OraiToXRPLTransfer {
 //                 issuer: multisig_address.clone(),
 //                 currency: coreum_originated_token.xrpl_currency.clone(),
 //                 amount: amount.clone(),
@@ -2860,7 +2860,7 @@ fn contract_instantiation() {
 //             ticket_sequence: Some(8),
 //             account_sequence: None,
 //             signatures: vec![],
-//             operation_type: OperationType::CoreumToXRPLTransfer {
+//             operation_type: OperationType::OraiToXRPLTransfer {
 //                 issuer: multisig_address,
 //                 currency: coreum_originated_token.xrpl_currency.clone(),
 //                 amount: amount.clone(),
@@ -3023,7 +3023,7 @@ fn contract_instantiation() {
 
 // #[test]
 // fn precisions() {
-//     let app = CoreumTestApp::new();
+//     let app = OraiTestApp::new();
 //     let signer = app
 //         .init_account(&coins(100_000_000_000, FEE_DENOM))
 //         .unwrap();
@@ -3174,7 +3174,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: test_token1.issuer.clone(),
 //                     currency: test_token1.currency.clone(),
@@ -3197,7 +3197,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToCoreumTransfer {
+//             evidence: Evidence::XRPLToOraiTransfer {
 //                 tx_hash: generate_hash(),
 //                 issuer: test_token1.issuer.clone(),
 //                 currency: test_token1.currency.clone(),
@@ -3225,7 +3225,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: test_token1.issuer.clone(),
 //                     currency: test_token1.currency.clone(),
@@ -3320,7 +3320,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: test_token2.issuer.clone(),
 //                     currency: test_token2.currency.clone(),
@@ -3344,7 +3344,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: test_token2.issuer.clone(),
 //                     currency: test_token2.currency.clone(),
@@ -3367,7 +3367,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToCoreumTransfer {
+//             evidence: Evidence::XRPLToOraiTransfer {
 //                 tx_hash: generate_hash(),
 //                 issuer: test_token2.issuer.clone(),
 //                 currency: test_token2.currency.clone(),
@@ -3394,7 +3394,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToCoreumTransfer {
+//             evidence: Evidence::XRPLToOraiTransfer {
 //                 tx_hash: generate_hash(),
 //                 issuer: test_token2.issuer.clone(),
 //                 currency: test_token2.currency.clone(),
@@ -3430,7 +3430,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: test_token2.issuer.clone(),
 //                     currency: test_token2.currency.clone(),
@@ -3515,7 +3515,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: test_token3.issuer.clone(),
 //                     currency: test_token3.currency.clone(),
@@ -3539,7 +3539,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: test_token3.issuer.clone(),
 //                     currency: test_token3.currency.clone(),
@@ -3562,7 +3562,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToCoreumTransfer {
+//             evidence: Evidence::XRPLToOraiTransfer {
 //                 tx_hash: generate_hash(),
 //                 issuer: test_token3.issuer.clone(),
 //                 currency: test_token3.currency.clone(),
@@ -3588,7 +3588,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToCoreumTransfer {
+//             evidence: Evidence::XRPLToOraiTransfer {
 //                 tx_hash: generate_hash(),
 //                 issuer: test_token3.issuer.clone(),
 //                 currency: test_token3.currency.clone(),
@@ -3624,7 +3624,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: test_token2.issuer.clone(),
 //                     currency: test_token2.currency.clone(),
@@ -3657,7 +3657,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: XRP_ISSUER.to_string(),
 //                     currency: XRP_CURRENCY.to_string(),
@@ -3680,7 +3680,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToCoreumTransfer {
+//             evidence: Evidence::XRPLToOraiTransfer {
 //                 tx_hash: generate_hash(),
 //                 issuer: XRP_ISSUER.to_string(),
 //                 currency: XRP_CURRENCY.to_string(),
@@ -3706,7 +3706,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToCoreumTransfer {
+//             evidence: Evidence::XRPLToOraiTransfer {
 //                 tx_hash: generate_hash(),
 //                 issuer: XRP_ISSUER.to_string(),
 //                 currency: XRP_CURRENCY.to_string(),
@@ -3733,7 +3733,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: XRP_ISSUER.to_string(),
 //                     currency: XRP_CURRENCY.to_string(),
@@ -3753,7 +3753,7 @@ fn contract_instantiation() {
 //             .as_str()
 //     ));
 
-//     // *** Test with Coreum originated tokens ***
+//     // *** Test with Orai originated tokens ***
 
 //     // Let's issue a few assets to the sender and registering them with different precisions and max sending amounts.
 
@@ -3785,21 +3785,21 @@ fn contract_instantiation() {
 //     let denom3 = format!("{}-{}", "utest3", "signer").to_lowercase();
 
 //     let test_tokens = vec![
-//         CoreumToken {
+//         OraiToken {
 //             denom: denom1.clone(),
 //             decimals: 6,
 //             sending_precision: 6,
 //             max_holding_amount: Uint128::new(3),
 //             bridging_fee: Uint128::zero(),
 //         },
-//         CoreumToken {
+//         OraiToken {
 //             denom: denom2.clone(),
 //             decimals: 6,
 //             sending_precision: 0,
 //             max_holding_amount: Uint128::new(3990000),
 //             bridging_fee: Uint128::zero(),
 //         },
-//         CoreumToken {
+//         OraiToken {
 //             denom: denom3.clone(),
 //             decimals: 6,
 //             sending_precision: -6,
@@ -3813,7 +3813,7 @@ fn contract_instantiation() {
 //     for token in test_tokens.clone() {
 //         app.execute(
 //             contract_addr.clone(),
-//             &ExecuteMsg::RegisterCoreumToken {
+//             &ExecuteMsg::RegisterOraiToken {
 //                 denom: token.denom,
 //                 decimals: token.decimals,
 //                 sending_precision: token.sending_precision,
@@ -3827,9 +3827,9 @@ fn contract_instantiation() {
 //     }
 
 //     let query_coreum_tokens = wasm
-//         .query::<QueryMsg, CoreumTokensResponse>(
+//         .query::<QueryMsg, OraiTokensResponse>(
 //             contract_addr.clone(),
-//             &QueryMsg::CoreumTokens {
+//             &QueryMsg::OraiTokens {
 //                 start_after_key: None,
 //                 limit: None,
 //             },
@@ -4038,7 +4038,7 @@ fn contract_instantiation() {
 
 // #[test]
 // fn bridge_fee_collection_and_claiming() {
-//     let app = CoreumTestApp::new();
+//     let app = OraiTestApp::new();
 //     let accounts_number = 5;
 //     let accounts = app
 //         .init_accounts(&coins(100_000_000_000, FEE_DENOM), accounts_number)
@@ -4116,7 +4116,7 @@ fn contract_instantiation() {
 //         .unwrap();
 //     }
 
-//     // We are going to issue 2 tokens, one XRPL originated and one Coreum originated, with different fees.
+//     // We are going to issue 2 tokens, one XRPL originated and one Orai originated, with different fees.
 //     let test_token_xrpl = XRPLToken {
 //         issuer: generate_xrpl_address(), // Valid issuer
 //         currency: "USD".to_string(),     // Valid standard currency code
@@ -4150,7 +4150,7 @@ fn contract_instantiation() {
 
 //     let coreum_token_denom = format!("{}-{}", subunit, receiver.address()).to_lowercase();
 
-//     let test_token_coreum = CoreumToken {
+//     let test_token_coreum = OraiToken {
 //         denom: coreum_token_denom.clone(),
 //         decimals,
 //         sending_precision: 4,
@@ -4208,10 +4208,10 @@ fn contract_instantiation() {
 //         .find(|t| t.issuer == test_token_xrpl.issuer && t.currency == test_token_xrpl.currency)
 //         .unwrap();
 
-//     // Register Coreum originated token
+//     // Register Orai originated token
 //     app.execute(
 //         contract_addr.clone(),
-//         &ExecuteMsg::RegisterCoreumToken {
+//         &ExecuteMsg::RegisterOraiToken {
 //             denom: test_token_coreum.denom,
 //             decimals: test_token_coreum.decimals,
 //             sending_precision: test_token_coreum.sending_precision,
@@ -4224,9 +4224,9 @@ fn contract_instantiation() {
 //     .unwrap();
 
 //     let query_coreum_tokens = wasm
-//         .query::<QueryMsg, CoreumTokensResponse>(
+//         .query::<QueryMsg, OraiTokensResponse>(
 //             contract_addr.clone(),
-//             &QueryMsg::CoreumTokens {
+//             &QueryMsg::OraiTokens {
 //                 start_after_key: None,
 //                 limit: None,
 //             },
@@ -4239,13 +4239,13 @@ fn contract_instantiation() {
 //         .find(|t| t.denom == coreum_token_denom)
 //         .unwrap();
 
-//     // Let's bridge some tokens from XRPL to Coreum multiple times and verify that the fees are collected correctly in each step
+//     // Let's bridge some tokens from XRPL to Orai multiple times and verify that the fees are collected correctly in each step
 //     let tx_hash = generate_hash();
 //     for relayer in relayer_accounts.iter() {
 //         app.execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: tx_hash.clone(),
 //                     issuer: test_token_xrpl.issuer.clone(),
 //                     currency: test_token_xrpl.currency.clone(),
@@ -4300,7 +4300,7 @@ fn contract_instantiation() {
 //         app.execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: tx_hash.clone(),
 //                     issuer: test_token_xrpl.issuer.clone(),
 //                     currency: test_token_xrpl.currency.clone(),
@@ -4343,7 +4343,7 @@ fn contract_instantiation() {
 //         app.execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: tx_hash.clone(),
 //                     issuer: test_token_xrpl.issuer.clone(),
 //                     currency: test_token_xrpl.currency.clone(),
@@ -4390,7 +4390,7 @@ fn contract_instantiation() {
 //         .unwrap();
 //     assert_eq!(query_contract_balance.balance, "290000".to_string()); // 96666 * 3 + 2 in the remainder
 
-//     // Let's try to bridge some tokens back from Coreum to XRPL and verify that the fees are also collected correctly
+//     // Let's try to bridge some tokens back from Orai to XRPL and verify that the fees are also collected correctly
 //     let xrpl_receiver_address = generate_xrpl_address();
 //     app.execute(
 //         contract_addr.clone(),
@@ -4422,7 +4422,7 @@ fn contract_instantiation() {
 //             ticket_sequence: Some(2),
 //             account_sequence: None,
 //             signatures: vec![],
-//             operation_type: OperationType::CoreumToXRPLTransfer {
+//             operation_type: OperationType::OraiToXRPLTransfer {
 //                 issuer: test_token_xrpl.issuer.clone(),
 //                 currency: test_token_xrpl.currency.clone(),
 //                 amount: Uint128::new(999999999900000),
@@ -4520,7 +4520,7 @@ fn contract_instantiation() {
 //             ticket_sequence: Some(3),
 //             account_sequence: None,
 //             signatures: vec![],
-//             operation_type: OperationType::CoreumToXRPLTransfer {
+//             operation_type: OperationType::OraiToXRPLTransfer {
 //                 issuer: test_token_xrpl.issuer.clone(),
 //                 currency: test_token_xrpl.currency.clone(),
 //                 amount: Uint128::new(700000000000000),
@@ -4595,7 +4595,7 @@ fn contract_instantiation() {
 //     )
 //     .unwrap();
 
-//     // Now let's bridge tokens from Coreum to XRPL and verify that the fees are collected correctly in each step and accumulated with the previous ones
+//     // Now let's bridge tokens from Orai to XRPL and verify that the fees are collected correctly in each step and accumulated with the previous ones
 
 //     // Trying to send less than the bridging fees should fail
 //     let bridging_error = wasm
@@ -4646,7 +4646,7 @@ fn contract_instantiation() {
 //             ticket_sequence: Some(4),
 //             account_sequence: None,
 //             signatures: vec![],
-//             operation_type: OperationType::CoreumToXRPLTransfer {
+//             operation_type: OperationType::OraiToXRPLTransfer {
 //                 issuer: bridge_xrpl_address.clone(),
 //                 currency: coreum_token.xrpl_currency.clone(),
 //                 amount: Uint128::new(300000000000000),
@@ -4726,7 +4726,7 @@ fn contract_instantiation() {
 //             ticket_sequence: Some(5),
 //             account_sequence: None,
 //             signatures: vec![],
-//             operation_type: OperationType::CoreumToXRPLTransfer {
+//             operation_type: OperationType::OraiToXRPLTransfer {
 //                 issuer: bridge_xrpl_address.clone(),
 //                 currency: coreum_token.xrpl_currency.clone(),
 //                 amount: Uint128::new(600000000000000),
@@ -4776,7 +4776,7 @@ fn contract_instantiation() {
 //         .unwrap();
 //     }
 
-//     // Let's try to send the Coreum originated token in the opposite direction (from XRPL to Coreum) and see that fees are also accumulated correctly.
+//     // Let's try to send the Orai originated token in the opposite direction (from XRPL to Orai) and see that fees are also accumulated correctly.
 //     let previous_balance = asset_ft
 //         .query_balance(&QueryBalanceRequest {
 //             account: receiver.address(),
@@ -4789,7 +4789,7 @@ fn contract_instantiation() {
 //         app.execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: tx_hash.clone(),
 //                     issuer: bridge_xrpl_address.clone(),
 //                     currency: coreum_token.xrpl_currency.clone(),
@@ -5013,7 +5013,7 @@ fn contract_instantiation() {
 
 // #[test]
 // fn ticket_recovery() {
-//     let app = CoreumTestApp::new();
+//     let app = OraiTestApp::new();
 //     let accounts_number = 3;
 //     let accounts = app
 //         .init_accounts(&coins(100_000_000_000, FEE_DENOM), accounts_number)
@@ -5591,7 +5591,7 @@ fn contract_instantiation() {
 
 // #[test]
 // fn xrpl_token_registration_recovery() {
-//     let app = CoreumTestApp::new();
+//     let app = OraiTestApp::new();
 //     let signer = app
 //         .init_account(&coins(100_000_000_000, FEE_DENOM))
 //         .unwrap();
@@ -5799,7 +5799,7 @@ fn contract_instantiation() {
 
 // #[test]
 // fn rejected_ticket_allocation_with_no_tickets_left() {
-//     let app = CoreumTestApp::new();
+//     let app = OraiTestApp::new();
 //     let signer = app
 //         .init_account(&coins(100_000_000_000, FEE_DENOM))
 //         .unwrap();
@@ -5979,7 +5979,7 @@ fn contract_instantiation() {
 
 // #[test]
 // fn ticket_return_invalid_transactions() {
-//     let app = CoreumTestApp::new();
+//     let app = OraiTestApp::new();
 //     let accounts_number = 3;
 //     let accounts = app
 //         .init_accounts(&coins(100_000_000_000, FEE_DENOM), accounts_number)
@@ -6072,7 +6072,7 @@ fn contract_instantiation() {
 
 //     app.execute(
 //         contract_addr.clone(),
-//         &ExecuteMsg::RegisterCoreumToken {
+//         &ExecuteMsg::RegisterOraiToken {
 //             denom: denom.clone(),
 //             decimals,
 //             sending_precision: 6,
@@ -6161,7 +6161,7 @@ fn contract_instantiation() {
 
 // #[test]
 // fn token_update() {
-//     let app = CoreumTestApp::new();
+//     let app = OraiTestApp::new();
 //     let accounts_number = 3;
 //     let accounts = app
 //         .init_accounts(&coins(100_000_000_000, FEE_DENOM), accounts_number)
@@ -6231,7 +6231,7 @@ fn contract_instantiation() {
 //         .unwrap();
 //     }
 
-//     // Register one XRPL token and one Coreum token
+//     // Register one XRPL token and one Orai token
 //     let xrpl_token = XRPLToken {
 //         issuer: generate_xrpl_address(),
 //         currency: "USD".to_string(),
@@ -6262,7 +6262,7 @@ fn contract_instantiation() {
 
 //     let coreum_token_denom = format!("{}-{}", subunit, "signer").to_lowercase();
 
-//     let coreum_token = CoreumToken {
+//     let coreum_token = OraiToken {
 //         denom: coreum_token_denom.clone(),
 //         decimals: 6,
 //         sending_precision: 6,
@@ -6387,7 +6387,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToCoreumTransfer {
+//             evidence: Evidence::XRPLToOraiTransfer {
 //                 tx_hash: tx_hash.clone(),
 //                 issuer: xrpl_token.issuer.clone(),
 //                 currency: xrpl_token.currency.clone(),
@@ -6421,7 +6421,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: tx_hash.clone(),
 //                     issuer: xrpl_token.issuer.clone(),
 //                     currency: xrpl_token.currency.clone(),
@@ -6480,7 +6480,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToCoreumTransfer {
+//             evidence: Evidence::XRPLToOraiTransfer {
 //                 tx_hash: tx_hash.clone(),
 //                 issuer: xrpl_token.issuer.clone(),
 //                 currency: xrpl_token.currency.clone(),
@@ -6534,10 +6534,10 @@ fn contract_instantiation() {
 //         .to_string()
 //         .contains(ContractError::TokenNotEnabled {}.to_string().as_str()));
 
-//     // Register the Coreum Token
+//     // Register the Orai Token
 //     app.execute(
 //         contract_addr.clone(),
-//         &ExecuteMsg::RegisterCoreumToken {
+//         &ExecuteMsg::RegisterOraiToken {
 //             denom: coreum_token_denom.clone(),
 //             decimals: coreum_token.decimals,
 //             sending_precision: coreum_token.sending_precision,
@@ -6553,7 +6553,7 @@ fn contract_instantiation() {
 //     let update_status_error = wasm
 //         .execute(
 //             contract_addr.clone(),
-//             &ExecuteMsg::UpdateCoreumToken {
+//             &ExecuteMsg::UpdateOraiToken {
 //                 denom: coreum_token_denom.clone(),
 //                 state: Some(TokenState::Processing),
 //                 sending_precision: None,
@@ -6571,10 +6571,10 @@ fn contract_instantiation() {
 //             .as_str()
 //     ));
 
-//     // Disable the Coreum Token
+//     // Disable the Orai Token
 //     app.execute(
 //         contract_addr.clone(),
-//         &ExecuteMsg::UpdateCoreumToken {
+//         &ExecuteMsg::UpdateOraiToken {
 //             denom: coreum_token_denom.clone(),
 //             state: Some(TokenState::Disabled),
 //             sending_precision: None,
@@ -6606,7 +6606,7 @@ fn contract_instantiation() {
 //     // Enable it again and modify the sending precision
 //     app.execute(
 //         contract_addr.clone(),
-//         &ExecuteMsg::UpdateCoreumToken {
+//         &ExecuteMsg::UpdateOraiToken {
 //             denom: coreum_token_denom.clone(),
 //             state: Some(TokenState::Enabled),
 //             sending_precision: Some(5),
@@ -6620,9 +6620,9 @@ fn contract_instantiation() {
 
 //     // Get the token information
 //     let query_coreum_tokens = wasm
-//         .query::<QueryMsg, CoreumTokensResponse>(
+//         .query::<QueryMsg, OraiTokensResponse>(
 //             contract_addr.clone(),
-//             &QueryMsg::CoreumTokens {
+//             &QueryMsg::OraiTokens {
 //                 start_after_key: None,
 //                 limit: None,
 //             },
@@ -6635,7 +6635,7 @@ fn contract_instantiation() {
 //     let update_error = wasm
 //         .execute(
 //             contract_addr.clone(),
-//             &ExecuteMsg::UpdateCoreumToken {
+//             &ExecuteMsg::UpdateOraiToken {
 //                 denom: coreum_token_denom.clone(),
 //                 state: None,
 //                 sending_precision: Some(7),
@@ -6676,7 +6676,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToCoreumTransfer {
+//             evidence: Evidence::XRPLToOraiTransfer {
 //                 tx_hash: tx_hash.clone(),
 //                 issuer: xrpl_token.issuer.clone(),
 //                 currency: xrpl_token.currency.clone(),
@@ -6709,7 +6709,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: tx_hash.clone(),
 //                     issuer: xrpl_token.issuer.clone(),
 //                     currency: xrpl_token.currency.clone(),
@@ -6747,7 +6747,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToCoreumTransfer {
+//             evidence: Evidence::XRPLToOraiTransfer {
 //                 tx_hash: tx_hash.clone(),
 //                 issuer: xrpl_token.issuer.clone(),
 //                 currency: xrpl_token.currency.clone(),
@@ -6774,7 +6774,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToCoreumTransfer {
+//             evidence: Evidence::XRPLToOraiTransfer {
 //                 tx_hash: tx_hash.clone(),
 //                 issuer: xrpl_token.issuer.clone(),
 //                 currency: xrpl_token.currency.clone(),
@@ -6806,7 +6806,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToCoreumTransfer {
+//             evidence: Evidence::XRPLToOraiTransfer {
 //                 tx_hash: tx_hash.clone(),
 //                 issuer: xrpl_token.issuer.clone(),
 //                 currency: xrpl_token.currency.clone(),
@@ -6838,10 +6838,10 @@ fn contract_instantiation() {
 //             .unwrap()
 //     );
 
-//     // Updating bridging fee for Coreum Token should work
+//     // Updating bridging fee for Orai Token should work
 //     app.execute(
 //         contract_addr.clone(),
-//         &ExecuteMsg::UpdateCoreumToken {
+//         &ExecuteMsg::UpdateOraiToken {
 //             denom: coreum_token_denom.clone(),
 //             state: None,
 //             sending_precision: None,
@@ -6855,9 +6855,9 @@ fn contract_instantiation() {
 
 //     // Get the token information
 //     let query_coreum_tokens = wasm
-//         .query::<QueryMsg, CoreumTokensResponse>(
+//         .query::<QueryMsg, OraiTokensResponse>(
 //             contract_addr.clone(),
-//             &QueryMsg::CoreumTokens {
+//             &QueryMsg::OraiTokens {
 //                 start_after_key: None,
 //                 limit: None,
 //             },
@@ -6877,7 +6877,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToCoreumTransfer {
+//             evidence: Evidence::XRPLToOraiTransfer {
 //                 tx_hash: tx_hash.clone(),
 //                 issuer: xrpl_token.issuer.clone(),
 //                 currency: xrpl_token.currency.clone(),
@@ -6911,7 +6911,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: tx_hash.clone(),
 //                     issuer: xrpl_token.issuer.clone(),
 //                     currency: xrpl_token.currency.clone(),
@@ -6951,7 +6951,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: tx_hash.clone(),
 //                     issuer: xrpl_token.issuer.clone(),
 //                     currency: xrpl_token.currency.clone(),
@@ -6990,7 +6990,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToCoreumTransfer {
+//             evidence: Evidence::XRPLToOraiTransfer {
 //                 tx_hash: tx_hash.clone(),
 //                 issuer: xrpl_token.issuer.clone(),
 //                 currency: xrpl_token.currency.clone(),
@@ -7025,7 +7025,7 @@ fn contract_instantiation() {
 //             .unwrap()
 //     );
 
-//     // Let's bridge some tokens from Coreum to XRPL to have some amount in the bridge
+//     // Let's bridge some tokens from Orai to XRPL to have some amount in the bridge
 //     let current_max_amount = 10000;
 //     app.execute(
 //         contract_addr.clone(),
@@ -7082,11 +7082,11 @@ fn contract_instantiation() {
 
 //     assert_eq!(request_balance.balance, current_max_amount.to_string());
 
-//     // Updating max holding amount for Coreum Token should work with less than current holding amount should not work
+//     // Updating max holding amount for Orai Token should work with less than current holding amount should not work
 //     let error_update = wasm
 //         .execute(
 //             contract_addr.clone(),
-//             &ExecuteMsg::UpdateCoreumToken {
+//             &ExecuteMsg::UpdateOraiToken {
 //                 denom: coreum_token_denom.clone(),
 //                 state: None,
 //                 sending_precision: None,
@@ -7107,7 +7107,7 @@ fn contract_instantiation() {
 //     // Updating max holding amount with more than current holding amount should work
 //     app.execute(
 //         contract_addr.clone(),
-//         &ExecuteMsg::UpdateCoreumToken {
+//         &ExecuteMsg::UpdateOraiToken {
 //             denom: coreum_token_denom.clone(),
 //             state: None,
 //             sending_precision: None,
@@ -7120,9 +7120,9 @@ fn contract_instantiation() {
 //     .unwrap();
 
 //     let query_coreum_tokens = wasm
-//         .query::<QueryMsg, CoreumTokensResponse>(
+//         .query::<QueryMsg, OraiTokensResponse>(
 //             contract_addr.clone(),
-//             &QueryMsg::CoreumTokens {
+//             &QueryMsg::OraiTokens {
 //                 start_after_key: None,
 //                 limit: None,
 //             },
@@ -7182,7 +7182,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToCoreumTransfer {
+//             evidence: Evidence::XRPLToOraiTransfer {
 //                 tx_hash: tx_hash.clone(),
 //                 issuer: xrpl_token.issuer.clone(),
 //                 currency: xrpl_token.currency.clone(),
@@ -7216,7 +7216,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: tx_hash.clone(),
 //                     issuer: xrpl_token.issuer.clone(),
 //                     currency: xrpl_token.currency.clone(),
@@ -7262,7 +7262,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToCoreumTransfer {
+//             evidence: Evidence::XRPLToOraiTransfer {
 //                 tx_hash: tx_hash.clone(),
 //                 issuer: xrpl_token.issuer.clone(),
 //                 currency: xrpl_token.currency.clone(),
@@ -7298,7 +7298,7 @@ fn contract_instantiation() {
 
 // #[test]
 // fn test_burning_rate_and_commission_fee_coreum_tokens() {
-//     let app = CoreumTestApp::new();
+//     let app = OraiTestApp::new();
 //     let accounts_number = 3;
 //     let accounts = app
 //         .init_accounts(&coins(100_000_000_000, FEE_DENOM), accounts_number)
@@ -7417,7 +7417,7 @@ fn contract_instantiation() {
 //     // Let's try to bridge some tokens and back and check that everything works correctly
 //     app.execute(
 //         contract_addr.clone(),
-//         &ExecuteMsg::RegisterCoreumToken {
+//         &ExecuteMsg::RegisterOraiToken {
 //             denom: denom.clone(),
 //             decimals,
 //             sending_precision: 6,
@@ -7460,7 +7460,7 @@ fn contract_instantiation() {
 
 //     assert_eq!(request_balance.balance, "100".to_string());
 
-//     // Let's confirm the briding XRPL and bridge the entire amount back to Coreum
+//     // Let's confirm the briding XRPL and bridge the entire amount back to Orai
 //     let query_pending_operations = wasm
 //         .query::<QueryMsg, PendingOperationsResponse>(
 //             contract_addr.clone(),
@@ -7490,9 +7490,9 @@ fn contract_instantiation() {
 
 //     // Get the token information
 //     let query_coreum_tokens = wasm
-//         .query::<QueryMsg, CoreumTokensResponse>(
+//         .query::<QueryMsg, OraiTokensResponse>(
 //             contract_addr.clone(),
-//             &QueryMsg::CoreumTokens {
+//             &QueryMsg::OraiTokens {
 //                 start_after_key: None,
 //                 limit: None,
 //             },
@@ -7505,11 +7505,11 @@ fn contract_instantiation() {
 //         .find(|t| t.denom == denom)
 //         .unwrap();
 
-//     let amount_to_send_back = Uint128::new(100_000_000_000); // 100 utokens on Coreum are represented as 1e11 on XRPL
+//     let amount_to_send_back = Uint128::new(100_000_000_000); // 100 utokens on Orai are represented as 1e11 on XRPL
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToCoreumTransfer {
+//             evidence: Evidence::XRPLToOraiTransfer {
 //                 tx_hash: generate_hash(),
 //                 issuer: bridge_xrpl_address.clone(),
 //                 currency: coreum_originated_token.xrpl_currency.clone(),
@@ -7545,7 +7545,7 @@ fn contract_instantiation() {
 
 // #[test]
 // fn key_rotation() {
-//     let app = CoreumTestApp::new();
+//     let app = OraiTestApp::new();
 //     let accounts_number = 4;
 //     let accounts = app
 //         .init_accounts(&coins(100_000_000_000, FEE_DENOM), accounts_number)
@@ -7626,7 +7626,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToCoreumTransfer {
+//             evidence: Evidence::XRPLToOraiTransfer {
 //                 tx_hash: tx_hash_old_evidence.clone(),
 //                 issuer: XRP_ISSUER.to_string(),
 //                 currency: XRP_CURRENCY.to_string(),
@@ -7644,7 +7644,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: tx_hash_old_evidence.clone(),
 //                     issuer: XRP_ISSUER.to_string(),
 //                     currency: XRP_CURRENCY.to_string(),
@@ -7725,7 +7725,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: tx_hash_old_evidence.clone(),
 //                     issuer: XRP_ISSUER.to_string(),
 //                     currency: XRP_CURRENCY.to_string(),
@@ -7869,7 +7869,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToCoreumTransfer {
+//             evidence: Evidence::XRPLToOraiTransfer {
 //                 tx_hash: tx_hash_old_evidence.clone(),
 //                 issuer: XRP_ISSUER.to_string(),
 //                 currency: XRP_CURRENCY.to_string(),
@@ -7887,7 +7887,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: tx_hash_old_evidence.clone(),
 //                     issuer: XRP_ISSUER.to_string(),
 //                     currency: XRP_CURRENCY.to_string(),
@@ -7907,7 +7907,7 @@ fn contract_instantiation() {
 
 // #[test]
 // fn bridge_halting_and_resuming() {
-//     let app = CoreumTestApp::new();
+//     let app = OraiTestApp::new();
 //     let accounts_number = 3;
 //     let accounts = app
 //         .init_accounts(&coins(100_000_000_000, FEE_DENOM), accounts_number)
@@ -7986,7 +7986,7 @@ fn contract_instantiation() {
 //     let bridge_halted_error = wasm
 //         .execute(
 //             contract_addr.clone(),
-//             &ExecuteMsg::RegisterCoreumToken {
+//             &ExecuteMsg::RegisterOraiToken {
 //                 denom: "any_denom".to_string(),
 //                 decimals: 6,
 //                 sending_precision: 1,
@@ -8021,7 +8021,7 @@ fn contract_instantiation() {
 //         .to_string()
 //         .contains(ContractError::BridgeHalted {}.to_string().as_str()));
 
-//     // Sending from Coreum to XRPL should fail
+//     // Sending from Orai to XRPL should fail
 //     let bridge_halted_error = wasm
 //         .execute(
 //             contract_addr.clone(),
@@ -8062,7 +8062,7 @@ fn contract_instantiation() {
 //     let bridge_halted_error = wasm
 //         .execute(
 //             contract_addr.clone(),
-//             &ExecuteMsg::UpdateCoreumToken {
+//             &ExecuteMsg::UpdateOraiToken {
 //                 denom: "any_denom".to_string(),
 //                 state: Some(TokenState::Disabled),
 //                 sending_precision: None,
@@ -8208,7 +8208,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: generate_xrpl_address(),
 //                     currency: "USD".to_string(),
@@ -8313,7 +8313,7 @@ fn contract_instantiation() {
 
 // #[test]
 // fn updating_xrpl_base_fee() {
-//     let app = CoreumTestApp::new();
+//     let app = OraiTestApp::new();
 //     let accounts_number = 4;
 //     let accounts = app
 //         .init_accounts(&coins(100_000_000_000_000, FEE_DENOM), accounts_number)
@@ -8402,7 +8402,7 @@ fn contract_instantiation() {
 //     // Register COREUM to send some
 //     app.execute(
 //         contract_addr.clone(),
-//         &ExecuteMsg::RegisterCoreumToken {
+//         &ExecuteMsg::RegisterOraiToken {
 //             denom: FEE_DENOM.to_string(),
 //             decimals: 6,
 //             sending_precision: 6,
@@ -8629,7 +8629,7 @@ fn contract_instantiation() {
 
 // #[test]
 // fn cancel_pending_operation() {
-//     let app = CoreumTestApp::new();
+//     let app = OraiTestApp::new();
 //     let signer = app
 //         .init_account(&coins(100_000_000_000, FEE_DENOM))
 //         .unwrap();
@@ -8667,7 +8667,7 @@ fn contract_instantiation() {
 //     // Register COREUM Token
 //     app.execute(
 //         contract_addr.clone(),
-//         &ExecuteMsg::RegisterCoreumToken {
+//         &ExecuteMsg::RegisterOraiToken {
 //             denom: FEE_DENOM.to_string(),
 //             decimals: 6,
 //             sending_precision: 6,
@@ -8783,7 +8783,7 @@ fn contract_instantiation() {
 //     )
 //     .unwrap();
 
-//     // CoreumToXRPLTransfer pending operation
+//     // OraiToXRPLTransfer pending operation
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SendToXRPL {
@@ -8912,7 +8912,7 @@ fn contract_instantiation() {
 
 //     assert_eq!(query_pending_operations.operations.len(), 2);
 
-//     // Cancel the second pending operation (CoreumToXRPLTransfer), which should create a pending refund for the sender
+//     // Cancel the second pending operation (OraiToXRPLTransfer), which should create a pending refund for the sender
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::CancelPendingOperation {
@@ -9006,7 +9006,7 @@ fn contract_instantiation() {
 
 // #[test]
 // fn invalid_transaction_evidences() {
-//     let app = CoreumTestApp::new();
+//     let app = OraiTestApp::new();
 //     let signer = app
 //         .init_account(&coins(100_000_000_000, FEE_DENOM))
 //         .unwrap();
@@ -9131,7 +9131,7 @@ fn contract_instantiation() {
 
 // #[test]
 // fn unauthorized_access() {
-//     let app = CoreumTestApp::new();
+//     let app = OraiTestApp::new();
 //     let signer = app
 //         .init_account(&coins(100_000_000_000, FEE_DENOM))
 //         .unwrap();
@@ -9184,7 +9184,7 @@ fn contract_instantiation() {
 //     let register_coreum_error = wasm
 //         .execute(
 //             contract_addr.clone(),
-//             &ExecuteMsg::RegisterCoreumToken {
+//             &ExecuteMsg::RegisterOraiToken {
 //                 denom: "any_denom".to_string(),
 //                 decimals: 6,
 //                 sending_precision: 1,
@@ -9225,7 +9225,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToCoreumTransfer {
+//                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: generate_xrpl_address(),
 //                     currency: "USD".to_string(),
@@ -9270,42 +9270,42 @@ fn contract_instantiation() {
 
 //     // Create multiple evidences changing only 1 field to verify that all of them have different hashes
 //     let xrpl_to_coreum_transfer_evidences = vec![
-//         Evidence::XRPLToCoreumTransfer {
+//         Evidence::XRPLToOraiTransfer {
 //             tx_hash: hash.clone(),
 //             issuer: issuer.clone(),
 //             currency: currency.clone(),
 //             amount: amount.clone(),
 //             recipient: recipient.clone(),
 //         },
-//         Evidence::XRPLToCoreumTransfer {
+//         Evidence::XRPLToOraiTransfer {
 //             tx_hash: generate_hash(),
 //             issuer: issuer.clone(),
 //             currency: currency.clone(),
 //             amount: amount.clone(),
 //             recipient: recipient.clone(),
 //         },
-//         Evidence::XRPLToCoreumTransfer {
+//         Evidence::XRPLToOraiTransfer {
 //             tx_hash: hash.clone(),
 //             issuer: "new_issuer".to_string(),
 //             currency: currency.clone(),
 //             amount: amount.clone(),
 //             recipient: recipient.clone(),
 //         },
-//         Evidence::XRPLToCoreumTransfer {
+//         Evidence::XRPLToOraiTransfer {
 //             tx_hash: hash.clone(),
 //             issuer: issuer.clone(),
 //             currency: "new_currency".to_string(),
 //             amount: amount.clone(),
 //             recipient: recipient.clone(),
 //         },
-//         Evidence::XRPLToCoreumTransfer {
+//         Evidence::XRPLToOraiTransfer {
 //             tx_hash: hash.clone(),
 //             issuer: issuer.clone(),
 //             currency: currency.clone(),
 //             amount: Uint128::one(),
 //             recipient: recipient.clone(),
 //         },
-//         Evidence::XRPLToCoreumTransfer {
+//         Evidence::XRPLToOraiTransfer {
 //             tx_hash: hash.clone(),
 //             issuer: issuer.clone(),
 //             currency: currency.clone(),

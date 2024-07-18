@@ -43,7 +43,7 @@ func RootCmd(ctx context.Context) (*cobra.Command, error) {
 		WithInput(os.Stdin)
 	ctx = context.WithValue(ctx, client.ClientContextKey, &clientCtx)
 	cmd := &cobra.Command{
-		Short: "Coreumbridge XRPL relayer.",
+		Short: "OraiBridge XRPL relayer.",
 	}
 	cmd.SetContext(ctx)
 

@@ -3,14 +3,14 @@ use token_bindings::DenomsByCreatorResponse;
 use crate::contract::{MAX_COREUM_TOKEN_DECIMALS, XRPL_DENOM_PREFIX};
 use crate::evidence::{Evidence, OperationResult, TransactionResult};
 use crate::msg::XRPLTokensResponse;
-use crate::state::{ CoreumToken, XRPLToken};
+use crate::state::{ OraiToken, XRPLToken};
 use crate::tests::helper::{
     generate_hash, generate_xrpl_address, generate_xrpl_pub_key, MockApp, FEE_DENOM, TRUST_SET_LIMIT_AMOUNT
 };
 use crate::{
     contract::XRP_CURRENCY,
     msg::{
-        CoreumTokensResponse, ExecuteMsg, InstantiateMsg, QueryMsg,
+        OraiTokensResponse, ExecuteMsg, InstantiateMsg, QueryMsg,
     },
     relayer::Relayer,
     state::TokenState,
@@ -45,7 +45,7 @@ fn register_coreum_token() {
         .unwrap();
 
     let test_tokens = vec![
-        CoreumToken {
+        OraiToken {
             denom: "denom1".to_string(),
             decimals: 6,
             sending_precision: 6,
@@ -54,7 +54,7 @@ fn register_coreum_token() {
             xrpl_currency: XRP_CURRENCY.to_string(),
             state: TokenState::Enabled,
         },
-        CoreumToken {
+        OraiToken {
             denom: "denom2".to_string(),
             decimals: 6,
             sending_precision: 6,
@@ -70,7 +70,7 @@ fn register_coreum_token() {
         app.execute(
             Addr::unchecked("signer"),
             contract_addr.clone(),
-            &ExecuteMsg::RegisterCoreumToken {
+            &ExecuteMsg::RegisterOraiToken {
                 denom: token.denom,
                 decimals: token.decimals,
                 sending_precision: token.sending_precision,
@@ -86,7 +86,7 @@ fn register_coreum_token() {
     app.execute(
         Addr::unchecked("signer"),
         contract_addr.clone(),
-        &ExecuteMsg::RegisterCoreumToken {
+        &ExecuteMsg::RegisterOraiToken {
             denom:test_tokens[0].denom.clone(),
             decimals: 6,
             sending_precision: 6,
@@ -101,7 +101,7 @@ fn register_coreum_token() {
     app.execute(
         Addr::unchecked("signer"),
         contract_addr.clone(),
-        &ExecuteMsg::RegisterCoreumToken {
+        &ExecuteMsg::RegisterOraiToken {
             denom: test_tokens[0].denom.clone(),
             decimals: 6,
             sending_precision: -17,
@@ -116,7 +116,7 @@ fn register_coreum_token() {
     app.execute(
         Addr::unchecked("signer"),
         contract_addr.clone(),
-        &ExecuteMsg::RegisterCoreumToken {
+        &ExecuteMsg::RegisterOraiToken {
             denom: test_tokens[0].denom.clone(),
             decimals: MAX_COREUM_TOKEN_DECIMALS + 1,
             sending_precision: test_tokens[0].sending_precision,
@@ -131,7 +131,7 @@ fn register_coreum_token() {
     app.execute(
         Addr::unchecked("signer"),
         contract_addr.clone(),
-        &ExecuteMsg::RegisterCoreumToken {
+        &ExecuteMsg::RegisterOraiToken {
             denom: "1aa".to_string(), // Starts with a number
             decimals: test_tokens[0].decimals,
             sending_precision: test_tokens[0].sending_precision,
@@ -145,7 +145,7 @@ fn register_coreum_token() {
     app.execute(
         Addr::unchecked("signer"),
         contract_addr.clone(),
-        &ExecuteMsg::RegisterCoreumToken {
+        &ExecuteMsg::RegisterOraiToken {
             denom: "aa".to_string(), // Too short
             decimals: test_tokens[0].decimals,
             sending_precision: test_tokens[0].sending_precision,
@@ -160,7 +160,7 @@ fn register_coreum_token() {
             .execute(
                 Addr::unchecked("signer"),
                 contract_addr.clone(),
-                &ExecuteMsg::RegisterCoreumToken {
+                &ExecuteMsg::RegisterOraiToken {
                     denom: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string(), // Too long
                     decimals: test_tokens[0].decimals,
                     sending_precision: test_tokens[0].sending_precision,
@@ -178,7 +178,7 @@ fn register_coreum_token() {
         .execute(
             Addr::unchecked("signer"),
             contract_addr.clone(),
-            &ExecuteMsg::RegisterCoreumToken {
+            &ExecuteMsg::RegisterOraiToken {
                 denom: "aa$".to_string(), // Invalid symbols
                 decimals: test_tokens[0].decimals,
                 sending_precision: test_tokens[0].sending_precision,
@@ -193,10 +193,10 @@ fn register_coreum_token() {
     
 
     // Query all tokens
-    let query_coreum_tokens :CoreumTokensResponse= app
+    let query_coreum_tokens :OraiTokensResponse= app
         .query(
             contract_addr.clone(),
-            &QueryMsg::CoreumTokens {
+            &QueryMsg::OraiTokens {
                 start_after_key: None,
                 limit: None,
             },
@@ -215,10 +215,10 @@ fn register_coreum_token() {
     );
 
     // Query tokens with limit
-    let query_coreum_tokens:CoreumTokensResponse = app
+    let query_coreum_tokens:OraiTokensResponse = app
         .query(
             contract_addr.clone(),
-            &QueryMsg::CoreumTokens {
+            &QueryMsg::OraiTokens {
                 start_after_key: None,
                 limit: Some(1),
             },
@@ -228,10 +228,10 @@ fn register_coreum_token() {
     assert_eq!(query_coreum_tokens.tokens[0].denom, test_tokens[0].denom);
 
     // Query tokens with pagination
-    let query_coreum_tokens:CoreumTokensResponse = app
+    let query_coreum_tokens:OraiTokensResponse = app
         .query(
             contract_addr.clone(),
-            &QueryMsg::CoreumTokens {
+            &QueryMsg::OraiTokens {
                 start_after_key: query_coreum_tokens.last_key,
                 limit: Some(1),
             },

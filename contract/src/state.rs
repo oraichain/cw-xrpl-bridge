@@ -13,9 +13,9 @@ pub enum TopKey {
     Config = b'1',
     TxEvidences = b'2',
     ProcessedTxs = b'3',
-    CoreumTokens = b'4',
+    OraiTokens = b'4',
     XRPLTokens = b'5',
-    UsedXRPLCurrenciesForCoreumTokens = b'6',
+    UsedXRPLCurrenciesForOraiTokens = b'6',
     AvailableTickets = b'7',
     UsedTickets = b'8',
     PendingOperations = b'9',
@@ -81,7 +81,7 @@ pub enum TokenState {
 }
 
 #[cw_serde]
-pub struct CoreumToken {
+pub struct OraiToken {
     pub denom: String,
     pub decimals: u32,
     pub xrpl_currency: String,
@@ -125,22 +125,22 @@ pub const XRPL_TOKENS: IndexedMap<String, XRPLToken, XRPLTokensIndexes> = Indexe
         ),
     },
 );
-// Tokens registered from Coreum side. These tokens are coreum originated tokens that are registered to be bridged - key is denom on Coreum chain
-// CoreumTokens will have xrpl_currency as a secondary index so that we can get the CoreumToken corresponding to a xrpl_currency
-pub struct CoreumTokensIndexes<'a> {
-    pub xrpl_currency: UniqueIndex<'a, String, CoreumToken, String>,
+// Tokens registered from Orai side. These tokens are coreum originated tokens that are registered to be bridged - key is denom on Orai chain
+// OraiTokens will have xrpl_currency as a secondary index so that we can get the OraiToken corresponding to a xrpl_currency
+pub struct OraiTokensIndexes<'a> {
+    pub xrpl_currency: UniqueIndex<'a, String, OraiToken, String>,
 }
 
-impl<'a> IndexList<CoreumToken> for CoreumTokensIndexes<'a> {
-    fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<CoreumToken>> + '_> {
-        let v: Vec<&dyn Index<CoreumToken>> = vec![&self.xrpl_currency];
+impl<'a> IndexList<OraiToken> for OraiTokensIndexes<'a> {
+    fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<OraiToken>> + '_> {
+        let v: Vec<&dyn Index<OraiToken>> = vec![&self.xrpl_currency];
         Box::new(v.into_iter())
     }
 }
 
-pub const COREUM_TOKENS: IndexedMap<String, CoreumToken, CoreumTokensIndexes> = IndexedMap::new(
-    TopKey::CoreumTokens.as_str(),
-    CoreumTokensIndexes {
+pub const COREUM_TOKENS: IndexedMap<String, OraiToken, OraiTokensIndexes> = IndexedMap::new(
+    TopKey::OraiTokens.as_str(),
+    OraiTokensIndexes {
         xrpl_currency: UniqueIndex::new(
             |coreum_token| coreum_token.xrpl_currency.clone(),
             "coreum_token__xrpl_currency",
@@ -165,7 +165,7 @@ pub const PENDING_OPERATIONS: Map<u64, Operation> = Map::new(TopKey::PendingOper
 pub const PENDING_TICKET_UPDATE: Item<bool> = Item::new(TopKey::PendingTicketUpdate.as_str());
 // Flag to know if we are currently waiting for a rotate keys operation to be completed
 pub const PENDING_ROTATE_KEYS: Item<bool> = Item::new(TopKey::PendingRotateKeys.as_str());
-// Amounts for rejected/invalid transactions on XRPL for each Coreum user that they can reclaim manually.
+// Amounts for rejected/invalid transactions on XRPL for each Orai user that they can reclaim manually.
 // Key is the tuple (user_address, pending_refund_id)
 pub struct PendingRefundsIndexes<'a> {
     // One address can have multiple pending refunds
@@ -202,7 +202,7 @@ pub const PROHIBITED_XRPL_ADDRESSES: Map<String, Empty> =
 
 pub enum ContractActions {
     Instantiation,
-    RegisterCoreumToken,
+    RegisterOraiToken,
     RegisterXRPLToken,
     RecoverTickets,
     RecoverXRPLTokenRegistration,
@@ -211,7 +211,7 @@ pub enum ContractActions {
     SendToXRPL,
     ClaimFees,
     UpdateXRPLToken,
-    UpdateCoreumToken,
+    UpdateOraiToken,
     UpdateXRPLBaseFee,
     UpdateProhibitedXRPLAddresses,
     ClaimRefunds,
@@ -230,7 +230,7 @@ impl UserType {
     pub fn is_authorized(&self, action: &ContractActions) -> bool {
         match &action {
             ContractActions::Instantiation => true,
-            ContractActions::RegisterCoreumToken => matches!(self, Self::Owner),
+            ContractActions::RegisterOraiToken => matches!(self, Self::Owner),
             ContractActions::RegisterXRPLToken => matches!(self, Self::Owner),
             ContractActions::SaveEvidence => matches!(self, Self::Relayer),
             ContractActions::RecoverTickets => matches!(self, Self::Owner),
@@ -239,7 +239,7 @@ impl UserType {
             ContractActions::SendToXRPL => true,
             ContractActions::ClaimFees => matches!(self, Self::Relayer),
             ContractActions::UpdateXRPLToken => matches!(self, Self::Owner),
-            ContractActions::UpdateCoreumToken => matches!(self, Self::Owner),
+            ContractActions::UpdateOraiToken => matches!(self, Self::Owner),
             ContractActions::UpdateXRPLBaseFee => matches!(self, Self::Owner),
             ContractActions::UpdateProhibitedXRPLAddresses => matches!(self, Self::Owner),
             ContractActions::ClaimRefunds => true,
@@ -255,7 +255,7 @@ impl ContractActions {
     pub const fn as_str(&self) -> &'static str {
         match self {
             Self::Instantiation => "bridge_instantiation",
-            Self::RegisterCoreumToken => "register_coreum_token",
+            Self::RegisterOraiToken => "register_coreum_token",
             Self::RegisterXRPLToken => "register_xrpl_token",
             Self::RecoverTickets => "recover_tickets",
             Self::RecoverXRPLTokenRegistration => "recover_xrpl_token_registration",
@@ -265,7 +265,7 @@ impl ContractActions {
             Self::ClaimFees => "claim_fees",
             Self::ClaimRefunds => "claim_refunds",
             Self::UpdateXRPLToken => "update_xrpl_token",
-            Self::UpdateCoreumToken => "update_coreum_token",
+            Self::UpdateOraiToken => "update_coreum_token",
             Self::UpdateXRPLBaseFee => "update_xrpl_base_fee",
             Self::UpdateProhibitedXRPLAddresses => "update_invalid_xrpl_addresses",
             Self::HaltBridge => "halt_bridge",

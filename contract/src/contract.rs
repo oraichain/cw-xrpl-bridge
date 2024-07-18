@@ -9,7 +9,7 @@ use crate::{
     },
     fees::{amount_after_bridge_fees, handle_fee_collection, substract_relayer_fees},
     msg::{
-        AvailableTicketsResponse, BridgeStateResponse, CoreumTokensResponse, ExecuteMsg,
+        AvailableTicketsResponse, BridgeStateResponse, OraiTokensResponse, ExecuteMsg,
         FeesCollectedResponse, InstantiateMsg, PendingOperationsResponse, PendingRefund,
         PendingRefundsResponse, ProcessedTxsResponse, ProhibitedXRPLAddressesResponse, QueryMsg,
         TransactionEvidence, TransactionEvidencesResponse, XRPLTokensResponse,
@@ -21,7 +21,7 @@ use crate::{
     relayer::{is_relayer, validate_relayers, Relayer},
     signatures::add_signature,
     state::{
-        BridgeState, Config, ContractActions, CoreumToken, TokenState, UserType, XRPLToken,
+        BridgeState, Config, ContractActions, OraiToken, TokenState, UserType, XRPLToken,
         AVAILABLE_TICKETS, CONFIG, COREUM_TOKENS, FEES_COLLECTED, PENDING_OPERATIONS,
         PENDING_REFUNDS, PENDING_ROTATE_KEYS, PENDING_TICKET_UPDATE, PROCESSED_TXS,
         PROHIBITED_XRPL_ADDRESSES, TX_EVIDENCES, USED_TICKETS_COUNTER, XRPL_TOKENS,
@@ -54,7 +54,7 @@ const MAX_PAGE_LIMIT: u32 = 250;
 const MIN_SENDING_PRECISION: i32 = -15;
 const MAX_SENDING_PRECISION: i32 = 15;
 
-// Maximum amount of decimals a Coreum token can be registered with
+// Maximum amount of decimals a Orai token can be registered with
 pub const MAX_COREUM_TOKEN_DECIMALS: u32 = 100;
 
 pub const MAX_TICKETS: u32 = 250;
@@ -206,7 +206,7 @@ pub fn execute(
 ) -> ContractResult<Response> {
     match msg {
         ExecuteMsg::UpdateOwnership(action) => update_ownership(deps, env, info, action),
-        ExecuteMsg::RegisterCoreumToken {
+        ExecuteMsg::RegisterOraiToken {
             denom,
             decimals,
             sending_precision,
@@ -290,7 +290,7 @@ pub fn execute(
             bridging_fee,
             max_holding_amount,
         ),
-        ExecuteMsg::UpdateCoreumToken {
+        ExecuteMsg::UpdateOraiToken {
             denom,
             state,
             sending_precision,
@@ -351,14 +351,14 @@ fn register_coreum_token(
     max_holding_amount: Uint128,
     bridging_fee: Uint128,
 ) -> ContractResult<Response> {
-    check_authorization(deps.storage, &sender, &ContractActions::RegisterCoreumToken)?;
+    check_authorization(deps.storage, &sender, &ContractActions::RegisterOraiToken)?;
     assert_bridge_active(deps.as_ref())?;
 
     validate_coreum_token_decimals(decimals)?;
     validate_sending_precision(sending_precision, decimals)?;
 
     if COREUM_TOKENS.has(deps.storage, denom.clone()) {
-        return Err(ContractError::CoreumTokenAlreadyRegistered { denom });
+        return Err(ContractError::OraiTokenAlreadyRegistered { denom });
     }
 
     validate_coreum_denom(&denom)?;
@@ -388,20 +388,20 @@ fn register_coreum_token(
         return Err(ContractError::RegistrationFailure {});
     }
 
-    let token = CoreumToken {
+    let token = OraiToken {
         denom: denom.clone(),
         decimals,
         xrpl_currency: xrpl_currency.clone(),
         sending_precision,
         max_holding_amount,
-        // All registered Coreum originated tokens will start as enabled because they don't need a TrustSet operation to be bridged because issuer for such tokens is bridge address
+        // All registered Orai originated tokens will start as enabled because they don't need a TrustSet operation to be bridged because issuer for such tokens is bridge address
         state: TokenState::Enabled,
         bridging_fee,
     };
     COREUM_TOKENS.save(deps.storage, denom.clone(), &token)?;
 
     Ok(Response::new()
-        .add_attribute("action", ContractActions::RegisterCoreumToken.as_str())
+        .add_attribute("action", ContractActions::RegisterOraiToken.as_str())
         .add_attribute("sender", sender)
         .add_attribute("denom", denom)
         .add_attribute("decimals", decimals.to_string())
@@ -448,7 +448,7 @@ fn register_xrpl_token(
         .to_string()
         .to_lowercase();
 
-    // Symbol and subunit we will use for the issued token in Coreum
+    // Symbol and subunit we will use for the issued token in Orai
     let symbol_and_subunit = format!("{XRPL_DENOM_PREFIX}{hex_string}");
 
     let config = CONFIG.load(deps.storage)?;
@@ -473,7 +473,7 @@ fn register_xrpl_token(
         vec![],
     )?;
 
-    // Denom that token will have in Coreum
+    // Denom that token will have in Orai
     let denom = format!("{}-{}", symbol_and_subunit, env.contract.address).to_lowercase();
 
     // This in theory is not necessary because issue_msg would fail if the denom already exists but it's a double check and a way to return a more readable error.
@@ -545,7 +545,7 @@ fn save_evidence(
         .add_attribute("sender", sender.as_str());
 
     match evidence {
-        Evidence::XRPLToCoreumTransfer {
+        Evidence::XRPLToOraiTransfer {
             tx_hash,
             issuer,
             currency,
@@ -562,7 +562,7 @@ fn save_evidence(
                 return Err(ContractError::ProhibitedAddress {});
             }
 
-            // This means the token is not a Coreum originated token (the issuer is not the XRPL multisig address)
+            // This means the token is not a Orai originated token (the issuer is not the XRPL multisig address)
             if issuer.ne(&config.bridge_xrpl_address) {
                 // Create issuer+currency key to find denom on coreum.
                 let key = build_xrpl_token_key(&issuer, &currency);
@@ -586,7 +586,7 @@ fn save_evidence(
                 let amount_after_bridge_fees =
                     amount_after_bridge_fees(amount, token.bridging_fee)?;
 
-                // Here we simply truncate because the Coreum tokens corresponding to XRPL originated tokens have the same decimals as their corresponding Coreum tokens
+                // Here we simply truncate because the Orai tokens corresponding to XRPL originated tokens have the same decimals as their corresponding Orai tokens
                 let (amount_to_send, remainder) =
                     truncate_amount(token.sending_precision, decimals, amount_after_bridge_fees)?;
 
@@ -611,13 +611,13 @@ fn save_evidence(
                         remainder,
                     )?;
 
-                    // let mint_msg_fees = CosmosMsg::from(CoreumMsg::AssetFT(assetft::Msg::Mint {
+                    // let mint_msg_fees = CosmosMsg::from(OraiMsg::AssetFT(assetft::Msg::Mint {
                     //     coin: coin(fee_collected.u128(), token.coreum_denom.clone()),
                     //     recipient: None,
                     // }));
 
                     // let mint_msg_for_recipient =
-                    //     CosmosMsg::from(CoreumMsg::AssetFT(assetft::Msg::Mint {
+                    //     CosmosMsg::from(OraiMsg::AssetFT(assetft::Msg::Mint {
                     //         coin: coin(amount_to_send.u128(), token.coreum_denom),
                     //         recipient: Some(recipient.to_string()),
                     //     }));
@@ -658,12 +658,12 @@ fn save_evidence(
                         }
                         token
                     }
-                    // In practice this will never happen because any token issued from the multisig address is a token that was bridged from Coreum so it will be registered.
+                    // In practice this will never happen because any token issued from the multisig address is a token that was bridged from Orai so it will be registered.
                     // This could theoretically happen if relayers agree and sign a transaction outside of bridge flow
                     None => return Err(ContractError::TokenNotRegistered {}),
                 };
 
-                // We first convert the amount we receive with XRPL decimals to the corresponding decimals in Coreum and then we apply the truncation according to sending precision
+                // We first convert the amount we receive with XRPL decimals to the corresponding decimals in Orai and then we apply the truncation according to sending precision
                 let (amount_to_send, remainder) = convert_and_truncate_amount(
                     token.sending_precision,
                     XRPL_TOKENS_DECIMALS,
@@ -710,8 +710,8 @@ fn save_evidence(
 
             // Validation for certain operation types that can't have account sequences
             match &operation.operation_type {
-                // A TrustSet operation or CoreumToXRPLTransfer operation are only executed with tickets
-                OperationType::TrustSet { .. } | OperationType::CoreumToXRPLTransfer { .. } => {
+                // A TrustSet operation or OraiToXRPLTransfer operation are only executed with tickets
+                OperationType::TrustSet { .. } | OperationType::OraiToXRPLTransfer { .. } => {
                     if account_sequence.is_some() {
                         return Err(ContractError::InvalidTransactionResultEvidence {});
                     }
@@ -995,7 +995,7 @@ fn send_to_xrpl(
             remainder,
         )?;
     } else {
-        // If it's not an XRPL originated token we need to check that it's registered as a Coreum originated token and that it's enabled
+        // If it's not an XRPL originated token we need to check that it's registered as a Orai originated token and that it's enabled
         let coreum_token = COREUM_TOKENS
             .load(deps.storage, funds.denom.clone())
             .map_err(|_| ContractError::TokenNotRegistered {})?;
@@ -1014,7 +1014,7 @@ fn send_to_xrpl(
         issuer = config.bridge_xrpl_address;
         currency = coreum_token.xrpl_currency;
 
-        // Since this is a Coreum originated token with different decimals, we are first going to truncate according to sending precision and then we will convert
+        // Since this is a Orai originated token with different decimals, we are first going to truncate according to sending precision and then we will convert
         // to corresponding XRPL decimals
         let remainder;
         (amount_to_send, remainder) = truncate_and_convert_amount(
@@ -1032,7 +1032,7 @@ fn send_to_xrpl(
             remainder,
         )?;
 
-        // For Coreum originated tokens we need to check that we are not going over the amount
+        // For Orai originated tokens we need to check that we are not going over the amount
         // that the bridge will hold in escrow
         if deps
             .querier
@@ -1043,7 +1043,7 @@ fn send_to_xrpl(
             return Err(ContractError::MaximumBridgedAmountReached {});
         }
 
-        // Coreum originated tokens never have transfer rate so the max amount will be the same as amount to send
+        // Orai originated tokens never have transfer rate so the max amount will be the same as amount to send
         max_amount = Some(amount_to_send);
     }
 
@@ -1060,7 +1060,7 @@ fn send_to_xrpl(
         env.block.time.seconds(),
         Some(ticket),
         None,
-        OperationType::CoreumToXRPLTransfer {
+        OperationType::OraiToXRPLTransfer {
             issuer,
             currency,
             amount: amount_to_send,
@@ -1147,7 +1147,7 @@ fn update_coreum_token(
     check_authorization(
         deps.as_ref().storage,
         &sender,
-        &ContractActions::UpdateCoreumToken,
+        &ContractActions::UpdateOraiToken,
     )?;
     assert_bridge_active(deps.as_ref())?;
 
@@ -1177,7 +1177,7 @@ fn update_coreum_token(
     COREUM_TOKENS.save(deps.storage, denom.clone(), &token)?;
 
     Ok(Response::new()
-        .add_attribute("action", ContractActions::UpdateCoreumToken.as_str())
+        .add_attribute("action", ContractActions::UpdateOraiToken.as_str())
         .add_attribute("sender", sender)
         .add_attribute("denom", denom))
 }
@@ -1421,7 +1421,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             start_after_key,
             limit,
         } => to_binary(&query_xrpl_tokens(deps, start_after_key, limit)),
-        QueryMsg::CoreumTokens {
+        QueryMsg::OraiTokens {
             start_after_key,
             limit,
         } => to_binary(&query_coreum_tokens(deps, start_after_key, limit)),
@@ -1498,11 +1498,11 @@ fn query_coreum_tokens(
     deps: Deps,
     start_after_key: Option<String>,
     limit: Option<u32>,
-) -> CoreumTokensResponse {
+) -> OraiTokensResponse {
     let limit = limit.unwrap_or(MAX_PAGE_LIMIT).min(MAX_PAGE_LIMIT);
     let start = start_after_key.map(Bound::exclusive);
     let mut last_key = None;
-    let tokens: Vec<CoreumToken> = COREUM_TOKENS
+    let tokens: Vec<OraiToken> = COREUM_TOKENS
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit as usize)
         .filter_map(Result::ok)
@@ -1512,7 +1512,7 @@ fn query_coreum_tokens(
         })
         .collect();
 
-    CoreumTokensResponse { last_key, tokens }
+    OraiTokensResponse { last_key, tokens }
 }
 
 fn query_pending_operations(
@@ -1671,7 +1671,7 @@ fn query_prohibited_xrpl_addresses(deps: Deps) -> ProhibitedXRPLAddressesRespons
 fn check_issue_fee(_deps: &DepsMut, _info: &MessageInfo) -> Result<(), ContractError> {
     // let query_params_res: ParamsResponse = deps
     //     .querier
-    //     .query(&CoreumQueries::AssetFT(Query::Params {}).into())?;
+    //     .query(&OraiQueries::AssetFT(Query::Params {}).into())?;
 
     // if query_params_res.params.issue_fee != one_coin(info)? {
     //     return Err(ContractError::InvalidFundsAmount {});
@@ -1783,7 +1783,7 @@ fn truncate_amount(
     Ok((truncated_amount, remainder))
 }
 
-// Function used to convert the amount received from XRPL with XRPL decimals to the Coreum amount with Coreum decimals
+// Function used to convert the amount received from XRPL with XRPL decimals to the Orai amount with Orai decimals
 pub fn convert_amount_decimals(
     from_decimals: u32,
     to_decimals: u32,

@@ -3,7 +3,7 @@ use cosmwasm_std::{Addr, Coin, Uint128};
 use cw_ownable::{cw_ownable_execute, cw_ownable_query};
 
 #[allow(unused_imports)]
-use crate::state::{Config, CoreumToken, XRPLToken};
+use crate::state::{Config, OraiToken, XRPLToken};
 use crate::{
     evidence::Evidence,
     operation::Operation,
@@ -37,16 +37,16 @@ pub struct MigrateMsg {}
 #[cw_ownable_execute]
 #[cw_serde]
 pub enum ExecuteMsg {
-    // Registers a Coreum token so that it can be bridged to XRPL
+    // Registers a Orai token so that it can be bridged to XRPL
     // Only the owner can do this
-    RegisterCoreumToken {
+    RegisterOraiToken {
         denom: String,
         decimals: u32,
         sending_precision: i32,
         max_holding_amount: Uint128,
         bridging_fee: Uint128,
     },
-    // Registers an XRPL originated token so that it can be bridge to Coreum
+    // Registers an XRPL originated token so that it can be bridge to Orai
     // Only the owner can do this
     #[serde(rename = "register_xrpl_token")]
     RegisterXRPLToken {
@@ -83,7 +83,7 @@ pub enum ExecuteMsg {
         evidence: Evidence,
     },
     #[serde(rename = "send_to_xrpl")]
-    // Send a Token from Coreum to XRPL
+    // Send a Token from Orai to XRPL
     // Anyone can do this
     SendToXRPL {
         recipient: String,
@@ -107,10 +107,10 @@ pub enum ExecuteMsg {
         bridging_fee: Option<Uint128>,
         max_holding_amount: Option<Uint128>,
     },
-    // Update the configuration of a Coreum originated token
-    UpdateCoreumToken {
+    // Update the configuration of a Orai originated token
+    UpdateOraiToken {
         denom: String,
-        // All fields that can be updatable for Coreum tokens will be updated with this message.
+        // All fields that can be updatable for Orai tokens will be updated with this message.
         // They are all optional, so any fields that have to be updated can be included in the message.
         state: Option<TokenState>,
         sending_precision: Option<i32>,
@@ -172,8 +172,8 @@ pub enum QueryMsg {
         start_after_key: Option<String>,
         limit: Option<u32>,
     },
-    #[returns(CoreumTokensResponse)]
-    CoreumTokens {
+    #[returns(OraiTokensResponse)]
+    OraiTokens {
         start_after_key: Option<String>,
         limit: Option<u32>,
     },
@@ -220,9 +220,9 @@ pub struct XRPLTokensResponse {
 }
 
 #[cw_serde]
-pub struct CoreumTokensResponse {
+pub struct OraiTokensResponse {
     pub last_key: Option<String>,
-    pub tokens: Vec<CoreumToken>,
+    pub tokens: Vec<OraiToken>,
 }
 
 #[cw_serde]

@@ -1,4 +1,4 @@
-# Coreumbridge XRPL
+# OraiBridge XRPL
 
 Two-way Coreum <-> XRPL bridge.
 
@@ -10,13 +10,13 @@ The specification is described [here](spec/spec.md).
 
 ### Build relayer binary
 
-```bash 
+```bash
 make build-relayer
 ```
 
 ### Build relayer docker image
 
-```bash 
+```bash
 make images
 ```
 
@@ -24,7 +24,7 @@ make images
 
 ### Build contract in docker
 
-```bash 
+```bash
 make build-contract
 ```
 
@@ -32,12 +32,12 @@ make build-contract
 
 ### Start dev environment
 
-```bash 
+```bash
 make znet-start
 ```
 
 ### Stop dev environment
 
-```bash 
+```bash
 make znet-remove
 ```
