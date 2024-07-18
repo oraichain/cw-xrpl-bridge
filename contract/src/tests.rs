@@ -43,6 +43,7 @@ mod tests {
         state::{Config, TokenState, XRPLToken as QueriedXRPLToken},
     };
 
+    const WASM_BYTE_CODE: &[u8] = include_bytes!("../artifacts/coreumbridge-xrpl.wasm");
     const FEE_DENOM: &str = "ucore";
     const XRP_SYMBOL: &str = "XRP";
     const XRP_SUBUNIT: &str = "drop";
@@ -83,9 +84,8 @@ mod tests {
         bridge_xrpl_address: String,
         xrpl_base_fee: u64,
     ) -> String {
-        let wasm_byte_code = std::fs::read("../contract/artifacts/coreumbridge_xrpl.wasm").unwrap();
         let code_id = wasm
-            .store_code(&wasm_byte_code, None, &signer)
+            .store_code(&WASM_BYTE_CODE, None, &signer)
             .unwrap()
             .data
             .code_id;
