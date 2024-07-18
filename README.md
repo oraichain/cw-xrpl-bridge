@@ -1,6 +1,6 @@
 # OraiBridge XRPL
 
-Two-way Coreum <-> XRPL bridge.
+Two-way Oraichain <-> XRPL bridge.
 
 ## Specification
 
