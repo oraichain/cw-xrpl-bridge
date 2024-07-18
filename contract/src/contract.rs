@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 use crate::{
     address::{validate_xrpl_address, validate_xrpl_address_format},
-    error::ContractError,
+    error::{ContractError, ContractResult},
     evidence::{
         handle_evidence, hash_bytes, Evidence, OperationResult::TicketsAllocation,
         TransactionResult,
@@ -33,13 +33,9 @@ use crate::{
     },
 };
 
-use coreum_wasm_sdk::{
-    // assetft::{self, Msg::Issue, ParamsResponse, Query, IBC, MINTING},
-    core::{CoreumMsg, CoreumQueries, CoreumResult},
-};
 use cosmwasm_std::{
-    coin, coins, entry_point, to_json_binary, wasm_execute, Addr, BankMsg, Binary, Coin, CosmosMsg,
-    Deps, DepsMut, Empty, Env, MessageInfo, Order, Response, StdResult, Storage, Uint128,
+    coins, entry_point, to_binary, wasm_execute, Addr, BankMsg, Binary, Coin, Deps, DepsMut, Empty,
+    Env, HexBinary, MessageInfo, Order, Response, StdResult, Storage, Uint128,
 };
 use cw2::set_contract_version;
 use cw_ownable::{get_ownership, initialize_owner, is_owner, Action};
@@ -100,11 +96,11 @@ pub const INITIAL_PROHIBITED_XRPL_ADDRESSES: [&str; 5] = [
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
-    deps: DepsMut<CoreumQueries>,
+    deps: DepsMut,
     env: Env,
     info: MessageInfo,
     msg: InstantiateMsg,
-) -> CoreumResult<ContractError> {
+) -> ContractResult<Response> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     initialize_owner(
         deps.storage,
@@ -118,11 +114,7 @@ pub fn instantiate(
     }
     PROHIBITED_XRPL_ADDRESSES.save(deps.storage, msg.bridge_xrpl_address.clone(), &Empty {})?;
 
-    validate_relayers(
-        deps.as_ref().into_empty(),
-        &msg.relayers,
-        msg.evidence_threshold,
-    )?;
+    validate_relayers(deps.as_ref(), &msg.relayers, msg.evidence_threshold)?;
 
     // The multisig address on XRPL must be valid
     validate_xrpl_address_format(&msg.bridge_xrpl_address)?;
@@ -194,15 +186,13 @@ pub fn instantiate(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    deps: DepsMut<CoreumQueries>,
+    deps: DepsMut,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
-) -> CoreumResult<ContractError> {
+) -> ContractResult<Response> {
     match msg {
-        ExecuteMsg::UpdateOwnership(action) => {
-            update_ownership(deps.into_empty(), env, info, action)
-        }
+        ExecuteMsg::UpdateOwnership(action) => update_ownership(deps, env, info, action),
         ExecuteMsg::RegisterCoreumToken {
             denom,
             decimals,
@@ -210,7 +200,7 @@ pub fn execute(
             max_holding_amount,
             bridging_fee,
         } => register_coreum_token(
-            deps.into_empty(),
+            deps,
             env,
             info.sender,
             denom,
@@ -235,14 +225,12 @@ pub fn execute(
             max_holding_amount,
             bridging_fee,
         ),
-        ExecuteMsg::SaveEvidence { evidence } => {
-            save_evidence(deps.into_empty(), env, info.sender, evidence)
-        }
+        ExecuteMsg::SaveEvidence { evidence } => save_evidence(deps, env, info.sender, evidence),
         ExecuteMsg::RecoverTickets {
             account_sequence,
             number_of_tickets,
         } => recover_tickets(
-            deps.into_empty(),
+            deps,
             env.block.time.seconds(),
             info.sender,
             account_sequence,
@@ -250,7 +238,7 @@ pub fn execute(
         ),
         ExecuteMsg::RecoverXRPLTokenRegistration { issuer, currency } => {
             recover_xrpl_token_registration(
-                deps.into_empty(),
+                deps,
                 env.block.time.seconds(),
                 info.sender,
                 issuer,
@@ -262,7 +250,7 @@ pub fn execute(
             operation_version,
             signature,
         } => save_signature(
-            deps.into_empty(),
+            deps,
             info.sender,
             operation_id,
             operation_version,
@@ -271,7 +259,7 @@ pub fn execute(
         ExecuteMsg::SendToXRPL {
             recipient,
             deliver_amount,
-        } => send_to_xrpl(deps.into_empty(), env, info, recipient, deliver_amount),
+        } => send_to_xrpl(deps, env, info, recipient, deliver_amount),
         ExecuteMsg::UpdateXRPLToken {
             issuer,
             currency,
@@ -280,7 +268,7 @@ pub fn execute(
             bridging_fee,
             max_holding_amount,
         } => update_xrpl_token(
-            deps.into_empty(),
+            deps,
             info.sender,
             issuer,
             currency,
@@ -296,7 +284,7 @@ pub fn execute(
             bridging_fee,
             max_holding_amount,
         } => update_coreum_token(
-            deps.into_empty(),
+            deps,
             env,
             info.sender,
             denom,
@@ -306,35 +294,23 @@ pub fn execute(
             max_holding_amount,
         ),
         ExecuteMsg::UpdateXRPLBaseFee { xrpl_base_fee } => {
-            update_xrpl_base_fee(deps.into_empty(), info.sender, xrpl_base_fee)
+            update_xrpl_base_fee(deps, info.sender, xrpl_base_fee)
         }
         ExecuteMsg::ClaimRefund { pending_refund_id } => {
-            claim_pending_refund(deps.into_empty(), info.sender, pending_refund_id)
+            claim_pending_refund(deps, info.sender, pending_refund_id)
         }
-        ExecuteMsg::ClaimRelayerFees { amounts } => {
-            claim_relayer_fees(deps.into_empty(), info.sender, amounts)
-        }
-        ExecuteMsg::HaltBridge {} => halt_bridge(deps.into_empty(), info.sender),
-        ExecuteMsg::ResumeBridge {} => resume_bridge(deps.into_empty(), info.sender),
+        ExecuteMsg::ClaimRelayerFees { amounts } => claim_relayer_fees(deps, info.sender, amounts),
+        ExecuteMsg::HaltBridge {} => halt_bridge(deps, info.sender),
+        ExecuteMsg::ResumeBridge {} => resume_bridge(deps, info.sender),
         ExecuteMsg::RotateKeys {
             new_relayers,
             new_evidence_threshold,
-        } => rotate_keys(
-            deps.into_empty(),
-            env,
-            info.sender,
-            new_relayers,
-            new_evidence_threshold,
-        ),
+        } => rotate_keys(deps, env, info.sender, new_relayers, new_evidence_threshold),
         ExecuteMsg::UpdateProhibitedXRPLAddresses {
             prohibited_xrpl_addresses,
-        } => update_prohibited_xrpl_addresses(
-            deps.into_empty(),
-            info.sender,
-            prohibited_xrpl_addresses,
-        ),
+        } => update_prohibited_xrpl_addresses(deps, info.sender, prohibited_xrpl_addresses),
         ExecuteMsg::CancelPendingOperation { operation_id } => {
-            cancel_pending_operation(deps.into_empty(), info.sender, operation_id)
+            cancel_pending_operation(deps, info.sender, operation_id)
         }
     }
 }
@@ -344,7 +320,7 @@ fn update_ownership(
     env: Env,
     info: MessageInfo,
     action: Action,
-) -> CoreumResult<ContractError> {
+) -> ContractResult<Response> {
     let ownership = cw_ownable::update_ownership(deps, &env.block, &info.sender, action)?;
     Ok(Response::new()
         .add_attribute("sender", info.sender)
@@ -361,7 +337,7 @@ fn register_coreum_token(
     sending_precision: i32,
     max_holding_amount: Uint128,
     bridging_fee: Uint128,
-) -> CoreumResult<ContractError> {
+) -> ContractResult<Response> {
     check_authorization(deps.storage, &sender, &ContractActions::RegisterCoreumToken)?;
     assert_bridge_active(deps.as_ref())?;
 
@@ -421,7 +397,7 @@ fn register_coreum_token(
 
 #[allow(clippy::too_many_arguments)]
 fn register_xrpl_token(
-    deps: DepsMut<CoreumQueries>,
+    deps: DepsMut,
     env: Env,
     info: MessageInfo,
     issuer: String,
@@ -429,7 +405,7 @@ fn register_xrpl_token(
     sending_precision: i32,
     max_holding_amount: Uint128,
     bridging_fee: Uint128,
-) -> CoreumResult<ContractError> {
+) -> ContractResult<Response> {
     check_authorization(
         deps.as_ref().storage,
         &info.sender,
@@ -536,7 +512,7 @@ fn save_evidence(
     env: Env,
     sender: Addr,
     evidence: Evidence,
-) -> CoreumResult<ContractError> {
+) -> ContractResult<Response> {
     check_authorization(
         deps.as_ref().storage,
         &sender,
@@ -741,6 +717,7 @@ fn save_evidence(
                     &tx_hash,
                     operation_id,
                     ticket_sequence,
+                    &config.token_factory_addr,
                     &mut response,
                 )?;
 
@@ -781,7 +758,7 @@ fn recover_tickets(
     sender: Addr,
     account_sequence: u64,
     number_of_tickets: Option<u32>,
-) -> CoreumResult<ContractError> {
+) -> ContractResult<Response> {
     check_authorization(
         deps.as_ref().storage,
         &sender,
@@ -839,7 +816,7 @@ fn recover_xrpl_token_registration(
     sender: Addr,
     issuer: String,
     currency: String,
-) -> CoreumResult<ContractError> {
+) -> ContractResult<Response> {
     check_authorization(
         deps.as_ref().storage,
         &sender,
@@ -894,7 +871,7 @@ fn save_signature(
     operation_id: u64,
     operation_version: u64,
     signature: &str,
-) -> CoreumResult<ContractError> {
+) -> ContractResult<Response> {
     check_authorization(
         deps.as_ref().storage,
         &sender,
@@ -922,7 +899,7 @@ fn send_to_xrpl(
     info: MessageInfo,
     recipient: String,
     deliver_amount: Option<Uint128>,
-) -> CoreumResult<ContractError> {
+) -> ContractResult<Response> {
     assert_bridge_active(deps.as_ref())?;
     // Check that we are only sending 1 type of coin
     let funds = one_coin(&info)?;
@@ -1097,7 +1074,7 @@ fn update_xrpl_token(
     sending_precision: Option<i32>,
     bridging_fee: Option<Uint128>,
     max_holding_amount: Option<Uint128>,
-) -> CoreumResult<ContractError> {
+) -> ContractResult<Response> {
     check_authorization(
         deps.as_ref().storage,
         &sender,
@@ -1153,7 +1130,7 @@ fn update_coreum_token(
     sending_precision: Option<i32>,
     bridging_fee: Option<Uint128>,
     max_holding_amount: Option<Uint128>,
-) -> CoreumResult<ContractError> {
+) -> ContractResult<Response> {
     check_authorization(
         deps.as_ref().storage,
         &sender,
@@ -1196,7 +1173,7 @@ fn update_xrpl_base_fee(
     deps: DepsMut,
     sender: Addr,
     xrpl_base_fee: u64,
-) -> CoreumResult<ContractError> {
+) -> ContractResult<Response> {
     check_authorization(
         deps.as_ref().storage,
         &sender,
@@ -1237,11 +1214,7 @@ fn update_xrpl_base_fee(
         .add_attribute("new_xrpl_base_fee", xrpl_base_fee.to_string()))
 }
 
-fn claim_relayer_fees(
-    deps: DepsMut,
-    sender: Addr,
-    amounts: Vec<Coin>,
-) -> CoreumResult<ContractError> {
+fn claim_relayer_fees(deps: DepsMut, sender: Addr, amounts: Vec<Coin>) -> ContractResult<Response> {
     assert_bridge_active(deps.as_ref())?;
 
     // If fees were never collected for this address we don't allow the claim
@@ -1269,7 +1242,7 @@ fn claim_pending_refund(
     deps: DepsMut,
     sender: Addr,
     pending_refund_id: String,
-) -> CoreumResult<ContractError> {
+) -> ContractResult<Response> {
     assert_bridge_active(deps.as_ref())?;
     let coin = remove_pending_refund(deps.storage, &sender, pending_refund_id)?;
 
@@ -1284,7 +1257,7 @@ fn claim_pending_refund(
         .add_message(send_msg))
 }
 
-fn halt_bridge(deps: DepsMut, sender: Addr) -> CoreumResult<ContractError> {
+fn halt_bridge(deps: DepsMut, sender: Addr) -> ContractResult<Response> {
     check_authorization(deps.as_ref().storage, &sender, &ContractActions::HaltBridge)?;
     // No point halting a bridge that is already halted
     assert_bridge_active(deps.as_ref())?;
@@ -1295,7 +1268,7 @@ fn halt_bridge(deps: DepsMut, sender: Addr) -> CoreumResult<ContractError> {
         .add_attribute("sender", sender))
 }
 
-fn resume_bridge(deps: DepsMut, sender: Addr) -> CoreumResult<ContractError> {
+fn resume_bridge(deps: DepsMut, sender: Addr) -> ContractResult<Response> {
     check_authorization(
         deps.as_ref().storage,
         &sender,
@@ -1320,7 +1293,7 @@ fn rotate_keys(
     sender: Addr,
     new_relayers: Vec<Relayer>,
     new_evidence_threshold: u32,
-) -> CoreumResult<ContractError> {
+) -> ContractResult<Response> {
     check_authorization(deps.as_ref().storage, &sender, &ContractActions::RotateKeys)?;
 
     // If there is already a pending rotate keys ongoing, we don't allow another one until that one is confirmed
@@ -1358,7 +1331,7 @@ fn update_prohibited_xrpl_addresses(
     deps: DepsMut,
     sender: Addr,
     prohibited_xrpl_addresses: Vec<String>,
-) -> CoreumResult<ContractError> {
+) -> ContractResult<Response> {
     check_authorization(
         deps.as_ref().storage,
         &sender,
@@ -1391,7 +1364,7 @@ fn cancel_pending_operation(
     deps: DepsMut,
     sender: Addr,
     operation_id: u64,
-) -> CoreumResult<ContractError> {
+) -> ContractResult<Response> {
     check_authorization(
         deps.as_ref().storage,
         &sender,
@@ -1407,6 +1380,7 @@ fn cancel_pending_operation(
     };
     let mut response = Response::new();
 
+    let config = CONFIG.load(deps.storage)?;
     // We handle the operation with an invalid result
     handle_operation(
         deps.storage,
@@ -1416,6 +1390,7 @@ fn cancel_pending_operation(
         &None,
         operation_id,
         operation.ticket_sequence,
+        &config.token_factory_addr,
         &mut response,
     )?;
 
@@ -1428,50 +1403,48 @@ fn cancel_pending_operation(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::Config {} => to_json_binary(&query_config(deps)?),
+        QueryMsg::Config {} => to_binary(&query_config(deps)?),
         QueryMsg::XRPLTokens {
             start_after_key,
             limit,
-        } => to_json_binary(&query_xrpl_tokens(deps, start_after_key, limit)),
+        } => to_binary(&query_xrpl_tokens(deps, start_after_key, limit)),
         QueryMsg::CoreumTokens {
             start_after_key,
             limit,
-        } => to_json_binary(&query_coreum_tokens(deps, start_after_key, limit)),
-        QueryMsg::Ownership {} => to_json_binary(&get_ownership(deps.storage)?),
+        } => to_binary(&query_coreum_tokens(deps, start_after_key, limit)),
+        QueryMsg::Ownership {} => to_binary(&get_ownership(deps.storage)?),
         QueryMsg::PendingOperations {
             start_after_key,
             limit,
-        } => to_json_binary(&query_pending_operations(deps, start_after_key, limit)),
-        QueryMsg::AvailableTickets {} => to_json_binary(&query_available_tickets(deps)?),
+        } => to_binary(&query_pending_operations(deps, start_after_key, limit)),
+        QueryMsg::AvailableTickets {} => to_binary(&query_available_tickets(deps)?),
         QueryMsg::PendingRefunds {
             address,
             start_after_key,
             limit,
-        } => to_json_binary(&query_pending_refunds(
+        } => to_binary(&query_pending_refunds(
             deps,
             address,
             start_after_key,
             limit,
         )),
         QueryMsg::FeesCollected { relayer_address } => {
-            to_json_binary(&query_fees_collected(deps, relayer_address)?)
+            to_binary(&query_fees_collected(deps, relayer_address)?)
         }
-        QueryMsg::BridgeState {} => to_json_binary(&query_bridge_state(deps)?),
+        QueryMsg::BridgeState {} => to_binary(&query_bridge_state(deps)?),
         QueryMsg::TransactionEvidence { hash } => {
-            to_json_binary(&query_transaction_evidence(deps, hash)?)
+            to_binary(&query_transaction_evidence(deps, hash)?)
         }
         QueryMsg::TransactionEvidences {
             start_after_key,
             limit,
-        } => to_json_binary(&query_transaction_evidences(deps, start_after_key, limit)),
-        QueryMsg::ProcessedTx { hash } => to_json_binary(&query_processed_tx(deps, hash)),
+        } => to_binary(&query_transaction_evidences(deps, start_after_key, limit)),
+        QueryMsg::ProcessedTx { hash } => to_binary(&query_processed_tx(deps, hash)),
         QueryMsg::ProcessedTxs {
             start_after_key,
             limit,
-        } => to_json_binary(&query_processed_txs(deps, start_after_key, limit)),
-        QueryMsg::ProhibitedXRPLAddresses {} => {
-            to_json_binary(&query_prohibited_xrpl_addresses(deps))
-        }
+        } => to_binary(&query_processed_txs(deps, start_after_key, limit)),
+        QueryMsg::ProhibitedXRPLAddresses {} => to_binary(&query_prohibited_xrpl_addresses(deps)),
     }
 }
 
@@ -1682,7 +1655,7 @@ fn query_prohibited_xrpl_addresses(deps: Deps) -> ProhibitedXRPLAddressesRespons
 
 // ********** Helpers **********
 
-fn check_issue_fee(deps: &DepsMut<CoreumQueries>, info: &MessageInfo) -> Result<(), ContractError> {
+fn check_issue_fee(_deps: &DepsMut, _info: &MessageInfo) -> Result<(), ContractError> {
     // let query_params_res: ParamsResponse = deps
     //     .querier
     //     .query(&CoreumQueries::AssetFT(Query::Params {}).into())?;
@@ -1872,7 +1845,7 @@ fn validate_xrpl_amount(amount: Uint128) -> Result<(), ContractError> {
 
 fn convert_currency_to_xrpl_hexadecimal(currency: String) -> String {
     // Fill with zeros to get the correct hex representation in XRPL of our currency.
-    format!("{:0<40}", hex::encode(currency)).to_uppercase()
+    format!("{:0<40}", HexBinary::from(currency.as_bytes()).to_hex()).to_uppercase()
 }
 
 // Helper function to check that the sender is authorized for an operation

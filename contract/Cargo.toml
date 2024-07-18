@@ -1,7 +1,7 @@
 [package]
-name = "coreumbridge-xrpl"
+name = "cw-bridge-xrpl"
 version = "0.1.0"
-authors = ["Coreum"]
+authors = ["Coreum", "Oraichain Labs"]
 edition = "2021"
 
 [features]
@@ -25,22 +25,20 @@ overflow-checks = true
 
 [dependencies]
 bs58 = "0.5.0"
-coreum-wasm-sdk = "0.2.4"
-cosmwasm-schema = "1.5.3"
-cosmwasm-std = { version = "1.5.4", features = ["cosmwasm_1_1"] }
+cosmwasm-schema = "1.2"
+cosmwasm-std = { version = "1.2", features = ["cosmwasm_1_1"] }
 cw-ownable = "0.5.1"
-cw-storage-plus = "1.2.0"
-cw-utils = "1.0.3"
-cw2 = "1.1.2"
-hex = "0.4.3"
-serde_json = "1.0.113"
+cw-storage-plus = "1.0.1"
+cw-utils = "1.0.1"
+cw2 = "1.0.1"
 sha2 = "0.10.8"
 thiserror = "1.0.56"
 tokenfactory = { git = "https://github.com/oraichain/token-bindings.git", rev = "e85d734" }
 token-bindings = { git = "https://github.com/oraichain/token-bindings.git", rev = "e85d734" }
 
 [dev-dependencies]
-coreum-test-tube = { git = 'https://github.com/CoreumFoundation/test-tube.git' }
+cosmwasm-testing-util = { git = "https://github.com/oraichain/cosmwasm-testing-util.git", rev = "aaa09cf" }
+cw-multi-test = "0.16.6"
 ripple-keypairs = "0.1.0"
 rand = "0.8.5"
 

@@ -1,6 +1,5 @@
-use coreum_wasm_sdk::{assetft, core::CoreumMsg};
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{coin, Addr, Coin, CosmosMsg, Response, Storage, Uint128};
+use cosmwasm_std::{coin, wasm_execute, Addr, Coin, Response, Storage, Uint128};
 
 use crate::{
     contract::{convert_amount_decimals, XRPL_TOKENS_DECIMALS},
@@ -122,7 +121,8 @@ pub fn handle_operation(
     tx_hash: &Option<String>,
     operation_id: u64,
     ticket_sequence: Option<u64>,
-    response: &mut Response<CoreumMsg>,
+    token_factory_addr: &Addr,
+    response: &mut Response,
 ) -> Result<(), ContractError> {
     match &operation.operation_type {
         // We check that if the operation was a ticket allocation, the result is also for a ticket allocation
@@ -158,6 +158,7 @@ pub fn handle_operation(
                 transaction_result,
                 tx_hash.clone(),
                 operation_id,
+                token_factory_addr,
                 response,
             )?;
         }
@@ -201,7 +202,8 @@ pub fn handle_coreum_to_xrpl_transfer_confirmation(
     transaction_result: &TransactionResult,
     tx_hash: Option<String>,
     operation_id: u64,
-    response: &mut Response<CoreumMsg>,
+    token_factory_addr: &Addr,
+    response: &mut Response,
 ) -> Result<(), ContractError> {
     let pending_operation = PENDING_OPERATIONS
         .load(storage, operation_id)
@@ -224,9 +226,19 @@ pub fn handle_coreum_to_xrpl_transfer_confirmation(
                     let amount_sent = max_amount.unwrap_or(amount);
                     // If transaction was accepted and the token that was sent back was an XRPL originated token, we must burn the token amount
                     if transaction_result.eq(&TransactionResult::Accepted) {
-                        let burn_msg = CosmosMsg::from(CoreumMsg::AssetFT(assetft::Msg::Burn {
-                            coin: coin(amount_sent.u128(), xrpl_token.coreum_denom),
-                        }));
+                        // let burn_msg = CosmosMsg::from(CoreumMsg::AssetFT(assetft::Msg::Burn {
+                        //     coin: coin(amount_sent.u128(), xrpl_token.coreum_denom),
+                        // }));
+
+                        let burn_msg = wasm_execute(
+                            token_factory_addr,
+                            &tokenfactory::msg::ExecuteMsg::BurnTokens {
+                                denom: xrpl_token.coreum_denom,
+                                amount: amount_sent,
+                                burn_from_address: sender.to_string(),
+                            },
+                            vec![],
+                        )?;
 
                         *response = response.to_owned().add_message(burn_msg);
                     } else {

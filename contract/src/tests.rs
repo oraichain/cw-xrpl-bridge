@@ -13,7 +13,7 @@ mod tests {
             cosmos::bank::v1beta1::MsgSend,
         },
     };
-    use cosmwasm_std::{coin, coins, Addr, Coin, Uint128};
+    use cosmwasm_std::{coin, coins, to_vec, Addr, Coin, HexBinary, Uint128};
     use rand::{distributions::Alphanumeric, thread_rng, Rng};
     use ripple_keypairs::Seed;
     use sha2::{Digest, Sha256};
@@ -126,7 +126,7 @@ mod tests {
         let mut hasher = Sha256::new();
         hasher.update(bytes);
         let output = hasher.finalize();
-        hex::encode(output)
+        HexBinary::from(output).to_hex()
     }
 
     pub fn generate_hash() -> String {
@@ -10660,10 +10660,7 @@ mod tests {
         // Add them all to a map to see that they create different entries
         let mut evidence_map = HashMap::new();
         for evidence in xrpl_to_coreum_transfer_evidences.iter() {
-            evidence_map.insert(
-                hash_bytes(serde_json::to_string(evidence).unwrap().into_bytes()),
-                true,
-            );
+            evidence_map.insert(hash_bytes(to_string(evidence).unwrap().into_bytes()), true);
         }
 
         assert_eq!(evidence_map.len(), xrpl_to_coreum_transfer_evidences.len());
@@ -10737,10 +10734,7 @@ mod tests {
         // Add them all to a map to see that they create different entries
         let mut evidence_map = HashMap::new();
         for evidence in xrpl_transaction_result_evidences.iter() {
-            evidence_map.insert(
-                hash_bytes(serde_json::to_string(evidence).unwrap().into_bytes()),
-                true,
-            );
+            evidence_map.insert(hash_bytes(to_vec(evidence).unwrap()), true);
         }
 
         assert_eq!(evidence_map.len(), xrpl_transaction_result_evidences.len());

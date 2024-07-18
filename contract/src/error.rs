@@ -201,3 +201,5 @@ pub enum ContractError {
     #[error("InvalidDenom: A valid denom must fulfil the following Regex criteria: [a-zA-Z][a-zA-Z0-9/:._-]{{2,127}}")]
     InvalidDenom {},
 }
+
+pub type ContractResult<T> = std::result::Result<T, ContractError>;
