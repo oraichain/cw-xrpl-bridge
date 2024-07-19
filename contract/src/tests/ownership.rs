@@ -18,7 +18,7 @@ fn transfer_ownership() {
     ]);
 
     let relayer = Relayer {
-        coreum_address: Addr::unchecked("signer"),
+        cosmos_address: Addr::unchecked("signer"),
         xrpl_address: generate_xrpl_address(),
         xrpl_pub_key: generate_xrpl_pub_key(),
     };

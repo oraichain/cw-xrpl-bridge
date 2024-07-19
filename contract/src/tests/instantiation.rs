@@ -17,37 +17,37 @@ fn contract_instantiation() {
     let xrpl_pub_key = generate_xrpl_pub_key();
 
     let relayer = Relayer {
-        coreum_address: Addr::unchecked("signer"),
+        cosmos_address: Addr::unchecked("signer"),
         xrpl_address: xrpl_address.clone(),
         xrpl_pub_key: xrpl_pub_key.clone(),
     };
 
     let relayer_duplicated_xrpl_address = Relayer {
-        coreum_address: Addr::unchecked("signer"),
+        cosmos_address: Addr::unchecked("signer"),
         xrpl_address,
         xrpl_pub_key: generate_xrpl_pub_key(),
     };
 
     let relayer_duplicated_xrpl_pub_key = Relayer {
-        coreum_address: Addr::unchecked("signer"),
+        cosmos_address: Addr::unchecked("signer"),
         xrpl_address: generate_xrpl_address(),
         xrpl_pub_key,
     };
 
-    let relayer_duplicated_coreum_address = Relayer {
-        coreum_address: Addr::unchecked("signer"),
+    let relayer_duplicated_cosmos_address = Relayer {
+        cosmos_address: Addr::unchecked("signer"),
         xrpl_address: generate_xrpl_address(),
         xrpl_pub_key: generate_xrpl_pub_key(),
     };
 
     let relayer_prohibited_xrpl_address = Relayer {
-        coreum_address: Addr::unchecked("relayer"),
+        cosmos_address: Addr::unchecked("relayer"),
         xrpl_address: "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh".to_string(),
         xrpl_pub_key: generate_xrpl_pub_key(),
     };
 
     let relayer_correct = Relayer {
-        coreum_address: Addr::unchecked("relayer"),
+        cosmos_address: Addr::unchecked("relayer"),
         xrpl_address: generate_xrpl_address(),
         xrpl_pub_key: generate_xrpl_pub_key(),
     };
@@ -105,12 +105,12 @@ fn contract_instantiation() {
     )
     .unwrap_err();
 
-    // We check that trying to instantiate with relayers with the same coreum address fails
+    // We check that trying to instantiate with relayers with the same oraichain address fails
     app.create_bridge(
         Addr::unchecked("signer"),
         &InstantiateMsg {
             owner: Addr::unchecked("signer"),
-            relayers: vec![relayer.clone(), relayer_duplicated_coreum_address.clone()],
+            relayers: vec![relayer.clone(), relayer_duplicated_cosmos_address.clone()],
             evidence_threshold: 1,
             used_ticket_sequence_threshold: 50,
             trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
@@ -206,7 +206,7 @@ fn contract_instantiation() {
     let mut too_many_relayers = vec![];
     for i in 0..MAX_RELAYERS + 1 {
         too_many_relayers.push(Relayer {
-            coreum_address: Addr::unchecked(format!("coreum_address_{}", i)),
+            cosmos_address: Addr::unchecked(format!("cosmos_address_{}", i)),
             xrpl_address: generate_xrpl_address(),
             xrpl_pub_key: generate_xrpl_pub_key(),
         });
@@ -285,7 +285,7 @@ fn contract_instantiation() {
 }
 
 // #[test]
-// fn send_xrpl_originated_tokens_from_xrpl_to_coreum() {
+// fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
 //     let app = OraiTestApp::new();
 //     let accounts_number = 4;
 //     let accounts = app
@@ -304,7 +304,7 @@ fn contract_instantiation() {
 //     for i in 0..accounts_number - 2 {
 //         relayer_accounts.push(accounts.get(i as usize).unwrap());
 //         relayers.push(Relayer {
-//             coreum_address: Addr::unchecked(accounts.get(i as usize).unwrap().address()),
+//             cosmos_address: Addr::unchecked(accounts.get(i as usize).unwrap().address()),
 //             xrpl_address: xrpl_addresses[i as usize].to_string(),
 //             xrpl_pub_key: xrpl_pub_keys[i as usize].to_string(),
 //         });
@@ -393,7 +393,7 @@ fn contract_instantiation() {
 //         .iter()
 //         .find(|t| t.issuer == test_token.issuer && t.currency == test_token.currency)
 //         .unwrap()
-//         .coreum_denom
+//         .cosmos_denom
 //         .clone();
 
 //     let hash = generate_hash();
@@ -635,7 +635,7 @@ fn contract_instantiation() {
 //         .iter()
 //         .find(|t| t.issuer == test_token.issuer && t.currency == test_token.currency)
 //         .unwrap()
-//         .coreum_denom
+//         .cosmos_denom
 //         .clone();
 
 //     // Trying to send from an address that is not a relayer should fail
@@ -833,7 +833,7 @@ fn contract_instantiation() {
 // }
 
 // #[test]
-// fn send_coreum_originated_tokens_from_xrpl_to_coreum() {
+// fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
 //     let app = OraiTestApp::new();
 //     let accounts_number = 3;
 //     let accounts = app
@@ -844,7 +844,7 @@ fn contract_instantiation() {
 //     let sender = accounts.get(1).unwrap();
 //     let relayer_account = accounts.get(2).unwrap();
 //     let relayer = Relayer {
-//         coreum_address: Addr::unchecked("relayer"),
+//         cosmos_address: Addr::unchecked("relayer"),
 //         xrpl_address: generate_xrpl_address(),
 //         xrpl_pub_key: generate_xrpl_pub_key(),
 //     };
@@ -1031,7 +1031,7 @@ fn contract_instantiation() {
 //     assert_eq!(request_balance.balance, amount_to_send.to_string());
 
 //     // Get the token information
-//     let query_coreum_tokens = wasm
+//     let query_cosmos_tokens = wasm
 //         .query::<QueryMsg, OraiTokensResponse>(
 //             contract_addr.clone(),
 //             &QueryMsg::OraiTokens {
@@ -1041,7 +1041,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap();
 
-//     let coreum_originated_token = query_coreum_tokens
+//     let oraichain_originated_token = query_cosmos_tokens
 //         .tokens
 //         .iter()
 //         .find(|t| t.denom == denom)
@@ -1064,7 +1064,7 @@ fn contract_instantiation() {
 //         query_pending_operations.operations[0].operation_type,
 //         OperationType::OraiToXRPLTransfer {
 //             issuer: bridge_xrpl_address.clone(),
-//             currency: coreum_originated_token.xrpl_currency.clone(),
+//             currency: oraichain_originated_token.xrpl_currency.clone(),
 //             amount: amount_truncated_and_converted,
 //             max_amount: Some(amount_truncated_and_converted),
 //             sender: Addr::unchecked(sender.address()),
@@ -1311,7 +1311,7 @@ fn contract_instantiation() {
 //                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: generate_xrpl_address(),
-//                     currency: coreum_originated_token.xrpl_currency.clone(),
+//                     currency: oraichain_originated_token.xrpl_currency.clone(),
 //                     amount: amount_to_send_back.clone(),
 //                     recipient: Addr::unchecked(sender.address()),
 //                 },
@@ -1355,7 +1355,7 @@ fn contract_instantiation() {
 //                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: bridge_xrpl_address.clone(),
-//                     currency: coreum_originated_token.xrpl_currency.clone(),
+//                     currency: oraichain_originated_token.xrpl_currency.clone(),
 //                     amount: amount_to_send_back.checked_sub(Uint128::one()).unwrap(),
 //                     recipient: Addr::unchecked(sender.address()),
 //                 },
@@ -1378,7 +1378,7 @@ fn contract_instantiation() {
 //             evidence: Evidence::XRPLToOraiTransfer {
 //                 tx_hash: generate_hash(),
 //                 issuer: bridge_xrpl_address.clone(),
-//                 currency: coreum_originated_token.xrpl_currency.clone(),
+//                 currency: oraichain_originated_token.xrpl_currency.clone(),
 //                 amount: amount_to_send_back.clone(),
 //                 recipient: Addr::unchecked(sender.address()),
 //             },
@@ -1506,7 +1506,7 @@ fn contract_instantiation() {
 //     assert_eq!(request_balance.balance, amount_to_send.to_string());
 
 //     // Get the token information
-//     let query_coreum_tokens = wasm
+//     let query_cosmos_tokens = wasm
 //         .query::<QueryMsg, OraiTokensResponse>(
 //             contract_addr.clone(),
 //             &QueryMsg::OraiTokens {
@@ -1516,7 +1516,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap();
 
-//     let coreum_originated_token = query_coreum_tokens
+//     let oraichain_originated_token = query_cosmos_tokens
 //         .tokens
 //         .iter()
 //         .find(|t| t.denom == denom)
@@ -1539,7 +1539,7 @@ fn contract_instantiation() {
 //         query_pending_operations.operations[0].operation_type,
 //         OperationType::OraiToXRPLTransfer {
 //             issuer: bridge_xrpl_address.clone(),
-//             currency: coreum_originated_token.xrpl_currency.clone(),
+//             currency: oraichain_originated_token.xrpl_currency.clone(),
 //             amount: amount_truncated_and_converted,
 //             max_amount: Some(amount_truncated_and_converted),
 //             sender: Addr::unchecked(sender.address()),
@@ -1703,7 +1703,7 @@ fn contract_instantiation() {
 //                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: generate_xrpl_address(),
-//                     currency: coreum_originated_token.xrpl_currency.clone(),
+//                     currency: oraichain_originated_token.xrpl_currency.clone(),
 //                     amount: amount_to_send_back.clone(),
 //                     recipient: Addr::unchecked(sender.address()),
 //                 },
@@ -1747,7 +1747,7 @@ fn contract_instantiation() {
 //                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: bridge_xrpl_address.clone(),
-//                     currency: coreum_originated_token.xrpl_currency.clone(),
+//                     currency: oraichain_originated_token.xrpl_currency.clone(),
 //                     amount: amount_to_send_back.checked_sub(Uint128::one()).unwrap(),
 //                     recipient: Addr::unchecked(sender.address()),
 //                 },
@@ -1770,7 +1770,7 @@ fn contract_instantiation() {
 //             evidence: Evidence::XRPLToOraiTransfer {
 //                 tx_hash: generate_hash(),
 //                 issuer: bridge_xrpl_address.clone(),
-//                 currency: coreum_originated_token.xrpl_currency.clone(),
+//                 currency: oraichain_originated_token.xrpl_currency.clone(),
 //                 amount: amount_to_send_back.clone(),
 //                 recipient: Addr::unchecked(sender.address()),
 //             },
@@ -1819,7 +1819,7 @@ fn contract_instantiation() {
 // }
 
 // #[test]
-// fn send_from_coreum_to_xrpl() {
+// fn send_from_cosmos_to_xrpl() {
 //     let app = OraiTestApp::new();
 //     let accounts_number = 3;
 //     let accounts = app
@@ -1830,7 +1830,7 @@ fn contract_instantiation() {
 //     let sender = accounts.get(1).unwrap();
 //     let relayer_account = accounts.get(2).unwrap();
 //     let relayer = Relayer {
-//         coreum_address: Addr::unchecked("relayer"),
+//         cosmos_address: Addr::unchecked("relayer"),
 //         xrpl_address: generate_xrpl_address(),
 //         xrpl_pub_key: generate_xrpl_pub_key(),
 //     };
@@ -1868,7 +1868,7 @@ fn contract_instantiation() {
 //         .iter()
 //         .find(|t| t.issuer == XRP_ISSUER && t.currency == XRP_CURRENCY)
 //         .unwrap()
-//         .coreum_denom
+//         .cosmos_denom
 //         .clone();
 
 //     // Add enough tickets for all our test operations
@@ -2271,7 +2271,7 @@ fn contract_instantiation() {
 //         .iter()
 //         .find(|t| t.issuer == test_token.issuer && t.currency == test_token.currency)
 //         .unwrap();
-//     let denom_xrpl_origin_token = xrpl_originated_token.coreum_denom.clone();
+//     let denom_xrpl_origin_token = xrpl_originated_token.cosmos_denom.clone();
 
 //     let request_balance = asset_ft
 //         .query_balance(&QueryBalanceRequest {
@@ -2800,7 +2800,7 @@ fn contract_instantiation() {
 //         .unwrap()
 //         .bridge_xrpl_address;
 
-//     let query_coreum_tokens = wasm
+//     let query_cosmos_tokens = wasm
 //         .query::<QueryMsg, OraiTokensResponse>(
 //             contract_addr.clone(),
 //             &QueryMsg::OraiTokens {
@@ -2810,7 +2810,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap();
 
-//     let coreum_originated_token = query_coreum_tokens
+//     let oraichain_originated_token = query_cosmos_tokens
 //         .tokens
 //         .iter()
 //         .find(|t| t.denom == denom)
@@ -2842,7 +2842,7 @@ fn contract_instantiation() {
 //             signatures: vec![],
 //             operation_type: OperationType::OraiToXRPLTransfer {
 //                 issuer: multisig_address.clone(),
-//                 currency: coreum_originated_token.xrpl_currency.clone(),
+//                 currency: oraichain_originated_token.xrpl_currency.clone(),
 //                 amount: amount.clone(),
 //                 max_amount: Some(amount.clone()),
 //                 sender: Addr::unchecked(sender.address()),
@@ -2862,7 +2862,7 @@ fn contract_instantiation() {
 //             signatures: vec![],
 //             operation_type: OperationType::OraiToXRPLTransfer {
 //                 issuer: multisig_address,
-//                 currency: coreum_originated_token.xrpl_currency.clone(),
+//                 currency: oraichain_originated_token.xrpl_currency.clone(),
 //                 amount: amount.clone(),
 //                 max_amount: Some(amount.clone()),
 //                 sender: Addr::unchecked(sender.address()),
@@ -3035,7 +3035,7 @@ fn contract_instantiation() {
 //
 
 //     let relayer = Relayer {
-//         coreum_address: Addr::unchecked("signer"),
+//         cosmos_address: Addr::unchecked("signer"),
 //         xrpl_address: generate_xrpl_address(),
 //         xrpl_pub_key: generate_xrpl_pub_key(),
 //     };
@@ -3140,7 +3140,7 @@ fn contract_instantiation() {
 //         .iter()
 //         .find(|t| t.issuer == test_token1.issuer && t.currency == test_token1.currency)
 //         .unwrap()
-//         .coreum_denom
+//         .cosmos_denom
 //         .clone();
 
 //     // Activate the token
@@ -3313,7 +3313,7 @@ fn contract_instantiation() {
 //         .iter()
 //         .find(|t| t.issuer == test_token2.issuer && t.currency == test_token2.currency)
 //         .unwrap()
-//         .coreum_denom
+//         .cosmos_denom
 //         .clone();
 
 //     let precision_error = wasm
@@ -3508,7 +3508,7 @@ fn contract_instantiation() {
 //         .iter()
 //         .find(|t| t.issuer == test_token3.issuer && t.currency == test_token3.currency)
 //         .unwrap()
-//         .coreum_denom
+//         .cosmos_denom
 //         .clone();
 
 //     let precision_error = wasm
@@ -3650,7 +3650,7 @@ fn contract_instantiation() {
 //         .iter()
 //         .find(|t| t.issuer == XRP_ISSUER.to_string() && t.currency == XRP_CURRENCY.to_string())
 //         .unwrap()
-//         .coreum_denom
+//         .cosmos_denom
 //         .clone();
 
 //     let precision_error = wasm
@@ -3826,7 +3826,7 @@ fn contract_instantiation() {
 //         .unwrap();
 //     }
 
-//     let query_coreum_tokens = wasm
+//     let query_cosmos_tokens = wasm
 //         .query::<QueryMsg, OraiTokensResponse>(
 //             contract_addr.clone(),
 //             &QueryMsg::OraiTokens {
@@ -3835,10 +3835,10 @@ fn contract_instantiation() {
 //             },
 //         )
 //         .unwrap();
-//     assert_eq!(query_coreum_tokens.tokens.len(), 3);
-//     assert_eq!(query_coreum_tokens.tokens[0].denom, test_tokens[0].denom);
-//     assert_eq!(query_coreum_tokens.tokens[1].denom, test_tokens[1].denom);
-//     assert_eq!(query_coreum_tokens.tokens[2].denom, test_tokens[2].denom);
+//     assert_eq!(query_cosmos_tokens.tokens.len(), 3);
+//     assert_eq!(query_cosmos_tokens.tokens[0].denom, test_tokens[0].denom);
+//     assert_eq!(query_cosmos_tokens.tokens[1].denom, test_tokens[1].denom);
+//     assert_eq!(query_cosmos_tokens.tokens[2].denom, test_tokens[2].denom);
 
 //     // Test sending token 1 with high precision
 
@@ -4055,7 +4055,7 @@ fn contract_instantiation() {
 //     for i in 0..accounts_number - 2 {
 //         relayer_accounts.push(accounts.get(i as usize).unwrap());
 //         relayers.push(Relayer {
-//             coreum_address: Addr::unchecked(accounts.get(i as usize).unwrap().address()),
+//             cosmos_address: Addr::unchecked(accounts.get(i as usize).unwrap().address()),
 //             xrpl_address: xrpl_addresses[i as usize].to_string(),
 //             xrpl_pub_key: xrpl_pub_keys[i as usize].to_string(),
 //         });
@@ -4148,10 +4148,10 @@ fn contract_instantiation() {
 //         )
 //         .unwrap();
 
-//     let coreum_token_denom = format!("{}-{}", subunit, receiver.address()).to_lowercase();
+//     let oraichain_token_denom = format!("{}-{}", subunit, receiver.address()).to_lowercase();
 
-//     let test_token_coreum = OraiToken {
-//         denom: coreum_token_denom.clone(),
+//     let test_token_cosmos = OraiToken {
+//         denom: oraichain_token_denom.clone(),
 //         decimals,
 //         sending_precision: 4,
 //         max_holding_amount: Uint128::new(10000000000), // 1e10
@@ -4212,18 +4212,18 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::RegisterOraiToken {
-//             denom: test_token_coreum.denom,
-//             decimals: test_token_coreum.decimals,
-//             sending_precision: test_token_coreum.sending_precision,
-//             max_holding_amount: test_token_coreum.max_holding_amount,
-//             bridging_fee: test_token_coreum.bridging_fee,
+//             denom: test_token_cosmos.denom,
+//             decimals: test_token_cosmos.decimals,
+//             sending_precision: test_token_cosmos.sending_precision,
+//             max_holding_amount: test_token_cosmos.max_holding_amount,
+//             bridging_fee: test_token_cosmos.bridging_fee,
 //         },
 //         &[],
 //         Addr::unchecked(signer),
 //     )
 //     .unwrap();
 
-//     let query_coreum_tokens = wasm
+//     let query_cosmos_tokens = wasm
 //         .query::<QueryMsg, OraiTokensResponse>(
 //             contract_addr.clone(),
 //             &QueryMsg::OraiTokens {
@@ -4233,10 +4233,10 @@ fn contract_instantiation() {
 //         )
 //         .unwrap();
 
-//     let coreum_token = query_coreum_tokens
+//     let oraichain_token = query_cosmos_tokens
 //         .tokens
 //         .iter()
-//         .find(|t| t.denom == coreum_token_denom)
+//         .find(|t| t.denom == oraichain_token_denom)
 //         .unwrap();
 
 //     // Let's bridge some tokens from XRPL to Orai multiple times and verify that the fees are collected correctly in each step
@@ -4262,7 +4262,7 @@ fn contract_instantiation() {
 //     let request_balance = asset_ft
 //         .query_balance(&QueryBalanceRequest {
 //             Addr::unchecked(receiver),
-//             denom: xrpl_token.coreum_denom.clone(),
+//             denom: xrpl_token.cosmos_denom.clone(),
 //         })
 //         .unwrap();
 
@@ -4292,7 +4292,7 @@ fn contract_instantiation() {
 //     // 50000 / 3 = 16666.67 ---> Which means each relayer will have 16666 to claim and 2 tokens will stay in the fee remainders for next collection
 //     assert_eq!(
 //         query_fees_collected.fees_collected,
-//         vec![coin(16666, xrpl_token.coreum_denom.clone())]
+//         vec![coin(16666, xrpl_token.cosmos_denom.clone())]
 //     );
 
 //     let tx_hash = generate_hash();
@@ -4317,7 +4317,7 @@ fn contract_instantiation() {
 //     let request_balance = asset_ft
 //         .query_balance(&QueryBalanceRequest {
 //             Addr::unchecked(receiver),
-//             denom: xrpl_token.coreum_denom.clone(),
+//             denom: xrpl_token.cosmos_denom.clone(),
 //         })
 //         .unwrap();
 
@@ -4335,7 +4335,7 @@ fn contract_instantiation() {
 //     // Each relayer is getting 140000 (+2 that were in the remainder) / 3 -> 140002 / 3 = 46667 and 1 token will stay in the remainders for next collection
 //     assert_eq!(
 //         query_fees_collected.fees_collected,
-//         vec![coin(63333, xrpl_token.coreum_denom.clone())] // 16666 from before + 46667
+//         vec![coin(63333, xrpl_token.cosmos_denom.clone())] // 16666 from before + 46667
 //     );
 
 //     let tx_hash = generate_hash();
@@ -4360,7 +4360,7 @@ fn contract_instantiation() {
 //     let request_balance = asset_ft
 //         .query_balance(&QueryBalanceRequest {
 //             Addr::unchecked(receiver),
-//             denom: xrpl_token.coreum_denom.clone(),
+//             denom: xrpl_token.cosmos_denom.clone(),
 //         })
 //         .unwrap();
 
@@ -4378,14 +4378,14 @@ fn contract_instantiation() {
 //     // Each relayer is getting 100000 (+1 from remainder) / 3 -> 100001 / 3 = 33333 and 2 token will stay in the remainders for next collection
 //     assert_eq!(
 //         query_fees_collected.fees_collected,
-//         vec![coin(96666, xrpl_token.coreum_denom.clone())] // 63333 from before + 33333
+//         vec![coin(96666, xrpl_token.cosmos_denom.clone())] // 63333 from before + 33333
 //     );
 
 //     // Check that contract holds those tokens.
 //     let query_contract_balance = asset_ft
 //         .query_balance(&QueryBalanceRequest {
 //             account: contract_addr.clone(),
-//             denom: xrpl_token.coreum_denom.clone(),
+//             denom: xrpl_token.cosmos_denom.clone(),
 //         })
 //         .unwrap();
 //     assert_eq!(query_contract_balance.balance, "290000".to_string()); // 96666 * 3 + 2 in the remainder
@@ -4398,7 +4398,7 @@ fn contract_instantiation() {
 //             recipient: xrpl_receiver_address.clone(),
 //             deliver_amount: None,
 //         },
-//         &coins(1000000000020000, xrpl_token.coreum_denom.clone()), // This should charge the bridging fee -> 999999999970000 and then truncate the rest -> 999999999900000
+//         &coins(1000000000020000, xrpl_token.cosmos_denom.clone()), // This should charge the bridging fee -> 999999999970000 and then truncate the rest -> 999999999900000
 //         &receiver,
 //     )
 //     .unwrap();
@@ -4466,7 +4466,7 @@ fn contract_instantiation() {
 //     // Each relayer is getting 120000 (+2 from remainder) / 3 -> 120002 / 3 = 40000 and 2 token will stay in the remainders for next collection
 //     assert_eq!(
 //         query_fees_collected.fees_collected,
-//         vec![coin(136666, xrpl_token.coreum_denom.clone())] // 96666 from before + 40000
+//         vec![coin(136666, xrpl_token.cosmos_denom.clone())] // 96666 from before + 40000
 //     );
 
 //     // Let's bridge some tokens again but this time with the optional amount, to check that bridge fees are collected correctly and
@@ -4481,7 +4481,7 @@ fn contract_instantiation() {
 //                 recipient: xrpl_receiver_address.clone(),
 //                 deliver_amount: Some(Uint128::new(1000000000010000)),
 //             },
-//             &coins(1000000000020000, xrpl_token.coreum_denom.clone()), // After fees and truncation -> 1000000000000000 > 999999999900000
+//             &coins(1000000000020000, xrpl_token.cosmos_denom.clone()), // After fees and truncation -> 1000000000000000 > 999999999900000
 //             &receiver,
 //         )
 //         .unwrap_err();
@@ -4496,7 +4496,7 @@ fn contract_instantiation() {
 //             recipient: xrpl_receiver_address.clone(),
 //             deliver_amount, // This will be truncated to 700000000000000
 //         },
-//         &coins(1000000000020000, xrpl_token.coreum_denom.clone()), // This should charge the bridging fee -> 999999999970000 and then truncate the rest -> 999999999900000
+//         &coins(1000000000020000, xrpl_token.cosmos_denom.clone()), // This should charge the bridging fee -> 999999999970000 and then truncate the rest -> 999999999900000
 //         &receiver,
 //     )
 //     .unwrap();
@@ -4544,7 +4544,7 @@ fn contract_instantiation() {
 //     // Each relayer is getting 120000 (+2 from remainder) / 3 -> 120002 / 3 = 40000 and 2 token will stay in the remainders for next collection
 //     assert_eq!(
 //         query_fees_collected.fees_collected,
-//         vec![coin(176666, xrpl_token.coreum_denom.clone())] // 136666 from before + 40000
+//         vec![coin(176666, xrpl_token.cosmos_denom.clone())] // 136666 from before + 40000
 //     );
 
 //     // If we reject the operation, 999999999900000 (max_amount after bridge fees and truncation) should be able to be claimed back by the user
@@ -4581,7 +4581,7 @@ fn contract_instantiation() {
 //     assert_eq!(query_pending_refunds.pending_refunds.len(), 1);
 //     assert_eq!(
 //         query_pending_refunds.pending_refunds[0].coin,
-//         coin(999999999900000, xrpl_token.coreum_denom.clone())
+//         coin(999999999900000, xrpl_token.cosmos_denom.clone())
 //     );
 
 //     // Let's claim it back
@@ -4605,7 +4605,7 @@ fn contract_instantiation() {
 //                 recipient: xrpl_receiver_address.clone(),
 //                 deliver_amount: None,
 //             },
-//             &coins(100, coreum_token_denom.clone()),
+//             &coins(100, oraichain_token_denom.clone()),
 //             &receiver,
 //         )
 //         .unwrap_err();
@@ -4622,7 +4622,7 @@ fn contract_instantiation() {
 //             recipient: xrpl_receiver_address.clone(),
 //             deliver_amount: None,
 //         },
-//         &coins(600010, coreum_token_denom.clone()), // This should charge briding fee -> 300010 and then truncate the rest -> 300000
+//         &coins(600010, oraichain_token_denom.clone()), // This should charge briding fee -> 300010 and then truncate the rest -> 300000
 //         &receiver,
 //     )
 //     .unwrap();
@@ -4648,7 +4648,7 @@ fn contract_instantiation() {
 //             signatures: vec![],
 //             operation_type: OperationType::OraiToXRPLTransfer {
 //                 issuer: bridge_xrpl_address.clone(),
-//                 currency: coreum_token.xrpl_currency.clone(),
+//                 currency: oraichain_token.xrpl_currency.clone(),
 //                 amount: Uint128::new(300000000000000),
 //                 max_amount: Some(Uint128::new(300000000000000)),
 //                 sender: Addr::unchecked(receiver),
@@ -4671,8 +4671,8 @@ fn contract_instantiation() {
 //     assert_eq!(
 //         query_fees_collected.fees_collected,
 //         vec![
-//             coin(176666, xrpl_token.coreum_denom.clone()),
-//             coin(100003, coreum_token_denom.clone())
+//             coin(176666, xrpl_token.cosmos_denom.clone()),
+//             coin(100003, oraichain_token_denom.clone())
 //         ]
 //     );
 
@@ -4702,7 +4702,7 @@ fn contract_instantiation() {
 //             recipient: xrpl_receiver_address.clone(),
 //             deliver_amount: None,
 //         },
-//         &coins(900000, coreum_token_denom.clone()), // This charge the entire bridging fee (300000) and truncate nothing
+//         &coins(900000, oraichain_token_denom.clone()), // This charge the entire bridging fee (300000) and truncate nothing
 //         &receiver,
 //     )
 //     .unwrap();
@@ -4728,7 +4728,7 @@ fn contract_instantiation() {
 //             signatures: vec![],
 //             operation_type: OperationType::OraiToXRPLTransfer {
 //                 issuer: bridge_xrpl_address.clone(),
-//                 currency: coreum_token.xrpl_currency.clone(),
+//                 currency: oraichain_token.xrpl_currency.clone(),
 //                 amount: Uint128::new(600000000000000),
 //                 max_amount: Some(Uint128::new(600000000000000)),
 //                 sender: Addr::unchecked(receiver),
@@ -4751,8 +4751,8 @@ fn contract_instantiation() {
 //     assert_eq!(
 //         query_fees_collected.fees_collected,
 //         vec![
-//             coin(176666, xrpl_token.coreum_denom.clone()),
-//             coin(200003, coreum_token_denom.clone()) // 100003 + 100000
+//             coin(176666, xrpl_token.cosmos_denom.clone()),
+//             coin(200003, oraichain_token_denom.clone()) // 100003 + 100000
 //         ]
 //     );
 
@@ -4780,7 +4780,7 @@ fn contract_instantiation() {
 //     let previous_balance = asset_ft
 //         .query_balance(&QueryBalanceRequest {
 //             Addr::unchecked(receiver),
-//             denom: coreum_token_denom.clone(),
+//             denom: oraichain_token_denom.clone(),
 //         })
 //         .unwrap();
 
@@ -4792,7 +4792,7 @@ fn contract_instantiation() {
 //                 evidence: Evidence::XRPLToOraiTransfer {
 //                     tx_hash: tx_hash.clone(),
 //                     issuer: bridge_xrpl_address.clone(),
-//                     currency: coreum_token.xrpl_currency.clone(),
+//                     currency: oraichain_token.xrpl_currency.clone(),
 //                     amount: Uint128::new(650010000000000), // 650010000000000 will convert to 650010, which after charging bridging fees (300000) and truncating (10) will send 350000 to the receiver
 //                     recipient: Addr::unchecked(receiver),
 //                 },
@@ -4806,7 +4806,7 @@ fn contract_instantiation() {
 //     let new_balance = asset_ft
 //         .query_balance(&QueryBalanceRequest {
 //             Addr::unchecked(receiver),
-//             denom: coreum_token_denom.clone(),
+//             denom: oraichain_token_denom.clone(),
 //         })
 //         .unwrap();
 
@@ -4833,8 +4833,8 @@ fn contract_instantiation() {
 //     assert_eq!(
 //         query_fees_collected.fees_collected,
 //         vec![
-//             coin(176666, xrpl_token.coreum_denom.clone()),
-//             coin(300006, coreum_token_denom.clone()) // 200003 from before + 100003
+//             coin(176666, xrpl_token.cosmos_denom.clone()),
+//             coin(300006, oraichain_token_denom.clone()) // 200003 from before + 100003
 //         ]
 //     );
 
@@ -4846,8 +4846,8 @@ fn contract_instantiation() {
 //             contract_addr.clone(),
 //             &ExecuteMsg::ClaimRelayerFees {
 //                 amounts: vec![
-//                     coin(176666, xrpl_token.coreum_denom.clone()),
-//                     coin(300007, coreum_token_denom.clone()), // +1
+//                     coin(176666, xrpl_token.cosmos_denom.clone()),
+//                     coin(300007, oraichain_token_denom.clone()), // +1
 //                 ],
 //             },
 //             &[],
@@ -4857,7 +4857,7 @@ fn contract_instantiation() {
 
 //     assert!(claim_error.to_string().contains(
 //         ContractError::NotEnoughFeesToClaim {
-//             denom: coreum_token_denom.clone(),
+//             denom: oraichain_token_denom.clone(),
 //             amount: Uint128::new(300007)
 //         }
 //         .to_string()
@@ -4870,9 +4870,9 @@ fn contract_instantiation() {
 //             contract_addr.clone(),
 //             &ExecuteMsg::ClaimRelayerFees {
 //                 amounts: vec![
-//                     coin(176666, xrpl_token.coreum_denom.clone()),
-//                     coin(300006, coreum_token_denom.clone()),
-//                     coin(1, coreum_token_denom.clone()), // Extra token claim that is too much
+//                     coin(176666, xrpl_token.cosmos_denom.clone()),
+//                     coin(300006, oraichain_token_denom.clone()),
+//                     coin(1, oraichain_token_denom.clone()), // Extra token claim that is too much
 //                 ],
 //             },
 //             &[],
@@ -4882,7 +4882,7 @@ fn contract_instantiation() {
 
 //     assert!(claim_error.to_string().contains(
 //         ContractError::NotEnoughFeesToClaim {
-//             denom: coreum_token_denom.clone(),
+//             denom: oraichain_token_denom.clone(),
 //             amount: Uint128::new(1)
 //         }
 //         .to_string()
@@ -4895,8 +4895,8 @@ fn contract_instantiation() {
 //             contract_addr.clone(),
 //             &ExecuteMsg::ClaimRelayerFees {
 //                 amounts: vec![
-//                     coin(176666, xrpl_token.coreum_denom.clone()),
-//                     coin(300005, coreum_token_denom.clone()),
+//                     coin(176666, xrpl_token.cosmos_denom.clone()),
+//                     coin(300005, oraichain_token_denom.clone()),
 //                 ],
 //             },
 //             &[],
@@ -4917,7 +4917,7 @@ fn contract_instantiation() {
 //     // There should be only 1 token left in the remainders
 //     assert_eq!(
 //         query_fees_collected.fees_collected,
-//         vec![coin(1, coreum_token_denom.clone())]
+//         vec![coin(1, oraichain_token_denom.clone())]
 //     );
 
 //     // If we try to claim a token that is not in the claimable array, it should fail
@@ -4925,7 +4925,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::ClaimRelayerFees {
-//                 amounts: vec![coin(1, xrpl_token.coreum_denom.clone())],
+//                 amounts: vec![coin(1, xrpl_token.cosmos_denom.clone())],
 //             },
 //             &[],
 //             Addr::unchecked(&relayer_accounts[0])
@@ -4934,7 +4934,7 @@ fn contract_instantiation() {
 
 //     assert!(claim_error.to_string().contains(
 //         ContractError::NotEnoughFeesToClaim {
-//             denom: xrpl_token.coreum_denom.clone(),
+//             denom: xrpl_token.cosmos_denom.clone(),
 //             amount: Uint128::new(1)
 //         }
 //         .to_string()
@@ -4946,7 +4946,7 @@ fn contract_instantiation() {
 //         app.execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::ClaimRelayerFees {
-//                 amounts: vec![coin(1, coreum_token_denom.clone())],
+//                 amounts: vec![coin(1, oraichain_token_denom.clone())],
 //             },
 //             &[],
 //             relayer,
@@ -4959,13 +4959,13 @@ fn contract_instantiation() {
 //         let request_balance_token1 = asset_ft
 //             .query_balance(&QueryBalanceRequest {
 //                 account: relayer.address(),
-//                 denom: xrpl_token.coreum_denom.clone(),
+//                 denom: xrpl_token.cosmos_denom.clone(),
 //             })
 //             .unwrap();
 //         let request_balance_token2 = asset_ft
 //             .query_balance(&QueryBalanceRequest {
 //                 account: relayer.address(),
-//                 denom: coreum_token_denom.clone(),
+//                 denom: oraichain_token_denom.clone(),
 //             })
 //             .unwrap();
 
@@ -4991,7 +4991,7 @@ fn contract_instantiation() {
 //     let query_contract_balance = asset_ft
 //         .query_balance(&QueryBalanceRequest {
 //             account: contract_addr.clone(),
-//             denom: xrpl_token.coreum_denom.clone(),
+//             denom: xrpl_token.cosmos_denom.clone(),
 //         })
 //         .unwrap();
 //     assert_eq!(query_contract_balance.balance, "2".to_string()); // What is stored in the remainder
@@ -4999,7 +4999,7 @@ fn contract_instantiation() {
 //     let query_contract_balance = asset_ft
 //         .query_balance(&QueryBalanceRequest {
 //             account: contract_addr.clone(),
-//             denom: coreum_token_denom.clone(),
+//             denom: oraichain_token_denom.clone(),
 //         })
 //         .unwrap();
 
@@ -5030,7 +5030,7 @@ fn contract_instantiation() {
 //     for i in 0..accounts_number - 1 {
 //         relayer_accounts.push(accounts.get(i as usize).unwrap());
 //         relayers.push(Relayer {
-//             coreum_address: Addr::unchecked(accounts.get(i as usize).unwrap().address()),
+//             cosmos_address: Addr::unchecked(accounts.get(i as usize).unwrap().address()),
 //             xrpl_address: xrpl_addresses[i as usize].to_string(),
 //             xrpl_pub_key: xrpl_pub_keys[i as usize].to_string(),
 //         });
@@ -5335,11 +5335,11 @@ fn contract_instantiation() {
 //         vec![
 //             Signature {
 //                 signature: correct_signature_example.clone(),
-//                 relayer_coreum_address: Addr::unchecked(relayers[0].coreum_address.clone()),
+//                 relayer_cosmos_address: Addr::unchecked(relayers[0].cosmos_address.clone()),
 //             },
 //             Signature {
 //                 signature: correct_signature_example.clone(),
-//                 relayer_coreum_address: Addr::unchecked(relayers[1].coreum_address.clone()),
+//                 relayer_cosmos_address: Addr::unchecked(relayers[1].cosmos_address.clone()),
 //             }
 //         ]
 //     );
@@ -5598,7 +5598,7 @@ fn contract_instantiation() {
 //
 
 //     let relayer = Relayer {
-//         coreum_address: Addr::unchecked("signer"),
+//         cosmos_address: Addr::unchecked("signer"),
 //         xrpl_address: generate_xrpl_address(),
 //         xrpl_pub_key: generate_xrpl_pub_key(),
 //     };
@@ -5807,7 +5807,7 @@ fn contract_instantiation() {
 //
 
 //     let relayer = Relayer {
-//         coreum_address: Addr::unchecked("signer"),
+//         cosmos_address: Addr::unchecked("signer"),
 //         xrpl_address: generate_xrpl_address(),
 //         xrpl_pub_key: generate_xrpl_pub_key(),
 //     };
@@ -5989,7 +5989,7 @@ fn contract_instantiation() {
 //     let sender = accounts.get(1).unwrap();
 //     let relayer_account = accounts.get(2).unwrap();
 //     let relayer = Relayer {
-//         coreum_address: Addr::unchecked("relayer"),
+//         cosmos_address: Addr::unchecked("relayer"),
 //         xrpl_address: generate_xrpl_address(),
 //         xrpl_pub_key: generate_xrpl_pub_key(),
 //     };
@@ -6177,7 +6177,7 @@ fn contract_instantiation() {
 //     for i in 0..accounts_number - 1 {
 //         relayer_accounts.push(accounts.get(i as usize).unwrap());
 //         relayers.push(Relayer {
-//             coreum_address: Addr::unchecked(accounts.get(i as usize).unwrap().address()),
+//             cosmos_address: Addr::unchecked(accounts.get(i as usize).unwrap().address()),
 //             xrpl_address: xrpl_addresses[i as usize].to_string(),
 //             xrpl_pub_key: xrpl_pub_keys[i as usize].to_string(),
 //         });
@@ -6260,10 +6260,10 @@ fn contract_instantiation() {
 //         )
 //         .unwrap();
 
-//     let coreum_token_denom = format!("{}-{}", subunit, "signer").to_lowercase();
+//     let oraichain_token_denom = format!("{}-{}", subunit, "signer").to_lowercase();
 
-//     let coreum_token = OraiToken {
-//         denom: coreum_token_denom.clone(),
+//     let oraichain_token = OraiToken {
+//         denom: oraichain_token_denom.clone(),
 //         decimals: 6,
 //         sending_precision: 6,
 //         max_holding_amount: Uint128::new(1000000000),
@@ -6299,7 +6299,7 @@ fn contract_instantiation() {
 //         .iter()
 //         .find(|t| t.issuer == xrpl_token.issuer && t.currency == xrpl_token.currency)
 //         .unwrap()
-//         .coreum_denom
+//         .cosmos_denom
 //         .clone();
 
 //     // Updating XRP token to an invalid sending precision (more than decimals, 6) should fail
@@ -6538,11 +6538,11 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::RegisterOraiToken {
-//             denom: coreum_token_denom.clone(),
-//             decimals: coreum_token.decimals,
-//             sending_precision: coreum_token.sending_precision,
-//             max_holding_amount: coreum_token.max_holding_amount,
-//             bridging_fee: coreum_token.bridging_fee,
+//             denom: oraichain_token_denom.clone(),
+//             decimals: oraichain_token.decimals,
+//             sending_precision: oraichain_token.sending_precision,
+//             max_holding_amount: oraichain_token.max_holding_amount,
+//             bridging_fee: oraichain_token.bridging_fee,
 //         },
 //         &query_issue_fee(&asset_ft),
 //         Addr::unchecked(signer),
@@ -6554,7 +6554,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::UpdateOraiToken {
-//                 denom: coreum_token_denom.clone(),
+//                 denom: oraichain_token_denom.clone(),
 //                 state: Some(TokenState::Processing),
 //                 sending_precision: None,
 //                 bridging_fee: None,
@@ -6575,7 +6575,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::UpdateOraiToken {
-//             denom: coreum_token_denom.clone(),
+//             denom: oraichain_token_denom.clone(),
 //             state: Some(TokenState::Disabled),
 //             sending_precision: None,
 //             bridging_fee: None,
@@ -6594,7 +6594,7 @@ fn contract_instantiation() {
 //                 recipient: generate_xrpl_address(),
 //                 deliver_amount: None,
 //             },
-//             &coins(1, coreum_token_denom.clone()),
+//             &coins(1, oraichain_token_denom.clone()),
 //             Addr::unchecked(signer),
 //         )
 //         .unwrap_err();
@@ -6607,7 +6607,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::UpdateOraiToken {
-//             denom: coreum_token_denom.clone(),
+//             denom: oraichain_token_denom.clone(),
 //             state: Some(TokenState::Enabled),
 //             sending_precision: Some(5),
 //             bridging_fee: None,
@@ -6619,7 +6619,7 @@ fn contract_instantiation() {
 //     .unwrap();
 
 //     // Get the token information
-//     let query_coreum_tokens = wasm
+//     let query_cosmos_tokens = wasm
 //         .query::<QueryMsg, OraiTokensResponse>(
 //             contract_addr.clone(),
 //             &QueryMsg::OraiTokens {
@@ -6629,14 +6629,14 @@ fn contract_instantiation() {
 //         )
 //         .unwrap();
 
-//     assert_eq!(query_coreum_tokens.tokens[0].sending_precision, 5);
+//     assert_eq!(query_cosmos_tokens.tokens[0].sending_precision, 5);
 
 //     // If we try to update to an invalid sending precision it should fail
 //     let update_error = wasm
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::UpdateOraiToken {
-//                 denom: coreum_token_denom.clone(),
+//                 denom: oraichain_token_denom.clone(),
 //                 state: None,
 //                 sending_precision: Some(7),
 //                 bridging_fee: None,
@@ -6842,7 +6842,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::UpdateOraiToken {
-//             denom: coreum_token_denom.clone(),
+//             denom: oraichain_token_denom.clone(),
 //             state: None,
 //             sending_precision: None,
 //             bridging_fee: Some(Uint128::new(1000)),
@@ -6854,7 +6854,7 @@ fn contract_instantiation() {
 //     .unwrap();
 
 //     // Get the token information
-//     let query_coreum_tokens = wasm
+//     let query_cosmos_tokens = wasm
 //         .query::<QueryMsg, OraiTokensResponse>(
 //             contract_addr.clone(),
 //             &QueryMsg::OraiTokens {
@@ -6865,7 +6865,7 @@ fn contract_instantiation() {
 //         .unwrap();
 
 //     assert_eq!(
-//         query_coreum_tokens.tokens[0].bridging_fee,
+//         query_cosmos_tokens.tokens[0].bridging_fee,
 //         Uint128::new(1000)
 //     );
 
@@ -7033,7 +7033,7 @@ fn contract_instantiation() {
 //             recipient: generate_xrpl_address(),
 //             deliver_amount: None,
 //         },
-//         &coins(current_max_amount, coreum_token_denom.clone()),
+//         &coins(current_max_amount, oraichain_token_denom.clone()),
 //         Addr::unchecked(signer),
 //     )
 //     .unwrap();
@@ -7076,7 +7076,7 @@ fn contract_instantiation() {
 //     let request_balance = asset_ft
 //         .query_balance(&QueryBalanceRequest {
 //             account: contract_addr.clone(),
-//             denom: coreum_token_denom.clone(),
+//             denom: oraichain_token_denom.clone(),
 //         })
 //         .unwrap();
 
@@ -7087,7 +7087,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::UpdateOraiToken {
-//                 denom: coreum_token_denom.clone(),
+//                 denom: oraichain_token_denom.clone(),
 //                 state: None,
 //                 sending_precision: None,
 //                 bridging_fee: None,
@@ -7108,7 +7108,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::UpdateOraiToken {
-//             denom: coreum_token_denom.clone(),
+//             denom: oraichain_token_denom.clone(),
 //             state: None,
 //             sending_precision: None,
 //             bridging_fee: None,
@@ -7119,7 +7119,7 @@ fn contract_instantiation() {
 //     )
 //     .unwrap();
 
-//     let query_coreum_tokens = wasm
+//     let query_cosmos_tokens = wasm
 //         .query::<QueryMsg, OraiTokensResponse>(
 //             contract_addr.clone(),
 //             &QueryMsg::OraiTokens {
@@ -7130,7 +7130,7 @@ fn contract_instantiation() {
 //         .unwrap();
 
 //     assert_eq!(
-//         query_coreum_tokens.tokens[0].max_holding_amount,
+//         query_cosmos_tokens.tokens[0].max_holding_amount,
 //         Uint128::new(current_max_amount + 1)
 //     );
 
@@ -7297,7 +7297,7 @@ fn contract_instantiation() {
 // }
 
 // #[test]
-// fn test_burning_rate_and_commission_fee_coreum_tokens() {
+// fn test_burning_rate_and_commission_fee_cosmos_tokens() {
 //     let app = OraiTestApp::new();
 //     let accounts_number = 3;
 //     let accounts = app
@@ -7308,7 +7308,7 @@ fn contract_instantiation() {
 //     let relayer_account = accounts.get(1).unwrap();
 //     let sender = accounts.get(2).unwrap();
 //     let relayer = Relayer {
-//         coreum_address: Addr::unchecked("relayer"),
+//         cosmos_address: Addr::unchecked("relayer"),
 //         xrpl_address: generate_xrpl_address(),
 //         xrpl_pub_key: generate_xrpl_pub_key(),
 //     };
@@ -7489,7 +7489,7 @@ fn contract_instantiation() {
 //     .unwrap();
 
 //     // Get the token information
-//     let query_coreum_tokens = wasm
+//     let query_cosmos_tokens = wasm
 //         .query::<QueryMsg, OraiTokensResponse>(
 //             contract_addr.clone(),
 //             &QueryMsg::OraiTokens {
@@ -7499,7 +7499,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap();
 
-//     let coreum_originated_token = query_coreum_tokens
+//     let oraichain_originated_token = query_cosmos_tokens
 //         .tokens
 //         .iter()
 //         .find(|t| t.denom == denom)
@@ -7512,7 +7512,7 @@ fn contract_instantiation() {
 //             evidence: Evidence::XRPLToOraiTransfer {
 //                 tx_hash: generate_hash(),
 //                 issuer: bridge_xrpl_address.clone(),
-//                 currency: coreum_originated_token.xrpl_currency.clone(),
+//                 currency: oraichain_originated_token.xrpl_currency.clone(),
 //                 amount: amount_to_send_back.clone(),
 //                 recipient: Addr::unchecked(sender.address()),
 //             },
@@ -7561,7 +7561,7 @@ fn contract_instantiation() {
 //     for i in 0..accounts_number - 1 {
 //         relayer_accounts.push(accounts.get(i as usize).unwrap());
 //         relayers.push(Relayer {
-//             coreum_address: Addr::unchecked(accounts.get(i as usize).unwrap().address()),
+//             cosmos_address: Addr::unchecked(accounts.get(i as usize).unwrap().address()),
 //             xrpl_address: xrpl_addresses[i as usize].to_string(),
 //             xrpl_pub_key: xrpl_pub_keys[i as usize].to_string(),
 //         });
@@ -7917,7 +7917,7 @@ fn contract_instantiation() {
 //     let relayer_account = accounts.get(1).unwrap();
 //     let new_relayer_account = accounts.get(2).unwrap();
 //     let relayer = Relayer {
-//         coreum_address: Addr::unchecked("relayer"),
+//         cosmos_address: Addr::unchecked("relayer"),
 //         xrpl_address: generate_xrpl_address(),
 //         xrpl_pub_key: generate_xrpl_pub_key(),
 //     };
@@ -8131,7 +8131,7 @@ fn contract_instantiation() {
 
 //     // Perform a simple key rotation, should be allowed
 //     let new_relayer = Relayer {
-//         coreum_address: Addr::unchecked(new_"relayer"),
+//         cosmos_address: Addr::unchecked(new_"relayer"),
 //         xrpl_address: generate_xrpl_address(),
 //         xrpl_pub_key: generate_xrpl_pub_key(),
 //     };
@@ -8329,7 +8329,7 @@ fn contract_instantiation() {
 //     for i in 0..accounts_number - 1 {
 //         relayer_accounts.push(accounts.get(i as usize).unwrap());
 //         relayers.push(Relayer {
-//             coreum_address: Addr::unchecked(accounts.get(i as usize).unwrap().address()),
+//             cosmos_address: Addr::unchecked(accounts.get(i as usize).unwrap().address()),
 //             xrpl_address: xrpl_addresses[i as usize].to_string(),
 //             xrpl_pub_key: xrpl_pub_keys[i as usize].to_string(),
 //         });
@@ -8640,13 +8640,13 @@ fn contract_instantiation() {
 //
 
 //     let relayer = Relayer {
-//         coreum_address: Addr::unchecked("signer"),
+//         cosmos_address: Addr::unchecked("signer"),
 //         xrpl_address: generate_xrpl_address(),
 //         xrpl_pub_key: generate_xrpl_pub_key(),
 //     };
 
 //     let new_relayer = Relayer {
-//         coreum_address: Addr::unchecked(not_owner.address()),
+//         cosmos_address: Addr::unchecked(not_owner.address()),
 //         xrpl_address: generate_xrpl_address(),
 //         xrpl_pub_key: generate_xrpl_pub_key(),
 //     };
@@ -9014,7 +9014,7 @@ fn contract_instantiation() {
 //
 
 //     let relayer = Relayer {
-//         coreum_address: Addr::unchecked("signer"),
+//         cosmos_address: Addr::unchecked("signer"),
 //         xrpl_address: generate_xrpl_address(),
 //         xrpl_pub_key: generate_xrpl_pub_key(),
 //     };
@@ -9143,7 +9143,7 @@ fn contract_instantiation() {
 //
 
 //     let relayer = Relayer {
-//         coreum_address: Addr::unchecked("signer"),
+//         cosmos_address: Addr::unchecked("signer"),
 //         xrpl_address: generate_xrpl_address(),
 //         xrpl_pub_key: generate_xrpl_pub_key(),
 //     };
@@ -9180,8 +9180,8 @@ fn contract_instantiation() {
 //             .as_str()
 //     ));
 
-//     // Try registering a coreum token as not_owner, should fail
-//     let register_coreum_error = wasm
+//     // Try registering a oraichain token as not_owner, should fail
+//     let register_cosmos_error = wasm
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::RegisterOraiToken {
@@ -9196,7 +9196,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(register_coreum_error
+//     assert!(register_cosmos_error
 //         .to_string()
 //         .contains(ContractError::UnauthorizedSender {}.to_string().as_str()));
 
@@ -9269,7 +9269,7 @@ fn contract_instantiation() {
 //     let recipient = Addr::unchecked("signer");
 
 //     // Create multiple evidences changing only 1 field to verify that all of them have different hashes
-//     let xrpl_to_coreum_transfer_evidences = vec![
+//     let xrpl_to_cosmos_transfer_evidences = vec![
 //         Evidence::XRPLToOraiTransfer {
 //             tx_hash: hash.clone(),
 //             issuer: issuer.clone(),
@@ -9316,11 +9316,11 @@ fn contract_instantiation() {
 
 //     // Add them all to a map to see that they create different entries
 //     let mut evidence_map = HashMap::new();
-//     for evidence in xrpl_to_coreum_transfer_evidences.iter() {
+//     for evidence in xrpl_to_cosmos_transfer_evidences.iter() {
 //         evidence_map.insert(hash_bytes(to_string(evidence).unwrap().into_bytes()), true);
 //     }
 
-//     assert_eq!(evidence_map.len(), xrpl_to_coreum_transfer_evidences.len());
+//     assert_eq!(evidence_map.len(), xrpl_to_cosmos_transfer_evidences.len());
 
 //     let hash = Some(generate_hash());
 //     let operation_id = Some(1);

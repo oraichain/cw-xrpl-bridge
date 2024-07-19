@@ -50,7 +50,7 @@ fn collect_fees(storage: &mut dyn Storage, fee: Coin) -> Result<(), ContractErro
             for relayer in &relayers {
                 // We get previous relayer fees collected to update them. If it's the first time the relayer gets fees, we initialize the array
                 let mut fees_collected = FEES_COLLECTED
-                    .may_load(storage, relayer.coreum_address.clone())?
+                    .may_load(storage, relayer.cosmos_address.clone())?
                     .unwrap_or_default();
 
                 // Add fees to the relayer fees collected
@@ -61,7 +61,7 @@ fn collect_fees(storage: &mut dyn Storage, fee: Coin) -> Result<(), ContractErro
                     }
                 }
 
-                FEES_COLLECTED.save(storage, relayer.coreum_address.clone(), &fees_collected)?;
+                FEES_COLLECTED.save(storage, relayer.cosmos_address.clone(), &fees_collected)?;
             }
         }
 

@@ -175,7 +175,7 @@ pub fn instantiate(
     let token = XRPLToken {
         issuer: XRP_ISSUER.to_string(),
         currency: XRP_CURRENCY.to_string(),
-        coreum_denom: config.build_denom(XRP_SYMBOL),
+        cosmos_denom: config.build_denom(XRP_SYMBOL),
         sending_precision: XRP_DEFAULT_SENDING_PRECISION,
         max_holding_amount: Uint128::new(XRP_DEFAULT_MAX_HOLDING_AMOUNT),
         // The XRP token is enabled from the start because it doesn't need approval to be received on the XRPL side
@@ -359,7 +359,7 @@ fn register_coreum_token(
         return Err(ContractError::OraiTokenAlreadyRegistered { denom });
     }
 
-    validate_coreum_denom(&denom)?;
+    validate_cosmos_denom(&denom)?;
 
     // We generate a currency creating a Sha256 hash of the denom, the decimals and the current time so that if it fails we can try again
     let to_hash = format!("{}{}{}", denom, decimals, env.block.time.seconds()).into_bytes();
@@ -442,11 +442,11 @@ fn register_xrpl_token(
     let subdenom = format!("{XRPL_DENOM_PREFIX}{hex_string}");
 
     let config = CONFIG.load(deps.storage)?;
-    let coreum_denom = config.build_denom(subdenom.as_str());
+    let cosmos_denom = config.build_denom(subdenom.as_str());
     let issue_msg = wasm_execute(
         config.token_factory_addr.to_string(),
         &tokenfactory::msg::ExecuteMsg::CreateDenom {
-            subdenom: subdenom.clone(),
+            subdenom: subdenom.clone().to_uppercase(),
             metadata: Some(Metadata {
                 symbol: Some(XRP_SYMBOL.to_string()),
                 denom_units: vec![DenomUnit {
@@ -474,7 +474,7 @@ fn register_xrpl_token(
     let token = XRPLToken {
         issuer: issuer.clone(),
         currency: currency.clone(),
-        coreum_denom,
+        cosmos_denom,
         sending_precision,
         max_holding_amount,
         // Registered tokens will start in processing until TrustSet operation is accepted/rejected
@@ -580,13 +580,13 @@ fn save_evidence(
                 let (amount_to_send, remainder) =
                     truncate_amount(token.sending_precision, decimals, amount_after_bridge_fees)?;
 
-                println!("token: {:?} {}", currency, token.coreum_denom);
+                println!("token: {:?} {}", currency, token.cosmos_denom);
 
                 // The amount the bridge can mint cannot exceed the max_holding_amount
                 if amount
                     .checked_add(
                         deps.querier
-                            .query_supply(token.coreum_denom.clone())?
+                            .query_supply(token.cosmos_denom.clone())?
                             .amount,
                     )?
                     .gt(&token.max_holding_amount)
@@ -599,7 +599,7 @@ fn save_evidence(
                     let fee_collected = handle_fee_collection(
                         deps.storage,
                         token.bridging_fee,
-                        token.coreum_denom.clone(),
+                        token.cosmos_denom.clone(),
                         remainder,
                     )?;
 
@@ -607,7 +607,7 @@ fn save_evidence(
                         let mint_msg_fees = wasm_execute(
                             config.token_factory_addr.to_string(),
                             &tokenfactory::msg::ExecuteMsg::MintTokens {
-                                denom: token.coreum_denom.clone(),
+                                denom: token.cosmos_denom.clone(),
                                 amount: fee_collected,
                                 mint_to_address: sender.to_string(),
                             },
@@ -620,7 +620,7 @@ fn save_evidence(
                         let mint_msg_for_recipient = wasm_execute(
                             config.token_factory_addr,
                             &tokenfactory::msg::ExecuteMsg::MintTokens {
-                                denom: token.coreum_denom,
+                                denom: token.cosmos_denom,
                                 amount: amount_to_send,
                                 mint_to_address: recipient.to_string(),
                             },
@@ -919,7 +919,7 @@ fn send_to_xrpl(
     // We check if the token we are sending is an XRPL originated token or not
     if let Some(xrpl_token) = XRPL_TOKENS
         .idx
-        .coreum_denom
+        .cosmos_denom
         .item(deps.storage, funds.denom.clone())
         .map(|res| res.map(|pk_token| pk_token.1))?
     {
@@ -976,7 +976,7 @@ fn send_to_xrpl(
         handle_fee_collection(
             deps.storage,
             xrpl_token.bridging_fee,
-            xrpl_token.coreum_denom,
+            xrpl_token.cosmos_denom,
             remainder,
         )?;
     } else {
@@ -1100,7 +1100,7 @@ fn update_xrpl_token(
     // Get the current bridged amount for this token to verify that we are not setting a max_holding_amount that is less than the current amount
     let current_bridged_amount = deps
         .querier
-        .query_supply(token.coreum_denom.clone())?
+        .query_supply(token.cosmos_denom.clone())?
         .amount;
 
     set_token_max_holding_amount(
@@ -1578,7 +1578,7 @@ fn query_pending_refunds(
 fn query_transaction_evidence(deps: Deps, hash: String) -> StdResult<TransactionEvidence> {
     let relayer_addresses = TX_EVIDENCES
         .may_load(deps.storage, hash.clone())?
-        .map(|e| e.relayer_coreum_addresses);
+        .map(|e| e.relayer_cosmos_addresses);
 
     Ok(TransactionEvidence {
         hash,
@@ -1602,7 +1602,7 @@ fn query_transaction_evidences(
             last_key = Some(evidence_hash.clone());
             TransactionEvidence {
                 hash: evidence_hash,
-                relayer_addresses: e.relayer_coreum_addresses,
+                relayer_addresses: e.relayer_cosmos_addresses,
             }
         })
         .collect();
@@ -1727,7 +1727,7 @@ pub fn validate_sending_precision(
 
 // We are going to perform the same validation the CosmosSDK does for the denom
 // which is the following Regex [a-zA-Z][a-zA-Z0-9/:._-]{2,127}
-fn validate_coreum_denom(denom: &str) -> Result<(), ContractError> {
+fn validate_cosmos_denom(denom: &str) -> Result<(), ContractError> {
     if denom.len() < MIN_DENOM_LENGTH || denom.len() > MAX_DENOM_LENGTH {
         return Err(ContractError::InvalidDenom {});
     }
@@ -1845,7 +1845,7 @@ fn validate_xrpl_amount(amount: Uint128) -> Result<(), ContractError> {
 
 fn convert_currency_to_xrpl_hexadecimal(currency: String) -> String {
     // Fill with zeros to get the correct hex representation in XRPL of our currency.
-    format!("{:0<40}", HexBinary::from(currency.as_bytes()).to_hex())
+    format!("{:0<40}", HexBinary::from(currency.as_bytes()).to_hex()).to_uppercase()
 }
 
 // Helper function to check that the sender is authorized for an operation

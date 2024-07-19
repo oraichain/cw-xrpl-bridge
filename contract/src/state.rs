@@ -73,7 +73,7 @@ pub enum BridgeState {
 pub struct XRPLToken {
     pub issuer: String,
     pub currency: String,
-    pub coreum_denom: String,
+    pub cosmos_denom: String,
     pub sending_precision: i32,
     pub max_holding_amount: Uint128,
     pub state: TokenState,
@@ -116,14 +116,14 @@ pub struct PendingRefund {
 
 pub const CONFIG: Item<Config> = Item::new(TopKey::Config.as_str());
 // Tokens registered from XRPL side. These tokens are XRPL originated tokens - primary key is issuer+currency on XRPL
-// XRPLTokens will have coreum_denom as a secondary index so that we can get the XRPLToken corresponding to a coreum_denom
+// XRPLTokens will have cosmos_denom as a secondary index so that we can get the XRPLToken corresponding to a cosmos_denom
 pub struct XRPLTokensIndexes<'a> {
-    pub coreum_denom: UniqueIndex<'a, String, XRPLToken, String>,
+    pub cosmos_denom: UniqueIndex<'a, String, XRPLToken, String>,
 }
 
 impl<'a> IndexList<XRPLToken> for XRPLTokensIndexes<'a> {
     fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<XRPLToken>> + '_> {
-        let v: Vec<&dyn Index<XRPLToken>> = vec![&self.coreum_denom];
+        let v: Vec<&dyn Index<XRPLToken>> = vec![&self.cosmos_denom];
         Box::new(v.into_iter())
     }
 }
@@ -131,9 +131,9 @@ impl<'a> IndexList<XRPLToken> for XRPLTokensIndexes<'a> {
 pub const XRPL_TOKENS: IndexedMap<String, XRPLToken, XRPLTokensIndexes> = IndexedMap::new(
     TopKey::XRPLTokens.as_str(),
     XRPLTokensIndexes {
-        coreum_denom: UniqueIndex::new(
-            |xrpl_token| xrpl_token.coreum_denom.clone(),
-            "xrpl_token__coreum_denom",
+        cosmos_denom: UniqueIndex::new(
+            |xrpl_token| xrpl_token.cosmos_denom.clone(),
+            "xrpl_token__cosmos_denom",
         ),
     },
 );

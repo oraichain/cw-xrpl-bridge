@@ -67,6 +67,7 @@ impl Evidence {
             Self::XRPLToOraiTransfer { tx_hash, .. } => tx_hash.clone(),
             Self::XRPLTransactionResult { tx_hash, .. } => tx_hash.clone().unwrap(),
         }
+        .to_uppercase()
     }
     pub fn is_operation_valid(&self) -> bool {
         match self {
@@ -138,7 +139,7 @@ impl Evidence {
 
 #[cw_serde]
 pub struct Evidences {
-    pub relayer_coreum_addresses: Vec<Addr>,
+    pub relayer_cosmos_addresses: Vec<Addr>,
 }
 
 pub fn hash_bytes(bytes: Vec<u8>) -> String {
@@ -163,27 +164,27 @@ pub fn handle_evidence(
     // Relayers can only provide the evidence once
     match TX_EVIDENCES.may_load(storage, evidence.get_hash())? {
         Some(stored_evidences) => {
-            if stored_evidences.relayer_coreum_addresses.contains(&sender) {
+            if stored_evidences.relayer_cosmos_addresses.contains(&sender) {
                 return Err(ContractError::EvidenceAlreadyProvided {});
             }
             evidences = stored_evidences;
-            evidences.relayer_coreum_addresses.push(sender);
+            evidences.relayer_cosmos_addresses.push(sender);
         }
         None => {
             evidences = Evidences {
-                relayer_coreum_addresses: vec![sender],
+                relayer_cosmos_addresses: vec![sender],
             };
         }
     }
 
     let config = CONFIG.load(storage)?;
-    if evidences.relayer_coreum_addresses.len() >= config.evidence_threshold as usize {
+    if evidences.relayer_cosmos_addresses.len() >= config.evidence_threshold as usize {
         // We only registered the transaction as processed if its execution didn't fail (it wasn't Invalid)
         if operation_valid {
             PROCESSED_TXS.save(storage, evidence.get_tx_hash(), &Empty {})?;
         }
         // If there is just one relayer there is nothing to delete
-        if evidences.relayer_coreum_addresses.len() != 1 {
+        if evidences.relayer_cosmos_addresses.len() != 1 {
             TX_EVIDENCES.remove(storage, evidence.get_hash());
         }
         return Ok(true);

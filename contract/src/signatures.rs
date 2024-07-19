@@ -11,7 +11,7 @@ const MAX_SIGNATURE_LENGTH: usize = 200;
 
 #[cw_serde]
 pub struct Signature {
-    pub relayer_coreum_address: Addr,
+    pub relayer_cosmos_address: Addr,
     pub signature: String,
 }
 
@@ -43,16 +43,16 @@ pub fn add_signature(
     // If this relayer already provided a signature he can't overwrite it
     if signatures.clone().into_iter().any(
         |Signature {
-             relayer_coreum_address,
+             relayer_cosmos_address,
              signature: _,
-         }| relayer_coreum_address == sender,
+         }| relayer_cosmos_address == sender,
     ) {
         return Err(ContractError::SignatureAlreadyProvided {});
     }
 
     // Add signature and store it
     signatures.push(Signature {
-        relayer_coreum_address: sender,
+        relayer_cosmos_address: sender,
         signature,
     });
 

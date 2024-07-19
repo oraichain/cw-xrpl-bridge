@@ -17,11 +17,11 @@ use crate::{
 };
 
 #[test]
-fn register_coreum_token() {
+fn register_cosmos_token() {
     let mut app = MockApp::new(&[("signer", &coins(100_000_000_000, FEE_DENOM))]);
 
     let relayer = Relayer {
-        coreum_address: Addr::unchecked("signer"),
+        cosmos_address: Addr::unchecked("signer"),
         xrpl_address: generate_xrpl_address(),
         xrpl_pub_key: generate_xrpl_pub_key(),
     };
@@ -193,7 +193,7 @@ fn register_coreum_token() {
     
 
     // Query all tokens
-    let query_coreum_tokens :OraiTokensResponse= app
+    let query_cosmos_tokens :OraiTokensResponse= app
         .query(
             contract_addr.clone(),
             &QueryMsg::OraiTokens {
@@ -202,20 +202,20 @@ fn register_coreum_token() {
             },
         )
         .unwrap();
-    assert_eq!(query_coreum_tokens.tokens.len(), 2);
-    assert_eq!(query_coreum_tokens.tokens[0].denom, test_tokens[0].denom);
-    assert_eq!(query_coreum_tokens.tokens[1].denom, test_tokens[1].denom);
+    assert_eq!(query_cosmos_tokens.tokens.len(), 2);
+    assert_eq!(query_cosmos_tokens.tokens[0].denom, test_tokens[0].denom);
+    assert_eq!(query_cosmos_tokens.tokens[1].denom, test_tokens[1].denom);
     assert_eq!(
-        query_coreum_tokens.tokens[0].xrpl_currency,
-        query_coreum_tokens.tokens[0].xrpl_currency.to_uppercase()
+        query_cosmos_tokens.tokens[0].xrpl_currency,
+        query_cosmos_tokens.tokens[0].xrpl_currency.to_uppercase()
     );
     assert_eq!(
-        query_coreum_tokens.tokens[1].xrpl_currency,
-        query_coreum_tokens.tokens[1].xrpl_currency.to_uppercase()
+        query_cosmos_tokens.tokens[1].xrpl_currency,
+        query_cosmos_tokens.tokens[1].xrpl_currency.to_uppercase()
     );
 
     // Query tokens with limit
-    let query_coreum_tokens:OraiTokensResponse = app
+    let query_cosmos_tokens:OraiTokensResponse = app
         .query(
             contract_addr.clone(),
             &QueryMsg::OraiTokens {
@@ -224,21 +224,21 @@ fn register_coreum_token() {
             },
         )
         .unwrap();
-    assert_eq!(query_coreum_tokens.tokens.len(), 1);
-    assert_eq!(query_coreum_tokens.tokens[0].denom, test_tokens[0].denom);
+    assert_eq!(query_cosmos_tokens.tokens.len(), 1);
+    assert_eq!(query_cosmos_tokens.tokens[0].denom, test_tokens[0].denom);
 
     // Query tokens with pagination
-    let query_coreum_tokens:OraiTokensResponse = app
+    let query_cosmos_tokens:OraiTokensResponse = app
         .query(
             contract_addr.clone(),
             &QueryMsg::OraiTokens {
-                start_after_key: query_coreum_tokens.last_key,
+                start_after_key: query_cosmos_tokens.last_key,
                 limit: Some(1),
             },
         )
         .unwrap();
-    assert_eq!(query_coreum_tokens.tokens.len(), 1);
-    assert_eq!(query_coreum_tokens.tokens[0].denom, test_tokens[1].denom);
+    assert_eq!(query_cosmos_tokens.tokens.len(), 1);
+    assert_eq!(query_cosmos_tokens.tokens[0].denom, test_tokens[1].denom);
 }
 
 
@@ -248,7 +248,7 @@ fn register_xrpl_token() {
 
     
     let relayer = Relayer {
-        coreum_address: Addr::unchecked("signer"),
+        cosmos_address: Addr::unchecked("signer"),
         xrpl_address: generate_xrpl_address(),
         xrpl_pub_key: generate_xrpl_pub_key(),
     };
@@ -281,7 +281,7 @@ fn register_xrpl_token() {
             sending_precision: -15,
             max_holding_amount: Uint128::new(100),
             bridging_fee: Uint128::zero(),
-            coreum_denom:XRPL_DENOM_PREFIX.to_string(),
+            cosmos_denom:XRPL_DENOM_PREFIX.to_string(),
             state:TokenState::Enabled
         },
         XRPLToken {
@@ -290,7 +290,7 @@ fn register_xrpl_token() {
             sending_precision: 15,
             max_holding_amount: Uint128::new(50000),
             bridging_fee: Uint128::zero(),
-            coreum_denom:XRPL_DENOM_PREFIX.to_string(),
+            cosmos_denom:XRPL_DENOM_PREFIX.to_string(),
             state:TokenState::Enabled
         },
     ];
@@ -557,7 +557,7 @@ fn register_xrpl_token() {
         sending_precision: -15,
         max_holding_amount: Uint128::new(100),
         bridging_fee: Uint128::zero(),
-        coreum_denom:XRPL_DENOM_PREFIX.to_string(),
+        cosmos_denom:XRPL_DENOM_PREFIX.to_string(),
         state:TokenState::Enabled
     };
 

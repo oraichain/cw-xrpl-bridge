@@ -13,7 +13,7 @@ use crate::{
 
 #[cw_serde]
 pub struct Relayer {
-    pub coreum_address: Addr,
+    pub cosmos_address: Addr,
     pub xrpl_address: String,
     pub xrpl_pub_key: String,
 }
@@ -25,7 +25,7 @@ pub fn validate_relayers(
 ) -> Result<(), ContractError> {
     let mut set_xrpl_addresses = HashSet::new();
     let mut set_xrpl_pubkeys = HashSet::new();
-    let mut set_coreum_addresses = HashSet::new();
+    let mut set_cosmos_addresses = HashSet::new();
 
     // Threshold can't be 0 or more than number of relayers
     if evidence_threshold == 0 || evidence_threshold as usize > relayers.len() {
@@ -37,7 +37,7 @@ pub fn validate_relayers(
     }
 
     for relayer in relayers {
-        deps.api.addr_validate(relayer.coreum_address.as_ref())?;
+        deps.api.addr_validate(relayer.cosmos_address.as_ref())?;
         validate_xrpl_address(deps.storage, relayer.xrpl_address.clone())?;
 
         // If the set returns false during insertion it means that the key already exists and therefore is duplicated
@@ -47,7 +47,7 @@ pub fn validate_relayers(
         if !set_xrpl_pubkeys.insert(relayer.xrpl_pub_key.clone()) {
             return Err(ContractError::DuplicatedRelayer {});
         };
-        if !set_coreum_addresses.insert(relayer.coreum_address.clone()) {
+        if !set_cosmos_addresses.insert(relayer.cosmos_address.clone()) {
             return Err(ContractError::DuplicatedRelayer {});
         };
     }
@@ -58,7 +58,7 @@ pub fn validate_relayers(
 pub fn is_relayer(storage: &dyn Storage, sender: &Addr) -> Result<bool, ContractError> {
     let config = CONFIG.load(storage)?;
 
-    Ok(config.relayers.iter().any(|r| r.coreum_address == sender))
+    Ok(config.relayers.iter().any(|r| r.cosmos_address == sender))
 }
 
 pub fn handle_rotate_keys_confirmation(

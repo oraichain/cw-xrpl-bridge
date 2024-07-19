@@ -45,7 +45,7 @@ fn queries() {
         let account = format!("account{}", i);
         relayer_accounts.push(account.clone());
         relayers.push(Relayer {
-            coreum_address: Addr::unchecked(account),
+            cosmos_address: Addr::unchecked(account),
             xrpl_address: xrpl_addresses[i].to_string(),
             xrpl_pub_key: xrpl_pub_keys[i].to_string(),
         });
@@ -113,7 +113,7 @@ fn queries() {
         XRPLToken {
             issuer: XRP_ISSUER.to_string(),
             currency: XRP_CURRENCY.to_string(),
-            coreum_denom: format!("{}/{}", XRP_SUBUNIT, contract_addr),
+            cosmos_denom: format!("{}/{}", XRP_SUBUNIT, contract_addr),
             sending_precision: XRP_DEFAULT_SENDING_PRECISION,
             max_holding_amount: Uint128::new(XRP_DEFAULT_MAX_HOLDING_AMOUNT),
             state: TokenState::Enabled,

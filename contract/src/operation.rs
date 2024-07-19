@@ -227,13 +227,13 @@ pub fn handle_coreum_to_xrpl_transfer_confirmation(
                     // If transaction was accepted and the token that was sent back was an XRPL originated token, we must burn the token amount
                     if transaction_result.eq(&TransactionResult::Accepted) {
                         // let burn_msg = CosmosMsg::from(OraiMsg::AssetFT(assetft::Msg::Burn {
-                        //     coin: coin(amount_sent.u128(), xrpl_token.coreum_denom),
+                        //     coin: coin(amount_sent.u128(), xrpl_token.cosmos_denom),
                         // }));
 
                         let burn_msg = wasm_execute(
                             token_factory_addr,
                             &tokenfactory::msg::ExecuteMsg::BurnTokens {
-                                denom: xrpl_token.coreum_denom,
+                                denom: xrpl_token.cosmos_denom,
                                 amount: amount_sent,
                                 burn_from_address: sender.to_string(),
                             },
@@ -248,7 +248,7 @@ pub fn handle_coreum_to_xrpl_transfer_confirmation(
                             pending_operation.id,
                             tx_hash,
                             sender,
-                            coin(amount_sent.u128(), xrpl_token.coreum_denom),
+                            coin(amount_sent.u128(), xrpl_token.cosmos_denom),
                         )?;
                     }
                 }
