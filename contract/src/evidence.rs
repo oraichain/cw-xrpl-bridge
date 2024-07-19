@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{to_vec, Addr, Empty, HexBinary, Storage, Uint128};
+use cosmwasm_std::{to_json_vec, Addr, Empty, HexBinary, Storage, Uint128};
 use sha2::{Digest, Sha256};
 
 use crate::{
@@ -58,7 +58,7 @@ pub enum OperationResult {
 impl Evidence {
     // We hash the entire Evidence struct to avoid having to deal with different types of hashes
     pub fn get_hash(&self) -> String {
-        let to_hash_bytes = to_vec(self).unwrap();
+        let to_hash_bytes = to_json_vec(self).unwrap();
         hash_bytes(to_hash_bytes)
     }
 

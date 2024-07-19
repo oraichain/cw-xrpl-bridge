@@ -34,8 +34,8 @@ use crate::{
 };
 
 use cosmwasm_std::{
-    coins, entry_point, to_binary, wasm_execute, Addr, BankMsg, Binary, Coin, Deps, DepsMut, Empty,
-    Env, HexBinary, MessageInfo, Order, Response, StdResult, Storage, Uint128,
+    coins, entry_point, to_json_binary, wasm_execute, Addr, BankMsg, Binary, Coin, Deps, DepsMut,
+    Empty, Env, HexBinary, MessageInfo, Order, Response, StdResult, Storage, Uint128,
 };
 use cw2::set_contract_version;
 use cw_ownable::{get_ownership, initialize_owner, is_owner, Action};
@@ -603,38 +603,31 @@ fn save_evidence(
                         remainder,
                     )?;
 
-                    // let mint_msg_fees = CosmosMsg::from(OraiMsg::AssetFT(assetft::Msg::Mint {
-                    //     coin: coin(fee_collected.u128(), token.coreum_denom.clone()),
-                    //     recipient: None,
-                    // }));
+                    if !fee_collected.is_zero() {
+                        let mint_msg_fees = wasm_execute(
+                            config.token_factory_addr.to_string(),
+                            &tokenfactory::msg::ExecuteMsg::MintTokens {
+                                denom: token.coreum_denom.clone(),
+                                amount: fee_collected,
+                                mint_to_address: sender.to_string(),
+                            },
+                            vec![],
+                        )?;
+                        response = response.add_message(mint_msg_fees);
+                    }
 
-                    // let mint_msg_for_recipient =
-                    //     CosmosMsg::from(OraiMsg::AssetFT(assetft::Msg::Mint {
-                    //         coin: coin(amount_to_send.u128(), token.coreum_denom),
-                    //         recipient: Some(recipient.to_string()),
-                    //     }));
-
-                    let mint_msg_fees = wasm_execute(
-                        config.token_factory_addr.to_string(),
-                        &tokenfactory::msg::ExecuteMsg::MintTokens {
-                            denom: token.coreum_denom.clone(),
-                            amount: fee_collected,
-                            mint_to_address: sender.to_string(),
-                        },
-                        vec![],
-                    )?;
-
-                    let mint_msg_for_recipient = wasm_execute(
-                        config.token_factory_addr,
-                        &tokenfactory::msg::ExecuteMsg::MintTokens {
-                            denom: token.coreum_denom,
-                            amount: amount_to_send,
-                            mint_to_address: recipient.to_string(),
-                        },
-                        vec![],
-                    )?;
-
-                    response = response.add_messages([mint_msg_fees, mint_msg_for_recipient]);
+                    if !amount_to_send.is_zero() {
+                        let mint_msg_for_recipient = wasm_execute(
+                            config.token_factory_addr,
+                            &tokenfactory::msg::ExecuteMsg::MintTokens {
+                                denom: token.coreum_denom,
+                                amount: amount_to_send,
+                                mint_to_address: recipient.to_string(),
+                            },
+                            vec![],
+                        )?;
+                        response = response.add_message(mint_msg_for_recipient);
+                    }
                 }
             } else {
                 // We check that the token is registered and enabled
@@ -1408,48 +1401,50 @@ fn cancel_pending_operation(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::Config {} => to_binary(&query_config(deps)?),
+        QueryMsg::Config {} => to_json_binary(&query_config(deps)?),
         QueryMsg::XRPLTokens {
             start_after_key,
             limit,
-        } => to_binary(&query_xrpl_tokens(deps, start_after_key, limit)),
+        } => to_json_binary(&query_xrpl_tokens(deps, start_after_key, limit)),
         QueryMsg::OraiTokens {
             start_after_key,
             limit,
-        } => to_binary(&query_coreum_tokens(deps, start_after_key, limit)),
-        QueryMsg::Ownership {} => to_binary(&get_ownership(deps.storage)?),
+        } => to_json_binary(&query_coreum_tokens(deps, start_after_key, limit)),
+        QueryMsg::Ownership {} => to_json_binary(&get_ownership(deps.storage)?),
         QueryMsg::PendingOperations {
             start_after_key,
             limit,
-        } => to_binary(&query_pending_operations(deps, start_after_key, limit)),
-        QueryMsg::AvailableTickets {} => to_binary(&query_available_tickets(deps)?),
+        } => to_json_binary(&query_pending_operations(deps, start_after_key, limit)),
+        QueryMsg::AvailableTickets {} => to_json_binary(&query_available_tickets(deps)?),
         QueryMsg::PendingRefunds {
             address,
             start_after_key,
             limit,
-        } => to_binary(&query_pending_refunds(
+        } => to_json_binary(&query_pending_refunds(
             deps,
             address,
             start_after_key,
             limit,
         )),
         QueryMsg::FeesCollected { relayer_address } => {
-            to_binary(&query_fees_collected(deps, relayer_address)?)
+            to_json_binary(&query_fees_collected(deps, relayer_address)?)
         }
-        QueryMsg::BridgeState {} => to_binary(&query_bridge_state(deps)?),
+        QueryMsg::BridgeState {} => to_json_binary(&query_bridge_state(deps)?),
         QueryMsg::TransactionEvidence { hash } => {
-            to_binary(&query_transaction_evidence(deps, hash)?)
+            to_json_binary(&query_transaction_evidence(deps, hash)?)
         }
         QueryMsg::TransactionEvidences {
             start_after_key,
             limit,
-        } => to_binary(&query_transaction_evidences(deps, start_after_key, limit)),
-        QueryMsg::ProcessedTx { hash } => to_binary(&query_processed_tx(deps, hash)),
+        } => to_json_binary(&query_transaction_evidences(deps, start_after_key, limit)),
+        QueryMsg::ProcessedTx { hash } => to_json_binary(&query_processed_tx(deps, hash)),
         QueryMsg::ProcessedTxs {
             start_after_key,
             limit,
-        } => to_binary(&query_processed_txs(deps, start_after_key, limit)),
-        QueryMsg::ProhibitedXRPLAddresses {} => to_binary(&query_prohibited_xrpl_addresses(deps)),
+        } => to_json_binary(&query_processed_txs(deps, start_after_key, limit)),
+        QueryMsg::ProhibitedXRPLAddresses {} => {
+            to_json_binary(&query_prohibited_xrpl_addresses(deps))
+        }
     }
 }
 

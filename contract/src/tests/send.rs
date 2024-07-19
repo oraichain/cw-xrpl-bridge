@@ -239,7 +239,8 @@ fn send_xrpl_originated_tokens_from_xrpl_to_coreum() {
     .unwrap_err();
 
     // Test with more than 1 relayer
-
+    // each token_factory will create a seperated namespace following its address
+    let token_factory_addr = app.create_tokenfactory(Addr::unchecked(signer)).unwrap();
     let contract_addr = app
         .create_bridge(
             Addr::unchecked(signer),
