@@ -1,14 +1,20 @@
 use crate::contract::{MAX_RELAYERS, XRPL_DENOM_PREFIX, XRP_SYMBOL};
 use crate::error::ContractError;
 use crate::evidence::{Evidence, OperationResult, TransactionResult};
-use crate::msg::{ExecuteMsg, PendingOperationsResponse, QueryMsg, XRPLTokensResponse};
+use crate::msg::{
+    ExecuteMsg, OraiTokensResponse, PendingOperationsResponse, PendingRefundsResponse, QueryMsg,
+    XRPLTokensResponse,
+};
+use crate::operation::OperationType;
 use crate::state::{Config, TokenState, XRPLToken};
 use crate::tests::helper::{
     generate_hash, generate_xrpl_address, generate_xrpl_pub_key, MockApp, FEE_DENOM,
     TRUST_SET_LIMIT_AMOUNT,
 };
 use crate::{contract::XRP_CURRENCY, msg::InstantiateMsg, relayer::Relayer};
-use cosmwasm_std::{coin, coins, Addr, BankMsg, BankQuery, SupplyResponse, Uint128};
+use cosmwasm_std::{
+    coin, coins, Addr, BalanceResponse, BankMsg, BankQuery, SupplyResponse, Uint128,
+};
 use cosmwasm_testing_util::{BankSudo, Executor};
 use token_bindings::{DenomUnit, FullDenomResponse, Metadata, MetadataResponse};
 
@@ -734,139 +740,145 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     )
     .unwrap();
 
-    //     // Check balance of sender and contract
-    //     let request_balance = asset_ft
-    //         .query_balance(&QueryBalanceRequest {
-    //             account: sender.address(),
-    //             denom: denom.clone(),
-    //         })
-    //         .unwrap();
+    // Check balance of sender and contract
+    let request_balance: BalanceResponse = app
+        .as_querier()
+        .query(
+            &BankQuery::Balance {
+                address: sender.to_string(),
+                denom: denom.clone(),
+            }
+            .into(),
+        )
+        .unwrap();
 
-    //     assert_eq!(
-    //         request_balance.balance,
-    //         initial_amount
-    //             .checked_sub(amount_to_send)
-    //             .unwrap()
-    //             .to_string()
-    //     );
+    assert_eq!(
+        request_balance.amount.amount,
+        initial_amount - amount_to_send
+    );
 
-    //     let request_balance = asset_ft
-    //         .query_balance(&QueryBalanceRequest {
-    //             account: contract_addr.clone(),
-    //             denom: denom.clone(),
-    //         })
-    //         .unwrap();
+    let request_balance: BalanceResponse = app
+        .as_querier()
+        .query(
+            &BankQuery::Balance {
+                address: contract_addr.to_string(),
+                denom: denom.clone(),
+            }
+            .into(),
+        )
+        .unwrap();
 
-    //     assert_eq!(request_balance.balance, amount_to_send.to_string());
+    assert_eq!(request_balance.amount.amount, amount_to_send);
 
-    //     // Get the token information
-    //     let query_cosmos_tokens = wasm
-    //         .query::<QueryMsg, OraiTokensResponse>(
-    //             contract_addr.clone(),
-    //             &QueryMsg::OraiTokens {
-    //                 start_after_key: None,
-    //                 limit: None,
-    //             },
-    //         )
-    //         .unwrap();
+    // Get the token information
+    let query_cosmos_tokens: OraiTokensResponse = app
+        .query(
+            contract_addr.clone(),
+            &QueryMsg::OraiTokens {
+                start_after_key: None,
+                limit: None,
+            },
+        )
+        .unwrap();
 
-    //     let oraichain_originated_token = query_cosmos_tokens
-    //         .tokens
-    //         .iter()
-    //         .find(|t| t.denom == denom)
-    //         .unwrap();
+    let oraichain_originated_token = query_cosmos_tokens
+        .tokens
+        .iter()
+        .find(|t| t.denom == denom)
+        .unwrap();
 
-    //     // Confirm the operation to remove it from pending operations.
-    //     let query_pending_operations = wasm
-    //         .query::<QueryMsg, PendingOperationsResponse>(
-    //             contract_addr.clone(),
-    //             &QueryMsg::PendingOperations {
-    //                 start_after_key: None,
-    //                 limit: None,
-    //             },
-    //         )
-    //         .unwrap();
+    // Confirm the operation to remove it from pending operations.
+    let query_pending_operations: PendingOperationsResponse = app
+        .query(
+            contract_addr.clone(),
+            &QueryMsg::PendingOperations {
+                start_after_key: None,
+                limit: None,
+            },
+        )
+        .unwrap();
 
-    //     let amount_truncated_and_converted = Uint128::new(1000000000000000); // 100001 -> truncate -> 100000 -> convert -> 1e15
-    //     assert_eq!(query_pending_operations.operations.len(), 1);
-    //     assert_eq!(
-    //         query_pending_operations.operations[0].operation_type,
-    //         OperationType::OraiToXRPLTransfer {
-    //             issuer: bridge_xrpl_address.clone(),
-    //             currency: oraichain_originated_token.xrpl_currency.clone(),
-    //             amount: amount_truncated_and_converted,
-    //             max_amount: Some(amount_truncated_and_converted),
-    //             sender: Addr::unchecked(sender.address()),
-    //             recipient: xrpl_receiver_address.clone(),
-    //         }
-    //     );
+    let amount_truncated_and_converted = Uint128::new(1000000000000000); // 100001 -> truncate -> 100000 -> convert -> 1e15
+    assert_eq!(query_pending_operations.operations.len(), 1);
+    assert_eq!(
+        query_pending_operations.operations[0].operation_type,
+        OperationType::OraiToXRPLTransfer {
+            issuer: bridge_xrpl_address.clone(),
+            currency: oraichain_originated_token.xrpl_currency.clone(),
+            amount: amount_truncated_and_converted,
+            max_amount: Some(amount_truncated_and_converted),
+            sender: Addr::unchecked(sender),
+            recipient: xrpl_receiver_address.clone(),
+        }
+    );
 
-    //     let tx_hash = generate_hash();
-    //     // Reject the operation, therefore the tokens should be stored in the pending refunds (except for truncated amount).
-    //     app.execute(
-    //         contract_addr.clone(),
-    //         &ExecuteMsg::SaveEvidence {
-    //             evidence: Evidence::XRPLTransactionResult {
-    //                 tx_hash: Some(tx_hash.clone()),
-    //                 account_sequence: query_pending_operations.operations[0].account_sequence,
-    //                 ticket_sequence: query_pending_operations.operations[0].ticket_sequence,
-    //                 transaction_result: TransactionResult::Rejected,
-    //                 operation_result: None,
-    //             },
-    //         },
-    //         &[],
-    //         relayer_account,
-    //     )
-    //     .unwrap();
+    let tx_hash = generate_hash();
+    // Reject the operation, therefore the tokens should be stored in the pending refunds (except for truncated amount).
+    app.execute(
+        Addr::unchecked(relayer_account),
+        contract_addr.clone(),
+        &ExecuteMsg::SaveEvidence {
+            evidence: Evidence::XRPLTransactionResult {
+                tx_hash: Some(tx_hash.clone()),
+                account_sequence: query_pending_operations.operations[0].account_sequence,
+                ticket_sequence: query_pending_operations.operations[0].ticket_sequence,
+                transaction_result: TransactionResult::Rejected,
+                operation_result: None,
+            },
+        },
+        &[],
+    )
+    .unwrap();
 
-    //     // Truncated amount and amount to be refunded will stay in the contract until relayers and users to be refunded claim
-    //     let request_balance = asset_ft
-    //         .query_balance(&QueryBalanceRequest {
-    //             account: contract_addr.clone(),
-    //             denom: denom.clone(),
-    //         })
-    //         .unwrap();
-    //     assert_eq!(request_balance.balance, amount_to_send.to_string());
+    // Truncated amount and amount to be refunded will stay in the contract until relayers and users to be refunded claim
+    let request_balance: BalanceResponse = app
+        .as_querier()
+        .query(
+            &BankQuery::Balance {
+                address: contract_addr.to_string(),
+                denom: denom.clone(),
+            }
+            .into(),
+        )
+        .unwrap();
+    assert_eq!(request_balance.amount.amount, amount_to_send);
 
-    //     // If we try to query pending refunds for any address that has no pending refunds, it should return an empty array
-    //     let query_pending_refunds = wasm
-    //         .query::<QueryMsg, PendingRefundsResponse>(
-    //             contract_addr.clone(),
-    //             &QueryMsg::PendingRefunds {
-    //                 address: Addr::unchecked("any_address"),
-    //                 start_after_key: None,
-    //                 limit: None,
-    //             },
-    //         )
-    //         .unwrap();
+    // If we try to query pending refunds for any address that has no pending refunds, it should return an empty array
+    let query_pending_refunds: PendingRefundsResponse = app
+        .query(
+            contract_addr.clone(),
+            &QueryMsg::PendingRefunds {
+                address: Addr::unchecked("any_address"),
+                start_after_key: None,
+                limit: None,
+            },
+        )
+        .unwrap();
 
-    //     assert_eq!(query_pending_refunds.pending_refunds, vec![]);
+    assert_eq!(query_pending_refunds.pending_refunds, vec![]);
 
-    //     // Let's verify the pending refunds and try to claim them
-    //     let query_pending_refunds = wasm
-    //         .query::<QueryMsg, PendingRefundsResponse>(
-    //             contract_addr.clone(),
-    //             &QueryMsg::PendingRefunds {
-    //                 address: Addr::unchecked(sender.address()),
-    //                 start_after_key: None,
-    //                 limit: None,
-    //             },
-    //         )
-    //         .unwrap();
+    // Let's verify the pending refunds and try to claim them
+    let query_pending_refunds: PendingRefundsResponse = app
+        .query(
+            contract_addr.clone(),
+            &QueryMsg::PendingRefunds {
+                address: Addr::unchecked(sender),
+                start_after_key: None,
+                limit: None,
+            },
+        )
+        .unwrap();
 
-    //     assert_eq!(query_pending_refunds.pending_refunds.len(), 1);
-    //     assert_eq!(
-    //         query_pending_refunds.pending_refunds[0].xrpl_tx_hash,
-    //         Some(tx_hash)
-    //     );
-    //     // Truncated amount (1) is not refundable
-    //     assert_eq!(
-    //         query_pending_refunds.pending_refunds[0].coin,
-    //         coin(
-    //             amount_to_send.checked_sub(Uint128::one()).unwrap().u128(),
-    //             denom.clone()
-    //         )
-    //     );
+    assert_eq!(query_pending_refunds.pending_refunds.len(), 1);
+    assert_eq!(
+        query_pending_refunds.pending_refunds[0].xrpl_tx_hash,
+        Some(tx_hash)
+    );
+    // Truncated amount (1) is not refundable
+    assert_eq!(
+        query_pending_refunds.pending_refunds[0].coin,
+        coin(amount_to_send.u128() - 1u128, denom.clone())
+    );
 
     //     // Trying to claim a refund with an invalid pending refund operation id should fail
     //     let claim_error = wasm
@@ -967,7 +979,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //         .query::<QueryMsg, PendingRefundsResponse>(
     //             contract_addr.clone(),
     //             &QueryMsg::PendingRefunds {
-    //                 address: Addr::unchecked(sender.address()),
+    //                 address: Addr::unchecked(sender),
     //                 start_after_key: None,
     //                 limit: None,
     //             },
@@ -1012,7 +1024,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //             },
     //         },
     //         &[],
-    //         relayer_account,
+    //         Addr::unchecked(relayer_account),
     //     )
     //     .unwrap();
 
@@ -1042,11 +1054,11 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //                     issuer: generate_xrpl_address(),
     //                     currency: oraichain_originated_token.xrpl_currency.clone(),
     //                     amount: amount_to_send_back.clone(),
-    //                     recipient: Addr::unchecked(sender.address()),
+    //                     recipient: Addr::unchecked(sender),
     //                 },
     //             },
     //             &[],
-    //             relayer_account,
+    //             Addr::unchecked(relayer_account),
     //         )
     //         .unwrap_err();
 
@@ -1064,11 +1076,11 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //                     issuer: bridge_xrpl_address.clone(),
     //                     currency: "invalid_currency".to_string(),
     //                     amount: amount_to_send_back.clone(),
-    //                     recipient: Addr::unchecked(sender.address()),
+    //                     recipient: Addr::unchecked(sender),
     //                 },
     //             },
     //             &[],
-    //             relayer_account,
+    //             Addr::unchecked(relayer_account),
     //         )
     //         .unwrap_err();
 
@@ -1086,11 +1098,11 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //                     issuer: bridge_xrpl_address.clone(),
     //                     currency: oraichain_originated_token.xrpl_currency.clone(),
     //                     amount: amount_to_send_back.checked_sub(Uint128::one()).unwrap(),
-    //                     recipient: Addr::unchecked(sender.address()),
+    //                     recipient: Addr::unchecked(sender),
     //                 },
     //             },
     //             &[],
-    //             relayer_account,
+    //             Addr::unchecked(relayer_account),
     //         )
     //         .unwrap_err();
 
@@ -1109,11 +1121,11 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //                 issuer: bridge_xrpl_address.clone(),
     //                 currency: oraichain_originated_token.xrpl_currency.clone(),
     //                 amount: amount_to_send_back.clone(),
-    //                 recipient: Addr::unchecked(sender.address()),
+    //                 recipient: Addr::unchecked(sender),
     //             },
     //         },
     //         &[],
-    //         relayer_account,
+    //         Addr::unchecked(relayer_account),
     //     )
     //     .unwrap();
 
@@ -1271,7 +1283,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //             currency: oraichain_originated_token.xrpl_currency.clone(),
     //             amount: amount_truncated_and_converted,
     //             max_amount: Some(amount_truncated_and_converted),
-    //             sender: Addr::unchecked(sender.address()),
+    //             sender: Addr::unchecked(sender),
     //             recipient: xrpl_receiver_address.clone(),
     //         }
     //     );
@@ -1289,7 +1301,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //             },
     //         },
     //         &[],
-    //         relayer_account,
+    //         Addr::unchecked(relayer_account),
     //     )
     //     .unwrap();
 
@@ -1323,7 +1335,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //         .query::<QueryMsg, PendingRefundsResponse>(
     //             contract_addr.clone(),
     //             &QueryMsg::PendingRefunds {
-    //                 address: Addr::unchecked(sender.address()),
+    //                 address: Addr::unchecked(sender),
     //                 start_after_key: None,
     //                 limit: None,
     //             },
@@ -1359,7 +1371,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //         .query::<QueryMsg, PendingRefundsResponse>(
     //             contract_addr.clone(),
     //             &QueryMsg::PendingRefunds {
-    //                 address: Addr::unchecked(sender.address()),
+    //                 address: Addr::unchecked(sender),
     //                 start_after_key: None,
     //                 limit: None,
     //             },
@@ -1404,7 +1416,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //             },
     //         },
     //         &[],
-    //         relayer_account,
+    //         Addr::unchecked(relayer_account),
     //     )
     //     .unwrap();
 
@@ -1434,11 +1446,11 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //                     issuer: generate_xrpl_address(),
     //                     currency: oraichain_originated_token.xrpl_currency.clone(),
     //                     amount: amount_to_send_back.clone(),
-    //                     recipient: Addr::unchecked(sender.address()),
+    //                     recipient: Addr::unchecked(sender),
     //                 },
     //             },
     //             &[],
-    //             relayer_account,
+    //             Addr::unchecked(relayer_account),
     //         )
     //         .unwrap_err();
 
@@ -1456,11 +1468,11 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //                     issuer: bridge_xrpl_address.clone(),
     //                     currency: "invalid_currency".to_string(),
     //                     amount: amount_to_send_back.clone(),
-    //                     recipient: Addr::unchecked(sender.address()),
+    //                     recipient: Addr::unchecked(sender),
     //                 },
     //             },
     //             &[],
-    //             relayer_account,
+    //             Addr::unchecked(relayer_account),
     //         )
     //         .unwrap_err();
 
@@ -1478,11 +1490,11 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //                     issuer: bridge_xrpl_address.clone(),
     //                     currency: oraichain_originated_token.xrpl_currency.clone(),
     //                     amount: amount_to_send_back.checked_sub(Uint128::one()).unwrap(),
-    //                     recipient: Addr::unchecked(sender.address()),
+    //                     recipient: Addr::unchecked(sender),
     //                 },
     //             },
     //             &[],
-    //             relayer_account,
+    //             Addr::unchecked(relayer_account),
     //         )
     //         .unwrap_err();
 
@@ -1501,11 +1513,11 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //                 issuer: bridge_xrpl_address.clone(),
     //                 currency: oraichain_originated_token.xrpl_currency.clone(),
     //                 amount: amount_to_send_back.clone(),
-    //                 recipient: Addr::unchecked(sender.address()),
+    //                 recipient: Addr::unchecked(sender),
     //             },
     //         },
     //         &[],
-    //         relayer_account,
+    //         Addr::unchecked(relayer_account),
     //     )
     //     .unwrap();
 
@@ -1626,7 +1638,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //             },
     //         },
     //         &[],
-    //         relayer_account,
+    //         Addr::unchecked(relayer_account),
     //     )
     //     .unwrap();
 
@@ -1667,11 +1679,11 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //                 issuer: XRP_ISSUER.to_string(),
     //                 currency: XRP_CURRENCY.to_string(),
     //                 amount: amount_to_send_xrp.clone(),
-    //                 recipient: Addr::unchecked(sender.address()),
+    //                 recipient: Addr::unchecked(sender),
     //             },
     //         },
     //         &[],
-    //         relayer_account,
+    //         Addr::unchecked(relayer_account),
     //     )
     //     .unwrap();
 
@@ -1742,7 +1754,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //                 currency: XRP_CURRENCY.to_string(),
     //                 amount: amount_to_send_back,
     //                 max_amount: None,
-    //                 sender: Addr::unchecked(sender.address()),
+    //                 sender: Addr::unchecked(sender),
     //                 recipient: xrpl_receiver_address.clone(),
     //             },
     //             xrpl_base_fee,
@@ -1797,7 +1809,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //                 },
     //             },
     //             &[],
-    //             relayer_account,
+    //             Addr::unchecked(relayer_account),
     //         )
     //         .unwrap_err();
 
@@ -1820,7 +1832,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //             },
     //         },
     //         &[],
-    //         relayer_account,
+    //         Addr::unchecked(relayer_account),
     //     )
     //     .unwrap();
 
@@ -1879,7 +1891,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //             },
     //         },
     //         &[],
-    //         relayer_account,
+    //         Addr::unchecked(relayer_account),
     //     )
     //     .unwrap();
 
@@ -1897,7 +1909,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //         .query::<QueryMsg, PendingRefundsResponse>(
     //             contract_addr.clone(),
     //             &QueryMsg::PendingRefunds {
-    //                 address: Addr::unchecked(sender.address()),
+    //                 address: Addr::unchecked(sender),
     //                 start_after_key: None,
     //                 limit: None,
     //             },
@@ -1960,7 +1972,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //             },
     //         },
     //         &[],
-    //         relayer_account,
+    //         Addr::unchecked(relayer_account),
     //     )
     //     .unwrap();
 
@@ -1975,11 +1987,11 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //                 issuer: test_token.issuer.to_string(),
     //                 currency: test_token.currency.to_string(),
     //                 amount: amount_to_send.clone(),
-    //                 recipient: Addr::unchecked(sender.address()),
+    //                 recipient: Addr::unchecked(sender),
     //             },
     //         },
     //         &[],
-    //         relayer_account,
+    //         Addr::unchecked(relayer_account),
     //     )
     //     .unwrap();
 
@@ -2091,7 +2103,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //                 currency: xrpl_originated_token.currency.clone(),
     //                 amount: amount_to_send_back,
     //                 max_amount: Some(amount_to_send_back),
-    //                 sender: Addr::unchecked(sender.address()),
+    //                 sender: Addr::unchecked(sender),
     //                 recipient: xrpl_receiver_address.clone(),
     //             },
     //             xrpl_base_fee
@@ -2111,7 +2123,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //             },
     //         },
     //         &[],
-    //         relayer_account,
+    //         Addr::unchecked(relayer_account),
     //     )
     //     .unwrap();
 
@@ -2170,7 +2182,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //             },
     //         },
     //         &[],
-    //         relayer_account,
+    //         Addr::unchecked(relayer_account),
     //     )
     //     .unwrap();
 
@@ -2194,7 +2206,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //         .query::<QueryMsg, PendingRefundsResponse>(
     //             contract_addr.clone(),
     //             &QueryMsg::PendingRefunds {
-    //                 address: Addr::unchecked(sender.address()),
+    //                 address: Addr::unchecked(sender),
     //                 start_after_key: None,
     //                 limit: None,
     //             },
@@ -2209,7 +2221,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //         .query::<QueryMsg, PendingRefundsResponse>(
     //             contract_addr.clone(),
     //             &QueryMsg::PendingRefunds {
-    //                 address: Addr::unchecked(sender.address()),
+    //                 address: Addr::unchecked(sender),
     //                 start_after_key: None,
     //                 limit: Some(1),
     //             },
@@ -2223,7 +2235,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //         .query::<QueryMsg, PendingRefundsResponse>(
     //             contract_addr.clone(),
     //             &QueryMsg::PendingRefunds {
-    //                 address: Addr::unchecked(sender.address()),
+    //                 address: Addr::unchecked(sender),
     //                 start_after_key: query_pending_refunds_with_limit.last_key,
     //                 limit: Some(1),
     //             },
@@ -2371,7 +2383,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //                 currency: xrpl_originated_token.currency.clone(),
     //                 amount: deliver_amount.unwrap(),
     //                 max_amount: Some(max_amount),
-    //                 sender: Addr::unchecked(sender.address()),
+    //                 sender: Addr::unchecked(sender),
     //                 recipient: xrpl_receiver_address.clone(),
     //             },
     //             xrpl_base_fee
@@ -2391,7 +2403,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //             },
     //         },
     //         &[],
-    //         relayer_account,
+    //         Addr::unchecked(relayer_account),
     //     )
     //     .unwrap();
 
@@ -2419,7 +2431,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //         .query::<QueryMsg, PendingRefundsResponse>(
     //             contract_addr.clone(),
     //             &QueryMsg::PendingRefunds {
-    //                 address: Addr::unchecked(sender.address()),
+    //                 address: Addr::unchecked(sender),
     //                 start_after_key: None,
     //                 limit: None,
     //             },
@@ -2572,7 +2584,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //                 currency: oraichain_originated_token.xrpl_currency.clone(),
     //                 amount: amount.clone(),
     //                 max_amount: Some(amount.clone()),
-    //                 sender: Addr::unchecked(sender.address()),
+    //                 sender: Addr::unchecked(sender),
     //                 recipient: xrpl_receiver_address.clone(),
     //             },
     //             xrpl_base_fee
@@ -2592,7 +2604,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //                 currency: oraichain_originated_token.xrpl_currency.clone(),
     //                 amount: amount.clone(),
     //                 max_amount: Some(amount.clone()),
-    //                 sender: Addr::unchecked(sender.address()),
+    //                 sender: Addr::unchecked(sender),
     //                 recipient: xrpl_receiver_address,
     //             },
     //             xrpl_base_fee
@@ -2612,7 +2624,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //             },
     //         },
     //         &[],
-    //         relayer_account,
+    //         Addr::unchecked(relayer_account),
     //     )
     //     .unwrap();
 
@@ -2628,7 +2640,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //             },
     //         },
     //         &[],
-    //         relayer_account,
+    //         Addr::unchecked(relayer_account),
     //     )
     //     .unwrap();
 
@@ -2654,7 +2666,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     //         .query::<QueryMsg, PendingRefundsResponse>(
     //             contract_addr.clone(),
     //             &QueryMsg::PendingRefunds {
-    //                 address: Addr::unchecked(sender.address()),
+    //                 address: Addr::unchecked(sender),
     //                 start_after_key: None,
     //                 limit: None,
     //             },
