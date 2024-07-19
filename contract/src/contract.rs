@@ -9,8 +9,8 @@ use crate::{
     },
     fees::{amount_after_bridge_fees, handle_fee_collection, substract_relayer_fees},
     msg::{
-        AvailableTicketsResponse, BridgeStateResponse, OraiTokensResponse, ExecuteMsg,
-        FeesCollectedResponse, InstantiateMsg, PendingOperationsResponse, PendingRefund,
+        AvailableTicketsResponse, BridgeStateResponse, ExecuteMsg, FeesCollectedResponse,
+        InstantiateMsg, OraiTokensResponse, PendingOperationsResponse, PendingRefund,
         PendingRefundsResponse, ProcessedTxsResponse, ProhibitedXRPLAddressesResponse, QueryMsg,
         TransactionEvidence, TransactionEvidencesResponse, XRPLTokensResponse,
     },
@@ -62,7 +62,7 @@ pub const MAX_RELAYERS: usize = 32;
 
 // Information for the XRP token
 pub const XRP_SYMBOL: &str = "XRP";
-pub const XRP_SUBUNIT: &str = "drop";
+pub const XRP_SUBUNIT: &str = "factory";
 pub const XRP_DECIMALS: u32 = 6;
 pub const XRP_CURRENCY: &str = "XRP";
 pub const XRP_ISSUER: &str = "rrrrrrrrrrrrrrrrrrrrrhoLvTp";
@@ -98,7 +98,7 @@ pub const INITIAL_PROHIBITED_XRPL_ADDRESSES: [&str; 5] = [
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: DepsMut,
-    env: Env,
+    _env: Env,
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> ContractResult<Response> {
@@ -152,7 +152,7 @@ pub fn instantiate(
 
     // We will issue the XRP token during instantiation. We don't need to register it
     let xrp_issue_msg = wasm_execute(
-        config.token_factory_addr,
+        config.token_factory_addr.to_string(),
         &tokenfactory::msg::ExecuteMsg::CreateDenom {
             subdenom: XRP_SYMBOL.to_string(),
             metadata: Some(Metadata {
@@ -171,13 +171,11 @@ pub fn instantiate(
         vec![],
     )?;
 
-    let xrp_coreum_denom = format!("{}/{}", XRP_SUBUNIT, env.contract.address);
-
     // We store the representation of XRP in our XRPLTokens list using the issuer+currency as key
     let token = XRPLToken {
         issuer: XRP_ISSUER.to_string(),
         currency: XRP_CURRENCY.to_string(),
-        coreum_denom: xrp_coreum_denom,
+        coreum_denom: config.build_denom(XRP_SYMBOL),
         sending_precision: XRP_DEFAULT_SENDING_PRECISION,
         max_holding_amount: Uint128::new(XRP_DEFAULT_MAX_HOLDING_AMOUNT),
         // The XRP token is enabled from the start because it doesn't need approval to be received on the XRPL side
@@ -365,11 +363,7 @@ fn register_coreum_token(
 
     // We generate a currency creating a Sha256 hash of the denom, the decimals and the current time so that if it fails we can try again
     let to_hash = format!("{}{}{}", denom, decimals, env.block.time.seconds()).into_bytes();
-    let hex_string = hash_bytes(to_hash)
-        .get(0..10)
-        .unwrap()
-        .to_string()
-        .to_lowercase();
+    let hex_string = hash_bytes(to_hash).get(0..10).unwrap().to_string();
 
     // Format will be the hex representation in XRPL of the string coreum<hash> in uppercase
     let xrpl_currency =
@@ -442,26 +436,22 @@ fn register_xrpl_token(
     let to_hash = format!("{}{}{}", issuer, currency, env.block.time.seconds()).into_bytes();
 
     // We encode the hash in hexadecimal and take the first 10 characters
-    let hex_string = hash_bytes(to_hash)
-        .get(0..10)
-        .unwrap()
-        .to_string()
-        .to_lowercase();
+    let hex_string = hash_bytes(to_hash).get(0..10).unwrap().to_string();
 
     // Symbol and subunit we will use for the issued token in Orai
-    let symbol_and_subunit = format!("{XRPL_DENOM_PREFIX}{hex_string}");
+    let subdenom = format!("{XRPL_DENOM_PREFIX}{hex_string}");
 
     let config = CONFIG.load(deps.storage)?;
-
+    let coreum_denom = config.build_denom(subdenom.as_str());
     let issue_msg = wasm_execute(
-        config.token_factory_addr,
+        config.token_factory_addr.to_string(),
         &tokenfactory::msg::ExecuteMsg::CreateDenom {
-            subdenom: symbol_and_subunit.to_uppercase(),
+            subdenom: subdenom.clone(),
             metadata: Some(Metadata {
-                symbol: Some(symbol_and_subunit.clone()),
+                symbol: Some(XRP_SYMBOL.to_string()),
                 denom_units: vec![DenomUnit {
                     exponent: XRPL_TOKENS_DECIMALS,
-                    denom: symbol_and_subunit.clone(),
+                    denom: subdenom.clone(),
                     aliases: vec![],
                 }],
                 description: None,
@@ -474,7 +464,7 @@ fn register_xrpl_token(
     )?;
 
     // Denom that token will have in Orai
-    let denom = format!("{}-{}", symbol_and_subunit, env.contract.address).to_lowercase();
+    let denom = config.build_denom(&subdenom);
 
     // This in theory is not necessary because issue_msg would fail if the denom already exists but it's a double check and a way to return a more readable error.
     if COREUM_TOKENS.has(deps.storage, denom.clone()) {
@@ -484,7 +474,7 @@ fn register_xrpl_token(
     let token = XRPLToken {
         issuer: issuer.clone(),
         currency: currency.clone(),
-        coreum_denom: denom.clone(),
+        coreum_denom,
         sending_precision,
         max_holding_amount,
         // Registered tokens will start in processing until TrustSet operation is accepted/rejected
@@ -589,6 +579,8 @@ fn save_evidence(
                 // Here we simply truncate because the Orai tokens corresponding to XRPL originated tokens have the same decimals as their corresponding Orai tokens
                 let (amount_to_send, remainder) =
                     truncate_amount(token.sending_precision, decimals, amount_after_bridge_fees)?;
+
+                println!("token: {:?} {}", currency, token.coreum_denom);
 
                 // The amount the bridge can mint cannot exceed the max_holding_amount
                 if amount
@@ -1858,7 +1850,7 @@ fn validate_xrpl_amount(amount: Uint128) -> Result<(), ContractError> {
 
 fn convert_currency_to_xrpl_hexadecimal(currency: String) -> String {
     // Fill with zeros to get the correct hex representation in XRPL of our currency.
-    format!("{:0<40}", HexBinary::from(currency.as_bytes()).to_hex()).to_uppercase()
+    format!("{:0<40}", HexBinary::from(currency.as_bytes()).to_hex())
 }
 
 // Helper function to check that the sender is authorized for an operation

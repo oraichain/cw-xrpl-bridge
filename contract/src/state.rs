@@ -4,7 +4,7 @@ use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Coin, Empty, Uint128};
 use cw_storage_plus::{Index, IndexList, IndexedMap, Item, Map, MultiIndex, UniqueIndex};
 
-use crate::{evidence::Evidences, operation::Operation, relayer::Relayer};
+use crate::{contract::XRP_SUBUNIT, evidence::Evidences, operation::Operation, relayer::Relayer};
 
 /// Top level storage key. Values must not conflict.
 /// Each key is only one byte long to ensure we use the smallest possible storage keys.
@@ -47,6 +47,18 @@ pub struct Config {
     pub bridge_state: BridgeState,
     pub xrpl_base_fee: u64,
     pub token_factory_addr: Addr,
+}
+
+impl Config {
+    pub fn build_denom(&self, subdenom: &str) -> String {
+        // this is full denom when query the tokenfactory contract
+        format!(
+            "{}/{}/{}",
+            XRP_SUBUNIT,
+            self.token_factory_addr.as_str(),
+            subdenom
+        )
+    }
 }
 
 #[cw_serde]

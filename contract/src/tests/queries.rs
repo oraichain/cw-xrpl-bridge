@@ -46,8 +46,8 @@ fn queries() {
         relayer_accounts.push(account.clone());
         relayers.push(Relayer {
             coreum_address: Addr::unchecked(account),
-            xrpl_address: xrpl_addresses[i as usize].to_string(),
-            xrpl_pub_key: xrpl_pub_keys[i as usize].to_string(),
+            xrpl_address: xrpl_addresses[i].to_string(),
+            xrpl_pub_key: xrpl_pub_keys[i].to_string(),
         });
     }
 

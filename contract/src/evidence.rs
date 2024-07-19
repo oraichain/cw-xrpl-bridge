@@ -67,7 +67,6 @@ impl Evidence {
             Self::XRPLToOraiTransfer { tx_hash, .. } => tx_hash.clone(),
             Self::XRPLTransactionResult { tx_hash, .. } => tx_hash.clone().unwrap(),
         }
-        .to_uppercase()
     }
     pub fn is_operation_valid(&self) -> bool {
         match self {

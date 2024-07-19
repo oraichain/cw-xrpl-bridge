@@ -409,11 +409,11 @@ fn contract_instantiation() {
 //                     issuer: test_token.issuer.clone(),
 //                     currency: test_token.currency.clone(),
 //                     amount: amount.clone(),
-//                     recipient: Addr::unchecked(receiver.address()),
+//                     recipient: Addr::unchecked(receiver),
 //                 },
 //             },
 //             &[],
-//             relayer_accounts[0],
+//             Addr::unchecked(&relayer_accounts[0])
 //         )
 //         .unwrap_err();
 
@@ -459,17 +459,17 @@ fn contract_instantiation() {
 //                 issuer: test_token.issuer.clone(),
 //                 currency: test_token.currency.clone(),
 //                 amount: amount.clone(),
-//                 recipient: Addr::unchecked(receiver.address()),
+//                 recipient: Addr::unchecked(receiver),
 //             },
 //         },
 //         &[],
-//         relayer_accounts[0],
+//         Addr::unchecked(&relayer_accounts[0])
 //     )
 //     .unwrap();
 
 //     let request_balance = asset_ft
 //         .query_balance(&QueryBalanceRequest {
-//             account: receiver.address(),
+//             Addr::unchecked(receiver),
 //             denom: denom.clone(),
 //         })
 //         .unwrap();
@@ -490,7 +490,7 @@ fn contract_instantiation() {
 //                 },
 //             },
 //             &[],
-//             relayer_accounts[0],
+//             Addr::unchecked(&relayer_accounts[0])
 //         )
 //         .unwrap_err();
 
@@ -557,7 +557,7 @@ fn contract_instantiation() {
 //             },
 //         },
 //         &[],
-//         &relayer_accounts[1],
+//         &Addr::unchecked(&relayer_accounts[1])
 //     )
 //     .unwrap();
 
@@ -616,7 +616,7 @@ fn contract_instantiation() {
 //             },
 //         },
 //         &[],
-//         &relayer_accounts[1],
+//         &Addr::unchecked(&relayer_accounts[1])
 //     )
 //     .unwrap();
 
@@ -648,7 +648,7 @@ fn contract_instantiation() {
 //                     issuer: test_token.issuer.clone(),
 //                     currency: test_token.currency.clone(),
 //                     amount: amount.clone(),
-//                     recipient: Addr::unchecked(receiver.address()),
+//                     recipient: Addr::unchecked(receiver),
 //                 },
 //             },
 //             &[],
@@ -670,11 +670,11 @@ fn contract_instantiation() {
 //                     issuer: "not_registered".to_string(),
 //                     currency: "not_registered".to_string(),
 //                     amount: amount.clone(),
-//                     recipient: Addr::unchecked(receiver.address()),
+//                     recipient: Addr::unchecked(receiver),
 //                 },
 //             },
 //             &[],
-//             relayer_accounts[0],
+//             Addr::unchecked(&relayer_accounts[0])
 //         )
 //         .unwrap_err();
 
@@ -692,11 +692,11 @@ fn contract_instantiation() {
 //                     issuer: test_token.issuer.clone(),
 //                     currency: test_token.currency.clone(),
 //                     amount: Uint128::new(0),
-//                     recipient: Addr::unchecked(receiver.address()),
+//                     recipient: Addr::unchecked(receiver),
 //                 },
 //             },
 //             &[],
-//             relayer_accounts[0],
+//             Addr::unchecked(&relayer_accounts[0])
 //         )
 //         .unwrap_err();
 
@@ -713,18 +713,18 @@ fn contract_instantiation() {
 //                 issuer: test_token.issuer.clone(),
 //                 currency: test_token.currency.clone(),
 //                 amount: amount.clone(),
-//                 recipient: Addr::unchecked(receiver.address()),
+//                 recipient: Addr::unchecked(receiver),
 //             },
 //         },
 //         &[],
-//         relayer_accounts[0],
+//         Addr::unchecked(&relayer_accounts[0])
 //     )
 //     .unwrap();
 
 //     // Balance should be 0
 //     let request_balance = asset_ft
 //         .query_balance(&QueryBalanceRequest {
-//             account: receiver.address(),
+//             Addr::unchecked(receiver),
 //             denom: denom.clone(),
 //         })
 //         .unwrap();
@@ -741,11 +741,11 @@ fn contract_instantiation() {
 //                     issuer: test_token.issuer.clone(),
 //                     currency: test_token.currency.clone(),
 //                     amount: amount.clone(),
-//                     recipient: Addr::unchecked(receiver.address()),
+//                     recipient: Addr::unchecked(receiver),
 //                 },
 //             },
 //             &[],
-//             relayer_accounts[0],
+//             Addr::unchecked(&relayer_accounts[0])
 //         )
 //         .unwrap_err();
 
@@ -764,18 +764,18 @@ fn contract_instantiation() {
 //                 issuer: test_token.issuer.clone(),
 //                 currency: test_token.currency.clone(),
 //                 amount: amount.clone(),
-//                 recipient: Addr::unchecked(receiver.address()),
+//                 recipient: Addr::unchecked(receiver),
 //             },
 //         },
 //         &[],
-//         relayer_accounts[1],
+//         Addr::unchecked(&relayer_accounts[1])
 //     )
 //     .unwrap();
 
 //     // Balance should be 0
 //     let request_balance = asset_ft
 //         .query_balance(&QueryBalanceRequest {
-//             account: receiver.address(),
+//             Addr::unchecked(receiver),
 //             denom: denom.clone(),
 //         })
 //         .unwrap();
@@ -792,11 +792,11 @@ fn contract_instantiation() {
 //                     issuer: test_token.issuer.clone(),
 //                     currency: test_token.currency.clone(),
 //                     amount: amount.clone(),
-//                     recipient: Addr::unchecked(receiver.address()),
+//                     recipient: Addr::unchecked(receiver),
 //                 },
 //             },
 //             &[],
-//             relayer_accounts[1],
+//             Addr::unchecked(&relayer_accounts[1])
 //         )
 //         .unwrap_err();
 
@@ -817,11 +817,11 @@ fn contract_instantiation() {
 //                     issuer: test_token.issuer.clone(),
 //                     currency: test_token.currency.clone(),
 //                     amount: new_amount.clone(),
-//                     recipient: Addr::unchecked(receiver.address()),
+//                     recipient: Addr::unchecked(receiver),
 //                 },
 //             },
 //             &[],
-//             relayer_accounts[0],
+//             Addr::unchecked(&relayer_accounts[0])
 //         )
 //         .unwrap_err();
 
@@ -3180,7 +3180,7 @@ fn contract_instantiation() {
 //                     currency: test_token1.currency.clone(),
 //                     // Sending less than 100000000000000000, in this case 99999999999999999 (1 less digit) should return an error because it will truncate to zero
 //                     amount: Uint128::new(99999999999999999),
-//                     recipient: Addr::unchecked(receiver.address()),
+//                     recipient: Addr::unchecked(receiver),
 //                 },
 //             },
 //             &[],
@@ -3203,7 +3203,7 @@ fn contract_instantiation() {
 //                 currency: test_token1.currency.clone(),
 //                 // Sending more than 199999999999999999 will truncate to 100000000000000000 and send it to the user and keep the remainder in the contract as fees to collect.
 //                 amount: Uint128::new(199999999999999999),
-//                 recipient: Addr::unchecked(receiver.address()),
+//                 recipient: Addr::unchecked(receiver),
 //             },
 //         },
 //         &[],
@@ -3213,7 +3213,7 @@ fn contract_instantiation() {
 
 //     let request_balance = asset_ft
 //         .query_balance(&QueryBalanceRequest {
-//             account: receiver.address(),
+//             Addr::unchecked(receiver),
 //             denom: denom.clone(),
 //         })
 //         .unwrap();
@@ -3230,7 +3230,7 @@ fn contract_instantiation() {
 //                     issuer: test_token1.issuer.clone(),
 //                     currency: test_token1.currency.clone(),
 //                     amount: Uint128::new(100000000000000000),
-//                     recipient: Addr::unchecked(receiver.address()),
+//                     recipient: Addr::unchecked(receiver),
 //                 },
 //             },
 //             &[],
@@ -3326,7 +3326,7 @@ fn contract_instantiation() {
 //                     currency: test_token2.currency.clone(),
 //                     // Sending more than 499 should fail because maximum holding amount is 499
 //                     amount: Uint128::new(500),
-//                     recipient: Addr::unchecked(receiver.address()),
+//                     recipient: Addr::unchecked(receiver),
 //                 },
 //             },
 //             &[],
@@ -3350,7 +3350,7 @@ fn contract_instantiation() {
 //                     currency: test_token2.currency.clone(),
 //                     // Sending less than 100 will truncate to 0 so should fail
 //                     amount: Uint128::new(99),
-//                     recipient: Addr::unchecked(receiver.address()),
+//                     recipient: Addr::unchecked(receiver),
 //                 },
 //             },
 //             &[],
@@ -3373,7 +3373,7 @@ fn contract_instantiation() {
 //                 currency: test_token2.currency.clone(),
 //                 // Sending 299 should truncate the amount to 200 and keep the 99 in the contract as fees to collect
 //                 amount: Uint128::new(299),
-//                 recipient: Addr::unchecked(receiver.address()),
+//                 recipient: Addr::unchecked(receiver),
 //             },
 //         },
 //         &[],
@@ -3383,7 +3383,7 @@ fn contract_instantiation() {
 
 //     let request_balance = asset_ft
 //         .query_balance(&QueryBalanceRequest {
-//             account: receiver.address(),
+//             Addr::unchecked(receiver),
 //             denom: denom.clone(),
 //         })
 //         .unwrap();
@@ -3399,7 +3399,7 @@ fn contract_instantiation() {
 //                 issuer: test_token2.issuer.clone(),
 //                 currency: test_token2.currency.clone(),
 //                 amount: Uint128::new(200),
-//                 recipient: Addr::unchecked(receiver.address()),
+//                 recipient: Addr::unchecked(receiver),
 //             },
 //         },
 //         &[],
@@ -3409,7 +3409,7 @@ fn contract_instantiation() {
 
 //     let request_balance = asset_ft
 //         .query_balance(&QueryBalanceRequest {
-//             account: receiver.address(),
+//             Addr::unchecked(receiver),
 //             denom: denom.clone(),
 //         })
 //         .unwrap();
@@ -3435,7 +3435,7 @@ fn contract_instantiation() {
 //                     issuer: test_token2.issuer.clone(),
 //                     currency: test_token2.currency.clone(),
 //                     amount: Uint128::new(199),
-//                     recipient: Addr::unchecked(receiver.address()),
+//                     recipient: Addr::unchecked(receiver),
 //                 },
 //             },
 //             &[],
@@ -3521,7 +3521,7 @@ fn contract_instantiation() {
 //                     currency: test_token3.currency.clone(),
 //                     // Sending more than 5000000000000000 should fail because maximum holding amount is 5000000000000000
 //                     amount: Uint128::new(6000000000000000),
-//                     recipient: Addr::unchecked(receiver.address()),
+//                     recipient: Addr::unchecked(receiver),
 //                 },
 //             },
 //             &[],
@@ -3545,7 +3545,7 @@ fn contract_instantiation() {
 //                     currency: test_token3.currency.clone(),
 //                     // Sending less than 1000000000000000 will truncate to 0 so should fail
 //                     amount: Uint128::new(900000000000000),
-//                     recipient: Addr::unchecked(receiver.address()),
+//                     recipient: Addr::unchecked(receiver),
 //                 },
 //             },
 //             &[],
@@ -3568,7 +3568,7 @@ fn contract_instantiation() {
 //                 currency: test_token3.currency.clone(),
 //                 // Sending 1111111111111111 should truncate the amount to 1000000000000000 and keep 111111111111111 as fees to collect
 //                 amount: Uint128::new(1111111111111111),
-//                 recipient: Addr::unchecked(receiver.address()),
+//                 recipient: Addr::unchecked(receiver),
 //             },
 //         },
 //         &[],
@@ -3578,7 +3578,7 @@ fn contract_instantiation() {
 
 //     let request_balance = asset_ft
 //         .query_balance(&QueryBalanceRequest {
-//             account: receiver.address(),
+//             Addr::unchecked(receiver),
 //             denom: denom.clone(),
 //         })
 //         .unwrap();
@@ -3594,7 +3594,7 @@ fn contract_instantiation() {
 //                 currency: test_token3.currency.clone(),
 //                 // Sending 3111111111111111 should truncate the amount to 3000000000000000 and keep another 111111111111111 as fees to collect
 //                 amount: Uint128::new(3111111111111111),
-//                 recipient: Addr::unchecked(receiver.address()),
+//                 recipient: Addr::unchecked(receiver),
 //             },
 //         },
 //         &[],
@@ -3604,7 +3604,7 @@ fn contract_instantiation() {
 
 //     let request_balance = asset_ft
 //         .query_balance(&QueryBalanceRequest {
-//             account: receiver.address(),
+//             Addr::unchecked(receiver),
 //             denom: denom.clone(),
 //         })
 //         .unwrap();
@@ -3630,7 +3630,7 @@ fn contract_instantiation() {
 //                     currency: test_token2.currency.clone(),
 //                     // Sending 1111111111111111 should truncate the amount to 1000000000000000 and should fail because bridge is already holding maximum
 //                     amount: Uint128::new(1111111111111111),
-//                     recipient: Addr::unchecked(receiver.address()),
+//                     recipient: Addr::unchecked(receiver),
 //                 },
 //             },
 //             &[],
@@ -3663,7 +3663,7 @@ fn contract_instantiation() {
 //                     currency: XRP_CURRENCY.to_string(),
 //                     // Sending more than 100000000000000000 should fail because maximum holding amount is 10000000000000000 (1 less zero)
 //                     amount: Uint128::new(100000000000000000),
-//                     recipient: Addr::unchecked(receiver.address()),
+//                     recipient: Addr::unchecked(receiver),
 //                 },
 //             },
 //             &[],
@@ -3686,7 +3686,7 @@ fn contract_instantiation() {
 //                 currency: XRP_CURRENCY.to_string(),
 //                 // There should never be truncation because we allow full precision for XRP initially
 //                 amount: Uint128::one(),
-//                 recipient: Addr::unchecked(receiver.address()),
+//                 recipient: Addr::unchecked(receiver),
 //             },
 //         },
 //         &[],
@@ -3696,7 +3696,7 @@ fn contract_instantiation() {
 
 //     let request_balance = asset_ft
 //         .query_balance(&QueryBalanceRequest {
-//             account: receiver.address(),
+//             Addr::unchecked(receiver),
 //             denom: denom.clone(),
 //         })
 //         .unwrap();
@@ -3712,7 +3712,7 @@ fn contract_instantiation() {
 //                 currency: XRP_CURRENCY.to_string(),
 //                 // This should work because we are sending the rest to reach the maximum amount
 //                 amount: Uint128::new(9999999999999999),
-//                 recipient: Addr::unchecked(receiver.address()),
+//                 recipient: Addr::unchecked(receiver),
 //             },
 //         },
 //         &[],
@@ -3722,7 +3722,7 @@ fn contract_instantiation() {
 
 //     let request_balance = asset_ft
 //         .query_balance(&QueryBalanceRequest {
-//             account: receiver.address(),
+//             Addr::unchecked(receiver),
 //             denom: denom.clone(),
 //         })
 //         .unwrap();
@@ -3739,7 +3739,7 @@ fn contract_instantiation() {
 //                     currency: XRP_CURRENCY.to_string(),
 //                     // Sending 1 more token would surpass the maximum so should fail
 //                     amount: Uint128::one(),
-//                     recipient: Addr::unchecked(receiver.address()),
+//                     recipient: Addr::unchecked(receiver),
 //                 },
 //             },
 //             &[],
@@ -4250,7 +4250,7 @@ fn contract_instantiation() {
 //                     issuer: test_token_xrpl.issuer.clone(),
 //                     currency: test_token_xrpl.currency.clone(),
 //                     amount: Uint128::new(1000000000050000), // 1e15 + 5e4 --> This should take the bridging fee (5e4) and truncate nothing
-//                     recipient: Addr::unchecked(receiver.address()),
+//                     recipient: Addr::unchecked(receiver),
 //                 },
 //             },
 //             &[],
@@ -4261,7 +4261,7 @@ fn contract_instantiation() {
 
 //     let request_balance = asset_ft
 //         .query_balance(&QueryBalanceRequest {
-//             account: receiver.address(),
+//             Addr::unchecked(receiver),
 //             denom: xrpl_token.coreum_denom.clone(),
 //         })
 //         .unwrap();
@@ -4305,7 +4305,7 @@ fn contract_instantiation() {
 //                     issuer: test_token_xrpl.issuer.clone(),
 //                     currency: test_token_xrpl.currency.clone(),
 //                     amount: Uint128::new(1000000000040000), // 1e15 + 4e4 --> This should take the bridging fee -> 1999999999990000 and truncate -> 1999999999900000
-//                     recipient: Addr::unchecked(receiver.address()),
+//                     recipient: Addr::unchecked(receiver),
 //                 },
 //             },
 //             &[],
@@ -4316,7 +4316,7 @@ fn contract_instantiation() {
 
 //     let request_balance = asset_ft
 //         .query_balance(&QueryBalanceRequest {
-//             account: receiver.address(),
+//             Addr::unchecked(receiver),
 //             denom: xrpl_token.coreum_denom.clone(),
 //         })
 //         .unwrap();
@@ -4348,7 +4348,7 @@ fn contract_instantiation() {
 //                     issuer: test_token_xrpl.issuer.clone(),
 //                     currency: test_token_xrpl.currency.clone(),
 //                     amount: Uint128::new(1000000000000000), // 1e15 --> This should charge bridging fee -> 1999999999950000 and truncate -> 1999999999900000
-//                     recipient: Addr::unchecked(receiver.address()),
+//                     recipient: Addr::unchecked(receiver),
 //                 },
 //             },
 //             &[],
@@ -4359,7 +4359,7 @@ fn contract_instantiation() {
 
 //     let request_balance = asset_ft
 //         .query_balance(&QueryBalanceRequest {
-//             account: receiver.address(),
+//             Addr::unchecked(receiver),
 //             denom: xrpl_token.coreum_denom.clone(),
 //         })
 //         .unwrap();
@@ -4427,7 +4427,7 @@ fn contract_instantiation() {
 //                 currency: test_token_xrpl.currency.clone(),
 //                 amount: Uint128::new(999999999900000),
 //                 max_amount: Some(Uint128::new(999999999900000)),
-//                 sender: Addr::unchecked(receiver.address()),
+//                 sender: Addr::unchecked(receiver),
 //                 recipient: xrpl_receiver_address.clone(),
 //             },
 //             xrpl_base_fee,
@@ -4525,7 +4525,7 @@ fn contract_instantiation() {
 //                 currency: test_token_xrpl.currency.clone(),
 //                 amount: Uint128::new(700000000000000),
 //                 max_amount: Some(Uint128::new(999999999900000)),
-//                 sender: Addr::unchecked(receiver.address()),
+//                 sender: Addr::unchecked(receiver),
 //                 recipient: xrpl_receiver_address.clone(),
 //             },
 //             xrpl_base_fee
@@ -4571,7 +4571,7 @@ fn contract_instantiation() {
 //         .query::<QueryMsg, PendingRefundsResponse>(
 //             contract_addr.clone(),
 //             &QueryMsg::PendingRefunds {
-//                 address: Addr::unchecked(receiver.address()),
+//                 address: Addr::unchecked(receiver),
 //                 start_after_key: None,
 //                 limit: None,
 //             },
@@ -4651,7 +4651,7 @@ fn contract_instantiation() {
 //                 currency: coreum_token.xrpl_currency.clone(),
 //                 amount: Uint128::new(300000000000000),
 //                 max_amount: Some(Uint128::new(300000000000000)),
-//                 sender: Addr::unchecked(receiver.address()),
+//                 sender: Addr::unchecked(receiver),
 //                 recipient: xrpl_receiver_address.clone(),
 //             },
 //             xrpl_base_fee
@@ -4731,7 +4731,7 @@ fn contract_instantiation() {
 //                 currency: coreum_token.xrpl_currency.clone(),
 //                 amount: Uint128::new(600000000000000),
 //                 max_amount: Some(Uint128::new(600000000000000)),
-//                 sender: Addr::unchecked(receiver.address()),
+//                 sender: Addr::unchecked(receiver),
 //                 recipient: xrpl_receiver_address.clone(),
 //             },
 //             xrpl_base_fee,
@@ -4779,7 +4779,7 @@ fn contract_instantiation() {
 //     // Let's try to send the Orai originated token in the opposite direction (from XRPL to Orai) and see that fees are also accumulated correctly.
 //     let previous_balance = asset_ft
 //         .query_balance(&QueryBalanceRequest {
-//             account: receiver.address(),
+//             Addr::unchecked(receiver),
 //             denom: coreum_token_denom.clone(),
 //         })
 //         .unwrap();
@@ -4794,7 +4794,7 @@ fn contract_instantiation() {
 //                     issuer: bridge_xrpl_address.clone(),
 //                     currency: coreum_token.xrpl_currency.clone(),
 //                     amount: Uint128::new(650010000000000), // 650010000000000 will convert to 650010, which after charging bridging fees (300000) and truncating (10) will send 350000 to the receiver
-//                     recipient: Addr::unchecked(receiver.address()),
+//                     recipient: Addr::unchecked(receiver),
 //                 },
 //             },
 //             &[],
@@ -4805,7 +4805,7 @@ fn contract_instantiation() {
 
 //     let new_balance = asset_ft
 //         .query_balance(&QueryBalanceRequest {
-//             account: receiver.address(),
+//             Addr::unchecked(receiver),
 //             denom: coreum_token_denom.clone(),
 //         })
 //         .unwrap();
@@ -4851,7 +4851,7 @@ fn contract_instantiation() {
 //                 ],
 //             },
 //             &[],
-//             relayer_accounts[0],
+//             Addr::unchecked(&relayer_accounts[0])
 //         )
 //         .unwrap_err();
 
@@ -4876,7 +4876,7 @@ fn contract_instantiation() {
 //                 ],
 //             },
 //             &[],
-//             relayer_accounts[0],
+//             Addr::unchecked(&relayer_accounts[0])
 //         )
 //         .unwrap_err();
 
@@ -4928,7 +4928,7 @@ fn contract_instantiation() {
 //                 amounts: vec![coin(1, xrpl_token.coreum_denom.clone())],
 //             },
 //             &[],
-//             relayer_accounts[0],
+//             Addr::unchecked(&relayer_accounts[0])
 //         )
 //         .unwrap_err();
 
@@ -5204,7 +5204,7 @@ fn contract_instantiation() {
 //                 },
 //             },
 //             &[],
-//             relayer_accounts[0],
+//             Addr::unchecked(&relayer_accounts[0])
 //         )
 //         .unwrap_err();
 
@@ -5223,7 +5223,7 @@ fn contract_instantiation() {
 //                 signature: "3045022100DFA01DA5D6C9877F9DAA59A06032247F3D7ED6444EAD5C90A3AC33CCB7F19B3F02204D8D50E4D085BB1BC9DFB8281B8F35BDAEB7C74AE4B825F8CAE1217CFBDF4EA13045022100DFA01DA5D6C9877F9DAA59A06032247F3D7ED6444EAD5C90A3AC33CCB7F19B3F02204D8D50E4D085BB1BC9DFB8281B8F35BDAEB7C74AE4B825F8CAE1217CFBDF4EA1".to_string(),
 //             },
 //             &[],
-//             relayer_accounts[0],
+//             Addr::unchecked(&relayer_accounts[0])
 //         )
 //         .unwrap_err();
 
@@ -5242,7 +5242,7 @@ fn contract_instantiation() {
 //             signature: correct_signature_example.clone(),
 //         },
 //         &[],
-//         relayer_accounts[0],
+//         Addr::unchecked(&relayer_accounts[0])
 //     )
 //     .unwrap();
 
@@ -5256,7 +5256,7 @@ fn contract_instantiation() {
 //                 signature: correct_signature_example.clone(),
 //             },
 //             &[],
-//             relayer_accounts[0],
+//             Addr::unchecked(&relayer_accounts[0])
 //         )
 //         .unwrap_err();
 
@@ -5276,7 +5276,7 @@ fn contract_instantiation() {
 //                 signature: correct_signature_example.clone(),
 //             },
 //             &[],
-//             relayer_accounts[0],
+//             Addr::unchecked(&relayer_accounts[0])
 //         )
 //         .unwrap_err();
 
@@ -5296,7 +5296,7 @@ fn contract_instantiation() {
 //                 signature: correct_signature_example.clone(),
 //             },
 //             &[],
-//             relayer_accounts[0],
+//             Addr::unchecked(&relayer_accounts[0])
 //         )
 //         .unwrap_err();
 
@@ -5314,7 +5314,7 @@ fn contract_instantiation() {
 //             signature: correct_signature_example.clone(),
 //         },
 //         &[],
-//         relayer_accounts[1],
+//         Addr::unchecked(&relayer_accounts[1])
 //     )
 //     .unwrap();
 
@@ -5357,7 +5357,7 @@ fn contract_instantiation() {
 //             },
 //         },
 //         &[],
-//         relayer_accounts[0],
+//         Addr::unchecked(&relayer_accounts[0])
 //     )
 //     .unwrap();
 
@@ -5373,7 +5373,7 @@ fn contract_instantiation() {
 //             },
 //         },
 //         &[],
-//         relayer_accounts[1],
+//         Addr::unchecked(&relayer_accounts[1])
 //     )
 //     .unwrap();
 
@@ -5426,7 +5426,7 @@ fn contract_instantiation() {
 //             signature: correct_signature_example.clone(),
 //         },
 //         &[],
-//         relayer_accounts[0],
+//         Addr::unchecked(&relayer_accounts[0])
 //     )
 //     .unwrap();
 
@@ -5438,7 +5438,7 @@ fn contract_instantiation() {
 //             signature: correct_signature_example.clone(),
 //         },
 //         &[],
-//         relayer_accounts[1],
+//         Addr::unchecked(&relayer_accounts[1])
 //     )
 //     .unwrap();
 //     // Trying to relay the operation with a same hash as previous rejected one should fail
@@ -5457,7 +5457,7 @@ fn contract_instantiation() {
 //                 },
 //             },
 //             &[],
-//             relayer_accounts[0],
+//             Addr::unchecked(&relayer_accounts[0])
 //         )
 //         .unwrap_err();
 
@@ -5480,7 +5480,7 @@ fn contract_instantiation() {
 //             },
 //         },
 //         &[],
-//         relayer_accounts[0],
+//         Addr::unchecked(&relayer_accounts[0])
 //     )
 //     .unwrap();
 
@@ -5496,7 +5496,7 @@ fn contract_instantiation() {
 //             },
 //         },
 //         &[],
-//         relayer_accounts[1],
+//         Addr::unchecked(&relayer_accounts[1])
 //     )
 //     .unwrap();
 
@@ -5548,7 +5548,7 @@ fn contract_instantiation() {
 //             },
 //         },
 //         &[],
-//         relayer_accounts[0],
+//         Addr::unchecked(&relayer_accounts[0])
 //     )
 //     .unwrap();
 
@@ -5566,7 +5566,7 @@ fn contract_instantiation() {
 //             },
 //         },
 //         &[],
-//         relayer_accounts[1],
+//         Addr::unchecked(&relayer_accounts[1])
 //     )
 //     .unwrap();
 
@@ -6396,7 +6396,7 @@ fn contract_instantiation() {
 //             },
 //         },
 //         &[],
-//         relayer_accounts[0],
+//         Addr::unchecked(&relayer_accounts[0])
 //     )
 //     .unwrap();
 
@@ -6430,7 +6430,7 @@ fn contract_instantiation() {
 //                 },
 //             },
 //             &[],
-//             relayer_accounts[1],
+//             Addr::unchecked(&relayer_accounts[1])
 //         )
 //         .unwrap_err();
 
@@ -6489,7 +6489,7 @@ fn contract_instantiation() {
 //             },
 //         },
 //         &[],
-//         relayer_accounts[1],
+//         Addr::unchecked(&relayer_accounts[1])
 //     )
 //     .unwrap();
 
@@ -6685,7 +6685,7 @@ fn contract_instantiation() {
 //             },
 //         },
 //         &[],
-//         relayer_accounts[0],
+//         Addr::unchecked(&relayer_accounts[0])
 //     )
 //     .unwrap();
 
@@ -6718,7 +6718,7 @@ fn contract_instantiation() {
 //                 },
 //             },
 //             &[],
-//             relayer_accounts[1],
+//             Addr::unchecked(&relayer_accounts[1])
 //         )
 //         .unwrap_err();
 
@@ -6756,7 +6756,7 @@ fn contract_instantiation() {
 //             },
 //         },
 //         &[],
-//         relayer_accounts[1],
+//         Addr::unchecked(&relayer_accounts[1])
 //     )
 //     .unwrap();
 
@@ -6783,7 +6783,7 @@ fn contract_instantiation() {
 //             },
 //         },
 //         &[],
-//         relayer_accounts[0],
+//         Addr::unchecked(&relayer_accounts[0])
 //     )
 //     .unwrap();
 
@@ -6815,7 +6815,7 @@ fn contract_instantiation() {
 //             },
 //         },
 //         &[],
-//         relayer_accounts[1],
+//         Addr::unchecked(&relayer_accounts[1])
 //     )
 //     .unwrap();
 
@@ -6886,7 +6886,7 @@ fn contract_instantiation() {
 //             },
 //         },
 //         &[],
-//         relayer_accounts[0],
+//         Addr::unchecked(&relayer_accounts[0])
 //     )
 //     .unwrap();
 
@@ -6920,7 +6920,7 @@ fn contract_instantiation() {
 //                 },
 //             },
 //             &[],
-//             relayer_accounts[1],
+//             Addr::unchecked(&relayer_accounts[1])
 //         )
 //         .unwrap_err();
 
@@ -6960,7 +6960,7 @@ fn contract_instantiation() {
 //                 },
 //             },
 //             &[],
-//             relayer_accounts[1],
+//             Addr::unchecked(&relayer_accounts[1])
 //         )
 //         .unwrap_err();
 
@@ -6999,7 +6999,7 @@ fn contract_instantiation() {
 //             },
 //         },
 //         &[],
-//         relayer_accounts[1],
+//         Addr::unchecked(&relayer_accounts[1])
 //     )
 //     .unwrap();
 
@@ -7191,7 +7191,7 @@ fn contract_instantiation() {
 //             },
 //         },
 //         &[],
-//         relayer_accounts[0],
+//         Addr::unchecked(&relayer_accounts[0])
 //     )
 //     .unwrap();
 
@@ -7225,7 +7225,7 @@ fn contract_instantiation() {
 //                 },
 //             },
 //             &[],
-//             relayer_accounts[1],
+//             Addr::unchecked(&relayer_accounts[1])
 //         )
 //         .unwrap_err();
 
@@ -7271,7 +7271,7 @@ fn contract_instantiation() {
 //             },
 //         },
 //         &[],
-//         relayer_accounts[1],
+//         Addr::unchecked(&relayer_accounts[1])
 //     )
 //     .unwrap();
 
@@ -7734,7 +7734,7 @@ fn contract_instantiation() {
 //                 },
 //             },
 //             &[],
-//             &relayer_accounts[1],
+//             &Addr::unchecked(&relayer_accounts[1])
 //         )
 //         .unwrap_err();
 
@@ -7896,7 +7896,7 @@ fn contract_instantiation() {
 //                 },
 //             },
 //             &[],
-//             &relayer_accounts[2],
+//             &Addr::unchecked(&relayer_accounts[2])
 //         )
 //         .unwrap_err();
 
@@ -8482,7 +8482,7 @@ fn contract_instantiation() {
 //                 signature: correct_signature_example.clone(),
 //             },
 //             &[],
-//             relayer_accounts[0],
+//             Addr::unchecked(&relayer_accounts[0])
 //         )
 //         .unwrap_err();
 

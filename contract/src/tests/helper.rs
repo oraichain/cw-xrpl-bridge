@@ -1,10 +1,9 @@
-use cosmwasm_std::{Addr, Coin, HexBinary};
+use cosmwasm_std::{Addr, Coin, HexBinary, StdResult};
+use cosmwasm_testing_util::ContractWrapper;
 use derive_more::{Deref, DerefMut};
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use ripple_keypairs::Seed;
 use sha2::{Digest, Sha256};
-
-use cw_multi_test::ContractWrapper;
 
 pub const FEE_DENOM: &str = "ucore";
 pub const TRUST_SET_LIMIT_AMOUNT: u128 = 1000000000000000000; // 1e18
@@ -36,7 +35,7 @@ impl MockApp {
         &mut self,
         sender: Addr,
         init_msg: &crate::msg::InstantiateMsg,
-    ) -> Result<Addr, String> {
+    ) -> StdResult<Addr> {
         let code_id = self.bridge_id;
         let addr = self.instantiate(code_id, sender, init_msg, &[], "cw-xrpl-bridge")?;
         Ok(addr)
