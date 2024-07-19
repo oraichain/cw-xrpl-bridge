@@ -12,9 +12,7 @@ use crate::tests::helper::{
     TRUST_SET_LIMIT_AMOUNT,
 };
 use crate::{contract::XRP_CURRENCY, msg::InstantiateMsg, relayer::Relayer};
-use cosmwasm_std::{
-    coin, coins, Addr, BalanceResponse, BankMsg, BankQuery, SupplyResponse, Uint128,
-};
+use cosmwasm_std::{coin, coins, Addr, BalanceResponse, BankMsg, SupplyResponse, Uint128};
 use cosmwasm_testing_util::{BankSudo, Executor};
 use token_bindings::{DenomUnit, FullDenomResponse, Metadata, MetadataResponse};
 
@@ -585,6 +583,10 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
         )
         .unwrap();
 
+    let config: Config = app
+        .query(contract_addr.clone(), &QueryMsg::Config {})
+        .unwrap();
+
     // Add enough tickets for all our test operations
     app.execute(
         Addr::unchecked(signer),
@@ -622,7 +624,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     let initial_amount = Uint128::new(100000000000000000000);
 
     app.execute(
-        Addr::unchecked("sender"),
+        Addr::unchecked(signer),
         token_factory_addr.clone(),
         &tokenfactory::msg::ExecuteMsg::CreateDenom {
             subdenom: subunit.clone(),
@@ -643,14 +645,10 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     )
     .unwrap();
 
-    let config: Config = app
-        .query(contract_addr.clone(), &QueryMsg::Config {})
-        .unwrap();
-
     let denom = config.build_denom(&subunit);
 
     app.execute(
-        Addr::unchecked("sender"),
+        Addr::unchecked(sender),
         token_factory_addr.clone(),
         &tokenfactory::msg::ExecuteMsg::MintTokens {
             denom: denom.to_string(),
@@ -741,34 +739,17 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     .unwrap();
 
     // Check balance of sender and contract
-    let request_balance: BalanceResponse = app
-        .as_querier()
-        .query(
-            &BankQuery::Balance {
-                address: sender.to_string(),
-                denom: denom.clone(),
-            }
-            .into(),
-        )
+    let request_balance = app
+        .query_balance(Addr::unchecked(sender), denom.clone())
         .unwrap();
 
-    assert_eq!(
-        request_balance.amount.amount,
-        initial_amount - amount_to_send
-    );
+    assert_eq!(request_balance, initial_amount - amount_to_send);
 
-    let request_balance: BalanceResponse = app
-        .as_querier()
-        .query(
-            &BankQuery::Balance {
-                address: contract_addr.to_string(),
-                denom: denom.clone(),
-            }
-            .into(),
-        )
+    let request_balance = app
+        .query_balance(contract_addr.clone(), denom.clone())
         .unwrap();
 
-    assert_eq!(request_balance.amount.amount, amount_to_send);
+    assert_eq!(request_balance, amount_to_send);
 
     // Get the token information
     let query_cosmos_tokens: OraiTokensResponse = app
@@ -831,17 +812,10 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     .unwrap();
 
     // Truncated amount and amount to be refunded will stay in the contract until relayers and users to be refunded claim
-    let request_balance: BalanceResponse = app
-        .as_querier()
-        .query(
-            &BankQuery::Balance {
-                address: contract_addr.to_string(),
-                denom: denom.clone(),
-            }
-            .into(),
-        )
+    let request_balance = app
+        .query_balance(contract_addr.clone(), denom.clone())
         .unwrap();
-    assert_eq!(request_balance.amount.amount, amount_to_send);
+    assert_eq!(request_balance, amount_to_send);
 
     // If we try to query pending refunds for any address that has no pending refunds, it should return an empty array
     let query_pending_refunds: PendingRefundsResponse = app
@@ -958,19 +932,12 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     .unwrap();
 
     // Verify balance of sender (to check it was correctly refunded) and verify that the amount refunded was removed from pending refunds
-    let request_balance: BalanceResponse = app
-        .as_querier()
-        .query(
-            &BankQuery::Balance {
-                address: sender.to_string(),
-                denom: denom.clone(),
-            }
-            .into(),
-        )
+    let request_balance = app
+        .query_balance(Addr::unchecked(sender), denom.clone())
         .unwrap();
 
     assert_eq!(
-        request_balance.amount.amount,
+        request_balance,
         initial_amount - Uint128::one() // truncated amount
     );
 
@@ -1131,19 +1098,12 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     .unwrap();
 
     // Check balance of sender and contract
-    let request_balance: BalanceResponse = app
-        .as_querier()
-        .query(
-            &BankQuery::Balance {
-                address: sender.to_string(),
-                denom: denom.clone(),
-            }
-            .into(),
-        )
+    let request_balance = app
+        .query_balance(Addr::unchecked(sender), denom.clone())
         .unwrap();
 
     assert_eq!(
-        request_balance.amount.amount,
+        request_balance,
         initial_amount
             .checked_sub(amount_to_send) // initial amount
             .unwrap()
@@ -1153,19 +1113,12 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
             .unwrap()
     );
 
-    let request_balance: BalanceResponse = app
-        .as_querier()
-        .query(
-            &BankQuery::Balance {
-                address: contract_addr.to_string(),
-                denom: denom.clone(),
-            }
-            .into(),
-        )
+    let request_balance = app
+        .query_balance(contract_addr.clone(), denom.clone())
         .unwrap();
 
     assert_eq!(
-        request_balance.amount.amount,
+        request_balance,
         amount_to_send
             .checked_add(Uint128::one()) // Truncated amount staying in contract
             .unwrap()
@@ -1173,76 +1126,86 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
             .unwrap()
     );
 
-    //     // Now let's issue a token where decimals are more than an XRPL token decimals to the sender and register it.
-    //     let symbol = "TEST2".to_string();
-    //     let subunit = "utest2".to_string();
-    //     let decimals = 20;
-    //     let initial_amount = Uint128::new(200000000000000000000); // 2e20
-    //     asset_ft
-    //         .issue(
-    //             MsgIssue {
-    //                 issuer: sender.address(),
-    //                 symbol,
-    //                 subunit: subunit.clone(),
-    //                 precision: decimals,
-    //                 initial_amount: initial_amount.to_string(),
-    //                 description: "description".to_string(),
-    //                 features: vec![MINTING as i32],
-    //                 burn_rate: "0".to_string(),
-    //                 send_commission_rate: "0".to_string(),
-    //                 uri: "uri".to_string(),
-    //                 uri_hash: "uri_hash".to_string(),
-    //             },
-    //             Addr::unchecked(sender),
-    //         )
-    //         .unwrap();
+    // Now let's issue a token where decimals are more than an XRPL token decimals to the sender and register it.
+    let symbol = "TEST2".to_string();
+    let subunit = "utest2".to_string();
+    let decimals = 20;
+    let initial_amount = Uint128::new(200000000000000000000); // 2e20
 
-    //     let denom = format!("{}-{}", subunit, sender.address()).to_lowercase();
+    app.execute(
+        Addr::unchecked(signer),
+        token_factory_addr.clone(),
+        &tokenfactory::msg::ExecuteMsg::CreateDenom {
+            subdenom: subunit.clone(),
+            metadata: Some(Metadata {
+                symbol: Some(symbol),
+                denom_units: vec![DenomUnit {
+                    denom: subunit.clone(),
+                    exponent: decimals,
+                    aliases: vec![],
+                }],
+                description: Some("description".to_string()),
+                base: None,
+                display: None,
+                name: None,
+            }),
+        },
+        &[],
+    )
+    .unwrap();
 
-    //     app.execute(
-    //         contract_addr.clone(),
-    //         &ExecuteMsg::RegisterOraiToken {
-    //             denom: denom.clone(),
-    //             decimals,
-    //             sending_precision: 10,
-    //             max_holding_amount: Uint128::new(200000000000000000000), //2e20
-    //             bridging_fee: Uint128::zero(),
-    //         },
-    //         &[],
-    //         Addr::unchecked(signer),
-    //     )
-    //     .unwrap();
+    let denom = config.build_denom(&subunit);
 
-    //     // It should truncate and remove all 9s because they are under precision
-    //     let amount_to_send = Uint128::new(100000000019999999999);
+    app.execute(
+        Addr::unchecked(signer),
+        token_factory_addr.clone(),
+        &tokenfactory::msg::ExecuteMsg::MintTokens {
+            denom: denom.to_string(),
+            amount: initial_amount,
+            mint_to_address: sender.to_string(),
+        },
+        &[],
+    )
+    .unwrap();
 
-    //     // Bridge the token to the xrpl receiver address so that we can send it back.
-    //     app.execute(
-    //         contract_addr.clone(),
-    //         &ExecuteMsg::SendToXRPL {
-    //             recipient: xrpl_receiver_address.clone(),
-    //             deliver_amount: None,
-    //         },
-    //         &coins(amount_to_send.u128(), denom.clone()),
-    //         Addr::unchecked(sender),
-    //     )
-    //     .unwrap();
+    app.execute(
+        Addr::unchecked(signer),
+        contract_addr.clone(),
+        &ExecuteMsg::RegisterOraiToken {
+            denom: denom.clone(),
+            decimals,
+            sending_precision: 10,
+            max_holding_amount: Uint128::new(200000000000000000000), //2e20
+            bridging_fee: Uint128::zero(),
+        },
+        &[],
+    )
+    .unwrap();
 
-    //     // Check balance of sender and contract
-    //     let request_balance = asset_ft
-    //         .query_balance(&QueryBalanceRequest {
-    //             account: sender.address(),
-    //             denom: denom.clone(),
-    //         })
-    //         .unwrap();
+    // It should truncate and remove all 9s because they are under precision
+    let amount_to_send = Uint128::new(100000000019999999999);
 
-    //     assert_eq!(
-    //         request_balance.balance,
-    //         initial_amount
-    //             .checked_sub(amount_to_send)
-    //             .unwrap()
-    //             .to_string()
-    //     );
+    // Bridge the token to the xrpl receiver address so that we can send it back.
+    app.execute(
+        Addr::unchecked(sender),
+        contract_addr.clone(),
+        &ExecuteMsg::SendToXRPL {
+            recipient: xrpl_receiver_address.clone(),
+            deliver_amount: None,
+        },
+        &coins(amount_to_send.u128(), denom.clone()),
+    )
+    .unwrap();
+
+    // Check balance of sender and contract
+    let request_balance = app
+        .query_balance(Addr::unchecked(sender), denom.clone())
+        .unwrap();
+
+    assert_eq!(
+        request_balance,
+        initial_amount.checked_sub(amount_to_send).unwrap()
+    );
 
     //     let request_balance = asset_ft
     //         .query_balance(&QueryBalanceRequest {
