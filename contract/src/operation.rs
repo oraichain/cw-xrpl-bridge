@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{coin, wasm_execute, Addr, Coin, Env, Response, Storage, Uint128};
+use cosmwasm_std::{coin, wasm_execute, Addr, Coin, Response, Storage, Uint128};
 
 use crate::{
     contract::{convert_amount_decimals, XRPL_TOKENS_DECIMALS},
