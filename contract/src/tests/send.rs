@@ -880,100 +880,99 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
         coin(amount_to_send.u128() - 1u128, denom.clone())
     );
 
-    //     // Trying to claim a refund with an invalid pending refund operation id should fail
-    //     let claim_error = wasm
-    //         .execute(
-    //             contract_addr.clone(),
-    //             &ExecuteMsg::ClaimRefund {
-    //                 pending_refund_id: "random_id".to_string(),
-    //             },
-    //             &[],
-    //             Addr::unchecked(sender),
-    //         )
-    //         .unwrap_err();
+    // Trying to claim a refund with an invalid pending refund operation id should fail
+    let claim_error = app
+        .execute(
+            Addr::unchecked(sender),
+            contract_addr.clone(),
+            &ExecuteMsg::ClaimRefund {
+                pending_refund_id: "random_id".to_string(),
+            },
+            &[],
+        )
+        .unwrap_err();
 
-    //     assert!(claim_error
-    //         .to_string()
-    //         .contains(ContractError::PendingRefundNotFound {}.to_string().as_str()));
+    assert!(claim_error
+        .root_cause()
+        .to_string()
+        .contains(ContractError::PendingRefundNotFound {}.to_string().as_str()));
 
-    //     // Try to claim a pending refund with a valid pending refund operation id but not as a different user, should also fail
-    //     app.execute(
-    //         contract_addr.clone(),
-    //         &ExecuteMsg::ClaimRefund {
-    //             pending_refund_id: query_pending_refunds.pending_refunds[0].id.clone(),
-    //         },
-    //         &[],
-    //         Addr::unchecked(signer),
-    //     )
-    //     .unwrap_err();
+    // Try to claim a pending refund with a valid pending refund operation id but not as a different user, should also fail
+    app.execute(
+        Addr::unchecked(signer),
+        contract_addr.clone(),
+        &ExecuteMsg::ClaimRefund {
+            pending_refund_id: query_pending_refunds.pending_refunds[0].id.clone(),
+        },
+        &[],
+    )
+    .unwrap_err();
 
-    //     // Let's freeze the token to verify that claiming will fail
-    //     asset_ft
-    //         .freeze(
-    //             MsgFreeze {
-    //                 sender: "signer",
-    //                 account: contract_addr.clone(),
-    //                 coin: Some(BaseCoin {
-    //                     denom: denom.clone(),
-    //                     amount: "100000".to_string(),
-    //                 }),
-    //             },
-    //             Addr::unchecked(signer),
-    //         )
-    //         .unwrap();
+    // Let's freeze the token to verify that claiming will fail
+    app.execute(
+        Addr::unchecked(signer),
+        token_factory_addr.clone(),
+        &tokenfactory::msg::ExecuteMsg::BurnTokens {
+            denom: denom.clone(),
+            amount: 100000u128.into(),
+            burn_from_address: contract_addr.to_string(),
+        },
+        &[],
+    )
+    .unwrap();
 
-    //     // Can't claim because token is frozen
-    //     app.execute(
-    //         contract_addr.clone(),
-    //         &ExecuteMsg::ClaimRefund {
-    //             pending_refund_id: query_pending_refunds.pending_refunds[0].id.clone(),
-    //         },
-    //         &[],
-    //         Addr::unchecked(sender),
-    //     )
-    //     .unwrap_err();
+    // Can't claim because token is frozen
+    app.execute(
+        Addr::unchecked(sender),
+        contract_addr.clone(),
+        &ExecuteMsg::ClaimRefund {
+            pending_refund_id: query_pending_refunds.pending_refunds[0].id.clone(),
+        },
+        &[],
+    )
+    .unwrap_err();
 
-    //     // Let's unfreeze token so we can claim
-    //     asset_ft
-    //         .unfreeze(
-    //             MsgUnfreeze {
-    //                 sender: "signer",
-    //                 account: contract_addr.clone(),
-    //                 coin: Some(BaseCoin {
-    //                     denom: denom.clone(),
-    //                     amount: "100000".to_string(),
-    //                 }),
-    //             },
-    //             Addr::unchecked(signer),
-    //         )
-    //         .unwrap();
+    // Let's unfreeze token so we can claim
+    // signer is admin and can mint more token to contract_addr
+    app.execute(
+        Addr::unchecked(signer),
+        token_factory_addr.clone(),
+        &tokenfactory::msg::ExecuteMsg::MintTokens {
+            denom: denom.clone(),
+            amount: 100000u128.into(),
+            mint_to_address: contract_addr.to_string(),
+        },
+        &[],
+    )
+    .unwrap();
 
-    //     // Let's claim our pending refund
-    //     app.execute(
-    //         contract_addr.clone(),
-    //         &ExecuteMsg::ClaimRefund {
-    //             pending_refund_id: query_pending_refunds.pending_refunds[0].id.clone(),
-    //         },
-    //         &[],
-    //         Addr::unchecked(sender),
-    //     )
-    //     .unwrap();
+    // Let's claim our pending refund
+    app.execute(
+        Addr::unchecked(sender),
+        contract_addr.clone(),
+        &ExecuteMsg::ClaimRefund {
+            pending_refund_id: query_pending_refunds.pending_refunds[0].id.clone(),
+        },
+        &[],
+    )
+    .unwrap();
 
-    //     // Verify balance of sender (to check it was correctly refunded) and verify that the amount refunded was removed from pending refunds
-    //     let request_balance = asset_ft
-    //         .query_balance(&QueryBalanceRequest {
-    //             account: sender.address(),
-    //             denom: denom.clone(),
-    //         })
-    //         .unwrap();
+    // Verify balance of sender (to check it was correctly refunded) and verify that the amount refunded was removed from pending refunds
+    let request_balance: BalanceResponse = app
+        .as_querier()
+        .query(
+            &BankQuery::Balance {
+                address: sender.to_string(),
+                denom: denom.clone(),
+            }
+            .into(),
+        )
+        .unwrap();
 
-    //     assert_eq!(
-    //         request_balance.balance,
-    //         initial_amount
-    //             .checked_sub(Uint128::one()) // truncated amount
-    //             .unwrap()
-    //             .to_string()
-    //     );
+    assert_eq!(
+        request_balance.amount.amount,
+        initial_amount - Uint128::one() // truncated amount
+    );
 
     //     let query_pending_refunds = wasm
     //         .query::<QueryMsg, PendingRefundsResponse>(
