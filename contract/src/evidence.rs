@@ -10,7 +10,7 @@ use crate::{
 #[cw_serde]
 pub enum Evidence {
     // This evidence is only used for token transfers from XRPL to Orai
-    #[serde(rename = "xrpl_to_coreum_transfer")]
+    #[serde(rename = "xrpl_to_cosmos_transfer")]
     XRPLToOraiTransfer {
         tx_hash: String,
         issuer: String,

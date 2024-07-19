@@ -154,8 +154,8 @@ pub const COREUM_TOKENS: IndexedMap<String, OraiToken, OraiTokensIndexes> = Inde
     TopKey::OraiTokens.as_str(),
     OraiTokensIndexes {
         xrpl_currency: UniqueIndex::new(
-            |coreum_token| coreum_token.xrpl_currency.clone(),
-            "coreum_token__xrpl_currency",
+            |cosmos_token| cosmos_token.xrpl_currency.clone(),
+            "cosmos_token__xrpl_currency",
         ),
     },
 );
@@ -267,7 +267,7 @@ impl ContractActions {
     pub const fn as_str(&self) -> &'static str {
         match self {
             Self::Instantiation => "bridge_instantiation",
-            Self::RegisterOraiToken => "register_coreum_token",
+            Self::RegisterOraiToken => "register_cosmos_token",
             Self::RegisterXRPLToken => "register_xrpl_token",
             Self::RecoverTickets => "recover_tickets",
             Self::RecoverXRPLTokenRegistration => "recover_xrpl_token_registration",
@@ -277,7 +277,7 @@ impl ContractActions {
             Self::ClaimFees => "claim_fees",
             Self::ClaimRefunds => "claim_refunds",
             Self::UpdateXRPLToken => "update_xrpl_token",
-            Self::UpdateOraiToken => "update_coreum_token",
+            Self::UpdateOraiToken => "update_cosmos_token",
             Self::UpdateXRPLBaseFee => "update_xrpl_base_fee",
             Self::UpdateProhibitedXRPLAddresses => "update_invalid_xrpl_addresses",
             Self::HaltBridge => "halt_bridge",

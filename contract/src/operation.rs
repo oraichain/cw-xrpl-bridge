@@ -1,9 +1,9 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{coin, wasm_execute, Addr, Coin, Response, Storage, Uint128};
+use cosmwasm_std::{coin, wasm_execute, Addr, Coin, Env, Response, Storage, Uint128};
 
 use crate::{
     contract::{convert_amount_decimals, XRPL_TOKENS_DECIMALS},
-    error::ContractError,
+    error::{ContractError, ContractResult},
     evidence::{OperationResult, TransactionResult},
     relayer::{handle_rotate_keys_confirmation, Relayer},
     signatures::Signature,
@@ -44,7 +44,7 @@ pub enum OperationType {
         new_relayers: Vec<Relayer>,
         new_evidence_threshold: u32,
     },
-    #[serde(rename = "coreum_to_xrpl_transfer")]
+    #[serde(rename = "cosmos_to_xrpl_transfer")]
     OraiToXRPLTransfer {
         issuer: String,
         currency: String,
@@ -62,7 +62,7 @@ impl OperationType {
             Self::AllocateTickets { .. } => "allocate_tickets",
             Self::TrustSet { .. } => "trust_set",
             Self::RotateKeys { .. } => "rotate_keys",
-            Self::OraiToXRPLTransfer { .. } => "coreum_to_xrpl_transfer",
+            Self::OraiToXRPLTransfer { .. } => "cosmos_to_xrpl_transfer",
         }
     }
 }
@@ -122,8 +122,9 @@ pub fn handle_operation(
     operation_id: u64,
     ticket_sequence: Option<u64>,
     token_factory_addr: &Addr,
+    burn_addr: &Addr,
     response: &mut Response,
-) -> Result<(), ContractError> {
+) -> ContractResult<()> {
     match &operation.operation_type {
         // We check that if the operation was a ticket allocation, the result is also for a ticket allocation
         OperationType::AllocateTickets { .. } => match operation_result {
@@ -153,12 +154,13 @@ pub fn handle_operation(
             )?;
         }
         OperationType::OraiToXRPLTransfer { .. } => {
-            handle_coreum_to_xrpl_transfer_confirmation(
+            handle_cosmos_to_xrpl_transfer_confirmation(
                 storage,
                 transaction_result,
                 tx_hash.clone(),
                 operation_id,
                 token_factory_addr,
+                burn_addr,
                 response,
             )?;
         }
@@ -197,12 +199,13 @@ pub fn handle_trust_set_confirmation(
     Ok(())
 }
 
-pub fn handle_coreum_to_xrpl_transfer_confirmation(
+pub fn handle_cosmos_to_xrpl_transfer_confirmation(
     storage: &mut dyn Storage,
     transaction_result: &TransactionResult,
     tx_hash: Option<String>,
     operation_id: u64,
     token_factory_addr: &Addr,
+    burn_addr: &Addr,
     response: &mut Response,
 ) -> Result<(), ContractError> {
     let pending_operation = PENDING_OPERATIONS
@@ -235,7 +238,7 @@ pub fn handle_coreum_to_xrpl_transfer_confirmation(
                             &tokenfactory::msg::ExecuteMsg::BurnTokens {
                                 denom: xrpl_token.cosmos_denom,
                                 amount: amount_sent,
-                                burn_from_address: sender.to_string(),
+                                burn_from_address: burn_addr.to_string(),
                             },
                             vec![],
                         )?;

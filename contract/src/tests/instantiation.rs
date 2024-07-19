@@ -373,7 +373,7 @@ fn contract_instantiation() {
 //             max_holding_amount: test_token.max_holding_amount.clone(),
 //             bridging_fee: test_token.bridging_fee,
 //         },
-//         &query_issue_fee(&asset_ft),
+//         &[],
 //         signer,
 //     )
 //     .unwrap();
@@ -571,7 +571,7 @@ fn contract_instantiation() {
 //             max_holding_amount: test_token.max_holding_amount,
 //             bridging_fee: test_token.bridging_fee,
 //         },
-//         &query_issue_fee(&asset_ft),
+//         &[],
 //         signer,
 //     )
 //     .unwrap();
@@ -2204,7 +2204,7 @@ fn contract_instantiation() {
 //             max_holding_amount: test_token.max_holding_amount,
 //             bridging_fee: test_token.bridging_fee,
 //         },
-//         &query_issue_fee(&asset_ft),
+//         &[],
 //         signer,
 //     )
 //     .unwrap();
@@ -3120,7 +3120,7 @@ fn contract_instantiation() {
 //             max_holding_amount: test_token1.max_holding_amount.clone(),
 //             bridging_fee: test_token1.bridging_fee,
 //         },
-//         &query_issue_fee(&asset_ft),
+//         &[],
 //         Addr::unchecked(signer),
 //     )
 //     .unwrap();
@@ -3266,7 +3266,7 @@ fn contract_instantiation() {
 //             max_holding_amount: test_token2.max_holding_amount.clone(),
 //             bridging_fee: test_token2.bridging_fee,
 //         },
-//         &query_issue_fee(&asset_ft),
+//         &[],
 //         Addr::unchecked(signer),
 //     )
 //     .unwrap();
@@ -3461,7 +3461,7 @@ fn contract_instantiation() {
 //             max_holding_amount: test_token3.max_holding_amount.clone(),
 //             bridging_fee: test_token3.bridging_fee,
 //         },
-//         &query_issue_fee(&asset_ft),
+//         &[],
 //         Addr::unchecked(signer),
 //     )
 //     .unwrap();
@@ -4168,7 +4168,7 @@ fn contract_instantiation() {
 //             max_holding_amount: test_token_xrpl.max_holding_amount,
 //             bridging_fee: test_token_xrpl.bridging_fee,
 //         },
-//         &query_issue_fee(&asset_ft),
+//         &[],
 //         Addr::unchecked(signer),
 //     )
 //     .unwrap();
@@ -5667,7 +5667,7 @@ fn contract_instantiation() {
 //             max_holding_amount: token.max_holding_amount,
 //             bridging_fee: token.bridging_fee,
 //         },
-//         &query_issue_fee(&asset_ft),
+//         &[],
 //         Addr::unchecked(signer),
 //     )
 //     .unwrap();
@@ -5884,7 +5884,7 @@ fn contract_instantiation() {
 //                 max_holding_amount: token.max_holding_amount,
 //                 bridging_fee: token.bridging_fee,
 //             },
-//             &query_issue_fee(&asset_ft),
+//             &[],
 //             Addr::unchecked(signer),
 //         )
 //         .unwrap();
@@ -6279,7 +6279,7 @@ fn contract_instantiation() {
 //             max_holding_amount: xrpl_token.max_holding_amount,
 //             bridging_fee: xrpl_token.bridging_fee,
 //         },
-//         &query_issue_fee(&asset_ft),
+//         &[],
 //         Addr::unchecked(signer),
 //     )
 //     .unwrap();
@@ -6544,7 +6544,7 @@ fn contract_instantiation() {
 //             max_holding_amount: oraichain_token.max_holding_amount,
 //             bridging_fee: oraichain_token.bridging_fee,
 //         },
-//         &query_issue_fee(&asset_ft),
+//         &[],
 //         Addr::unchecked(signer),
 //     )
 //     .unwrap();
@@ -8012,7 +8012,7 @@ fn contract_instantiation() {
 //                 max_holding_amount: Uint128::new(50000),
 //                 bridging_fee: Uint128::zero(),
 //             },
-//             &query_issue_fee(&asset_ft),
+//             &[],
 //             Addr::unchecked(signer),
 //         )
 //         .unwrap_err();
@@ -8394,7 +8394,7 @@ fn contract_instantiation() {
 //             max_holding_amount: Uint128::new(100000),
 //             bridging_fee: Uint128::zero(),
 //         },
-//         &query_issue_fee(&asset_ft),
+//         &[],
 //         Addr::unchecked(signer),
 //     )
 //     .unwrap();
@@ -8778,7 +8778,7 @@ fn contract_instantiation() {
 //             max_holding_amount: Uint128::new(50000),
 //             bridging_fee: Uint128::zero(),
 //         },
-//         &query_issue_fee(&asset_ft),
+//         &[],
 //         Addr::unchecked(signer),
 //     )
 //     .unwrap();
@@ -9211,7 +9211,7 @@ fn contract_instantiation() {
 //                 max_holding_amount: Uint128::new(50000),
 //                 bridging_fee: Uint128::zero(),
 //             },
-//             &query_issue_fee(&asset_ft),
+//             &[],
 //             &not_owner,
 //         )
 //         .unwrap_err();

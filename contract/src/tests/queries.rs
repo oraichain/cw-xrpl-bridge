@@ -2,7 +2,7 @@ use cosmwasm_std::{coins, Addr, Uint128};
 
 use crate::contract::{
     INITIAL_PROHIBITED_XRPL_ADDRESSES, XRP_CURRENCY, XRP_DEFAULT_MAX_HOLDING_AMOUNT,
-    XRP_DEFAULT_SENDING_PRECISION, XRP_ISSUER, XRP_SUBUNIT,
+    XRP_DEFAULT_SENDING_PRECISION, XRP_ISSUER, XRP_SYMBOL,
 };
 use crate::evidence::{Evidence, OperationResult, TransactionResult};
 use crate::msg::{
@@ -75,12 +75,12 @@ fn queries() {
         .unwrap();
 
     // Query the config
-    let query_config: Config = app
+    let config: Config = app
         .query(contract_addr.clone(), &QueryMsg::Config {})
         .unwrap();
 
     assert_eq!(
-        query_config,
+        config,
         Config {
             relayers: vec![
                 relayers[0].clone(),
@@ -113,7 +113,7 @@ fn queries() {
         XRPLToken {
             issuer: XRP_ISSUER.to_string(),
             currency: XRP_CURRENCY.to_string(),
-            cosmos_denom: format!("{}/{}", XRP_SUBUNIT, contract_addr),
+            cosmos_denom: config.build_denom(XRP_SYMBOL),
             sending_precision: XRP_DEFAULT_SENDING_PRECISION,
             max_holding_amount: Uint128::new(XRP_DEFAULT_MAX_HOLDING_AMOUNT),
             state: TokenState::Enabled,
