@@ -974,196 +974,204 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
         initial_amount - Uint128::one() // truncated amount
     );
 
-    //     let query_pending_refunds = wasm
-    //         .query::<QueryMsg, PendingRefundsResponse>(
-    //             contract_addr.clone(),
-    //             &QueryMsg::PendingRefunds {
-    //                 address: Addr::unchecked(sender),
-    //                 start_after_key: None,
-    //                 limit: None,
-    //             },
-    //         )
-    //         .unwrap();
+    let query_pending_refunds: PendingRefundsResponse = app
+        .query(
+            contract_addr.clone(),
+            &QueryMsg::PendingRefunds {
+                address: Addr::unchecked(sender),
+                start_after_key: None,
+                limit: None,
+            },
+        )
+        .unwrap();
 
-    //     // We verify our pending refund operation was removed from the pending refunds
-    //     assert!(query_pending_refunds.pending_refunds.is_empty());
+    // We verify our pending refund operation was removed from the pending refunds
+    assert!(query_pending_refunds.pending_refunds.is_empty());
 
-    //     // Try to send again
-    //     app.execute(
-    //         contract_addr.clone(),
-    //         &ExecuteMsg::SendToXRPL {
-    //             recipient: xrpl_receiver_address.clone(),
-    //             deliver_amount: None,
-    //         },
-    //         &coins(amount_to_send.u128(), denom.clone()),
-    //         Addr::unchecked(sender),
-    //     )
-    //     .unwrap();
+    // Try to send again
+    app.execute(
+        Addr::unchecked(sender),
+        contract_addr.clone(),
+        &ExecuteMsg::SendToXRPL {
+            recipient: xrpl_receiver_address.clone(),
+            deliver_amount: None,
+        },
+        &coins(amount_to_send.u128(), denom.clone()),
+    )
+    .unwrap();
 
-    //     let query_pending_operations = wasm
-    //         .query::<QueryMsg, PendingOperationsResponse>(
-    //             contract_addr.clone(),
-    //             &QueryMsg::PendingOperations {
-    //                 start_after_key: None,
-    //                 limit: None,
-    //             },
-    //         )
-    //         .unwrap();
+    let query_pending_operations: PendingOperationsResponse = app
+        .query(
+            contract_addr.clone(),
+            &QueryMsg::PendingOperations {
+                start_after_key: None,
+                limit: None,
+            },
+        )
+        .unwrap();
 
-    //     // Send successfull evidence to remove from queue (tokens should be released on XRPL to the receiver)
-    //     app.execute(
-    //         contract_addr.clone(),
-    //         &ExecuteMsg::SaveEvidence {
-    //             evidence: Evidence::XRPLTransactionResult {
-    //                 tx_hash: Some(generate_hash()),
-    //                 account_sequence: query_pending_operations.operations[0].account_sequence,
-    //                 ticket_sequence: query_pending_operations.operations[0].ticket_sequence,
-    //                 transaction_result: TransactionResult::Accepted,
-    //                 operation_result: None,
-    //             },
-    //         },
-    //         &[],
-    //         Addr::unchecked(relayer_account),
-    //     )
-    //     .unwrap();
+    // Send successfull evidence to remove from queue (tokens should be released on XRPL to the receiver)
+    app.execute(
+        Addr::unchecked(relayer_account),
+        contract_addr.clone(),
+        &ExecuteMsg::SaveEvidence {
+            evidence: Evidence::XRPLTransactionResult {
+                tx_hash: Some(generate_hash()),
+                account_sequence: query_pending_operations.operations[0].account_sequence,
+                ticket_sequence: query_pending_operations.operations[0].ticket_sequence,
+                transaction_result: TransactionResult::Accepted,
+                operation_result: None,
+            },
+        },
+        &[],
+    )
+    .unwrap();
 
-    //     let query_pending_operations = wasm
-    //         .query::<QueryMsg, PendingOperationsResponse>(
-    //             contract_addr.clone(),
-    //             &QueryMsg::PendingOperations {
-    //                 start_after_key: None,
-    //                 limit: None,
-    //             },
-    //         )
-    //         .unwrap();
+    let query_pending_operations: PendingOperationsResponse = app
+        .query(
+            contract_addr.clone(),
+            &QueryMsg::PendingOperations {
+                start_after_key: None,
+                limit: None,
+            },
+        )
+        .unwrap();
 
-    //     assert_eq!(query_pending_operations.operations.len(), 0);
+    assert_eq!(query_pending_operations.operations.len(), 0);
 
-    //     // Test sending the amount back from XRPL to Orai
-    //     // 10000000000 (1e10) is the minimum we can send back (15 - 5 (sending precision))
-    //     let amount_to_send_back = Uint128::new(10000000000);
+    // Test sending the amount back from XRPL to Orai
+    // 10000000000 (1e10) is the minimum we can send back (15 - 5 (sending precision))
+    let amount_to_send_back = Uint128::new(10000000000);
 
-    //     // If we send the token with a different issuer (not multisig address) it should fail
-    //     let transfer_error = wasm
-    //         .execute(
-    //             contract_addr.clone(),
-    //             &ExecuteMsg::SaveEvidence {
-    //                 evidence: Evidence::XRPLToOraiTransfer {
-    //                     tx_hash: generate_hash(),
-    //                     issuer: generate_xrpl_address(),
-    //                     currency: oraichain_originated_token.xrpl_currency.clone(),
-    //                     amount: amount_to_send_back.clone(),
-    //                     recipient: Addr::unchecked(sender),
-    //                 },
-    //             },
-    //             &[],
-    //             Addr::unchecked(relayer_account),
-    //         )
-    //         .unwrap_err();
+    // If we send the token with a different issuer (not multisig address) it should fail
+    let transfer_error = app
+        .execute(
+            Addr::unchecked(relayer_account),
+            contract_addr.clone(),
+            &ExecuteMsg::SaveEvidence {
+                evidence: Evidence::XRPLToOraiTransfer {
+                    tx_hash: generate_hash(),
+                    issuer: generate_xrpl_address(),
+                    currency: oraichain_originated_token.xrpl_currency.clone(),
+                    amount: amount_to_send_back.clone(),
+                    recipient: Addr::unchecked(sender),
+                },
+            },
+            &[],
+        )
+        .unwrap_err();
 
-    //     assert!(transfer_error
-    //         .to_string()
-    //         .contains(ContractError::TokenNotRegistered {}.to_string().as_str()));
+    assert!(transfer_error
+        .root_cause()
+        .to_string()
+        .contains(ContractError::TokenNotRegistered {}.to_string().as_str()));
 
-    //     // If we send the token with a different currency (one that is not the one in the registered token list) it should fail
-    //     let transfer_error = wasm
-    //         .execute(
-    //             contract_addr.clone(),
-    //             &ExecuteMsg::SaveEvidence {
-    //                 evidence: Evidence::XRPLToOraiTransfer {
-    //                     tx_hash: generate_hash(),
-    //                     issuer: bridge_xrpl_address.clone(),
-    //                     currency: "invalid_currency".to_string(),
-    //                     amount: amount_to_send_back.clone(),
-    //                     recipient: Addr::unchecked(sender),
-    //                 },
-    //             },
-    //             &[],
-    //             Addr::unchecked(relayer_account),
-    //         )
-    //         .unwrap_err();
+    // If we send the token with a different currency (one that is not the one in the registered token list) it should fail
+    let transfer_error = app
+        .execute(
+            Addr::unchecked(relayer_account),
+            contract_addr.clone(),
+            &ExecuteMsg::SaveEvidence {
+                evidence: Evidence::XRPLToOraiTransfer {
+                    tx_hash: generate_hash(),
+                    issuer: bridge_xrpl_address.clone(),
+                    currency: "invalid_currency".to_string(),
+                    amount: amount_to_send_back.clone(),
+                    recipient: Addr::unchecked(sender),
+                },
+            },
+            &[],
+        )
+        .unwrap_err();
 
-    //     assert!(transfer_error
-    //         .to_string()
-    //         .contains(ContractError::TokenNotRegistered {}.to_string().as_str()));
+    assert!(transfer_error
+        .root_cause()
+        .to_string()
+        .contains(ContractError::TokenNotRegistered {}.to_string().as_str()));
 
-    //     // Sending under the minimum should fail (minimum - 1)
-    //     let transfer_error = wasm
-    //         .execute(
-    //             contract_addr.clone(),
-    //             &ExecuteMsg::SaveEvidence {
-    //                 evidence: Evidence::XRPLToOraiTransfer {
-    //                     tx_hash: generate_hash(),
-    //                     issuer: bridge_xrpl_address.clone(),
-    //                     currency: oraichain_originated_token.xrpl_currency.clone(),
-    //                     amount: amount_to_send_back.checked_sub(Uint128::one()).unwrap(),
-    //                     recipient: Addr::unchecked(sender),
-    //                 },
-    //             },
-    //             &[],
-    //             Addr::unchecked(relayer_account),
-    //         )
-    //         .unwrap_err();
+    // Sending under the minimum should fail (minimum - 1)
+    let transfer_error = app
+        .execute(
+            Addr::unchecked(relayer_account),
+            contract_addr.clone(),
+            &ExecuteMsg::SaveEvidence {
+                evidence: Evidence::XRPLToOraiTransfer {
+                    tx_hash: generate_hash(),
+                    issuer: bridge_xrpl_address.clone(),
+                    currency: oraichain_originated_token.xrpl_currency.clone(),
+                    amount: amount_to_send_back.checked_sub(Uint128::one()).unwrap(),
+                    recipient: Addr::unchecked(sender),
+                },
+            },
+            &[],
+        )
+        .unwrap_err();
 
-    //     assert!(transfer_error.to_string().contains(
-    //         ContractError::AmountSentIsZeroAfterTruncation {}
-    //             .to_string()
-    //             .as_str()
-    //     ));
+    assert!(transfer_error.root_cause().to_string().contains(
+        ContractError::AmountSentIsZeroAfterTruncation {}
+            .to_string()
+            .as_str()
+    ));
 
-    //     // Sending the right evidence should move tokens from the contract to the sender's account
-    //     app.execute(
-    //         contract_addr.clone(),
-    //         &ExecuteMsg::SaveEvidence {
-    //             evidence: Evidence::XRPLToOraiTransfer {
-    //                 tx_hash: generate_hash(),
-    //                 issuer: bridge_xrpl_address.clone(),
-    //                 currency: oraichain_originated_token.xrpl_currency.clone(),
-    //                 amount: amount_to_send_back.clone(),
-    //                 recipient: Addr::unchecked(sender),
-    //             },
-    //         },
-    //         &[],
-    //         Addr::unchecked(relayer_account),
-    //     )
-    //     .unwrap();
+    // Sending the right evidence should move tokens from the contract to the sender's account
+    app.execute(
+        Addr::unchecked(relayer_account),
+        contract_addr.clone(),
+        &ExecuteMsg::SaveEvidence {
+            evidence: Evidence::XRPLToOraiTransfer {
+                tx_hash: generate_hash(),
+                issuer: bridge_xrpl_address.clone(),
+                currency: oraichain_originated_token.xrpl_currency.clone(),
+                amount: amount_to_send_back.clone(),
+                recipient: Addr::unchecked(sender),
+            },
+        },
+        &[],
+    )
+    .unwrap();
 
-    //     // Check balance of sender and contract
-    //     let request_balance = asset_ft
-    //         .query_balance(&QueryBalanceRequest {
-    //             account: sender.address(),
-    //             denom: denom.clone(),
-    //         })
-    //         .unwrap();
+    // Check balance of sender and contract
+    let request_balance: BalanceResponse = app
+        .as_querier()
+        .query(
+            &BankQuery::Balance {
+                address: sender.to_string(),
+                denom: denom.clone(),
+            }
+            .into(),
+        )
+        .unwrap();
 
-    //     assert_eq!(
-    //         request_balance.balance,
-    //         initial_amount
-    //             .checked_sub(amount_to_send) // initial amount
-    //             .unwrap()
-    //             .checked_sub(Uint128::one()) // amount lost during truncation of first rejection
-    //             .unwrap()
-    //             .checked_add(Uint128::new(10)) // Amount that we sent back (10) after conversion, the minimum
-    //             .unwrap()
-    //             .to_string()
-    //     );
+    assert_eq!(
+        request_balance.amount.amount,
+        initial_amount
+            .checked_sub(amount_to_send) // initial amount
+            .unwrap()
+            .checked_sub(Uint128::one()) // amount lost during truncation of first rejection
+            .unwrap()
+            .checked_add(Uint128::new(10)) // Amount that we sent back (10) after conversion, the minimum
+            .unwrap()
+    );
 
-    //     let request_balance = asset_ft
-    //         .query_balance(&QueryBalanceRequest {
-    //             account: contract_addr.clone(),
-    //             denom: denom.clone(),
-    //         })
-    //         .unwrap();
+    let request_balance: BalanceResponse = app
+        .as_querier()
+        .query(
+            &BankQuery::Balance {
+                address: contract_addr.to_string(),
+                denom: denom.clone(),
+            }
+            .into(),
+        )
+        .unwrap();
 
-    //     assert_eq!(
-    //         request_balance.balance,
-    //         amount_to_send
-    //             .checked_add(Uint128::one()) // Truncated amount staying in contract
-    //             .unwrap()
-    //             .checked_sub(Uint128::new(10))
-    //             .unwrap()
-    //             .to_string()
-    //     );
+    assert_eq!(
+        request_balance.amount.amount,
+        amount_to_send
+            .checked_add(Uint128::one()) // Truncated amount staying in contract
+            .unwrap()
+            .checked_sub(Uint128::new(10))
+            .unwrap()
+    );
 
     //     // Now let's issue a token where decimals are more than an XRPL token decimals to the sender and register it.
     //     let symbol = "TEST2".to_string();
