@@ -54,7 +54,7 @@ const MAX_PAGE_LIMIT: u32 = 250;
 const MIN_SENDING_PRECISION: i32 = -15;
 const MAX_SENDING_PRECISION: i32 = 15;
 
-// Maximum amount of decimals a Orai token can be registered with
+// Maximum amount of decimals a Cosmos token can be registered with
 pub const MAX_COSMOS_TOKEN_DECIMALS: u32 = 100;
 
 pub const MAX_TICKETS: u32 = 250;
@@ -391,7 +391,7 @@ fn register_cosmos_token(
         xrpl_currency: xrpl_currency.clone(),
         sending_precision,
         max_holding_amount,
-        // All registered Orai originated tokens will start as enabled because they don't need a TrustSet operation to be bridged because issuer for such tokens is bridge address
+        // All registered Cosmos originated tokens will start as enabled because they don't need a TrustSet operation to be bridged because issuer for such tokens is bridge address
         state: TokenState::Enabled,
         bridging_fee,
     };
@@ -440,7 +440,7 @@ fn register_xrpl_token(
     // We encode the hash in hexadecimal and take the first 10 characters
     let hex_string = hash_bytes(to_hash).get(0..10).unwrap().to_string();
 
-    // Symbol and subunit we will use for the issued token in Orai
+    // Symbol and subunit we will use for the issued token in Cosmos
     let subunit = format!("{XRPL_DENOM_PREFIX}{hex_string}");
     let subdenom = subunit.to_uppercase();
     let config = CONFIG.load(deps.storage)?;
@@ -464,7 +464,7 @@ fn register_xrpl_token(
         vec![],
     )?;
 
-    // Denom that token will have in Orai
+    // Denom that token will have in Cosmos
     let denom = config.build_denom(&subdenom);
 
     // This in theory is not necessary because issue_msg would fail if the denom already exists but it's a double check and a way to return a more readable error.
@@ -553,7 +553,7 @@ fn save_evidence(
                 return Err(ContractError::ProhibitedAddress {});
             }
 
-            // This means the token is not a Orai originated token (the issuer is not the XRPL multisig address)
+            // This means the token is not a Cosmos originated token (the issuer is not the XRPL multisig address)
             if issuer.ne(&config.bridge_xrpl_address) {
                 // Create issuer+currency key to find denom on coreum.
                 let key = build_xrpl_token_key(&issuer, &currency);
@@ -642,12 +642,12 @@ fn save_evidence(
                         }
                         token
                     }
-                    // In practice this will never happen because any token issued from the multisig address is a token that was bridged from Orai so it will be registered.
+                    // In practice this will never happen because any token issued from the multisig address is a token that was bridged from Cosmos so it will be registered.
                     // This could theoretically happen if relayers agree and sign a transaction outside of bridge flow
                     None => return Err(ContractError::TokenNotRegistered {}),
                 };
 
-                // We first convert the amount we receive with XRPL decimals to the corresponding decimals in Orai and then we apply the truncation according to sending precision
+                // We first convert the amount we receive with XRPL decimals to the corresponding decimals in Cosmos and then we apply the truncation according to sending precision
                 let (amount_to_send, remainder) = convert_and_truncate_amount(
                     token.sending_precision,
                     XRPL_TOKENS_DECIMALS,
@@ -694,8 +694,8 @@ fn save_evidence(
 
             // Validation for certain operation types that can't have account sequences
             match &operation.operation_type {
-                // A TrustSet operation or OraiToXRPLTransfer operation are only executed with tickets
-                OperationType::TrustSet { .. } | OperationType::OraiToXRPLTransfer { .. } => {
+                // A TrustSet operation or CosmosToXRPLTransfer operation are only executed with tickets
+                OperationType::TrustSet { .. } | OperationType::CosmosToXRPLTransfer { .. } => {
                     if account_sequence.is_some() {
                         return Err(ContractError::InvalidTransactionResultEvidence {});
                     }
@@ -984,7 +984,7 @@ fn send_to_xrpl(
             remainder,
         )?;
     } else {
-        // If it's not an XRPL originated token we need to check that it's registered as a Orai originated token and that it's enabled
+        // If it's not an XRPL originated token we need to check that it's registered as a Cosmos originated token and that it's enabled
         let cosmos_token = COSMOS_TOKENS
             .load(deps.storage, funds.denom.clone())
             .map_err(|_| ContractError::TokenNotRegistered {})?;
@@ -1003,7 +1003,7 @@ fn send_to_xrpl(
         issuer = config.bridge_xrpl_address;
         currency = cosmos_token.xrpl_currency;
 
-        // Since this is a Orai originated token with different decimals, we are first going to truncate according to sending precision and then we will convert
+        // Since this is a Cosmos originated token with different decimals, we are first going to truncate according to sending precision and then we will convert
         // to corresponding XRPL decimals
         let remainder;
         (amount_to_send, remainder) = truncate_and_convert_amount(
@@ -1021,7 +1021,7 @@ fn send_to_xrpl(
             remainder,
         )?;
 
-        // For Orai originated tokens we need to check that we are not going over the amount
+        // For Cosmos originated tokens we need to check that we are not going over the amount
         // that the bridge will hold in escrow
         if deps
             .querier
@@ -1032,7 +1032,7 @@ fn send_to_xrpl(
             return Err(ContractError::MaximumBridgedAmountReached {});
         }
 
-        // Orai originated tokens never have transfer rate so the max amount will be the same as amount to send
+        // Cosmos originated tokens never have transfer rate so the max amount will be the same as amount to send
         max_amount = Some(amount_to_send);
     }
 
@@ -1049,7 +1049,7 @@ fn send_to_xrpl(
         env.block.time.seconds(),
         Some(ticket),
         None,
-        OperationType::OraiToXRPLTransfer {
+        OperationType::CosmosToXRPLTransfer {
             issuer,
             currency,
             amount: amount_to_send,
@@ -1764,7 +1764,7 @@ fn truncate_amount(
     Ok((truncated_amount, remainder))
 }
 
-// Function used to convert the amount received from XRPL with XRPL decimals to the Orai amount with Orai decimals
+// Function used to convert the amount received from XRPL with XRPL decimals to the Cosmos amount with Cosmos decimals
 pub fn convert_amount_decimals(
     from_decimals: u32,
     to_decimals: u32,

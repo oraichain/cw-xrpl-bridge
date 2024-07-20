@@ -38,7 +38,7 @@ pub struct MigrateMsg {}
 #[cw_ownable_execute]
 #[cw_serde]
 pub enum ExecuteMsg {
-    // Registers a Orai token so that it can be bridged to XRPL
+    // Registers a Cosmos token so that it can be bridged to XRPL
     // Only the owner can do this
     RegisterCosmosToken {
         denom: String,
@@ -47,7 +47,7 @@ pub enum ExecuteMsg {
         max_holding_amount: Uint128,
         bridging_fee: Uint128,
     },
-    // Registers an XRPL originated token so that it can be bridge to Orai
+    // Registers an XRPL originated token so that it can be bridge to Cosmos
     // Only the owner can do this
     #[serde(rename = "register_xrpl_token")]
     RegisterXRPLToken {
@@ -84,7 +84,7 @@ pub enum ExecuteMsg {
         evidence: Evidence,
     },
     #[serde(rename = "send_to_xrpl")]
-    // Send a Token from Orai to XRPL
+    // Send a Token from Cosmos to XRPL
     // Anyone can do this
     SendToXRPL {
         recipient: String,
@@ -108,7 +108,7 @@ pub enum ExecuteMsg {
         bridging_fee: Option<Uint128>,
         max_holding_amount: Option<Uint128>,
     },
-    // Update the configuration of a Orai originated token
+    // Update the configuration of a Cosmos originated token
     UpdateCosmosToken {
         denom: String,
         // All fields that can be updatable for Cosmos tokens will be updated with this message.

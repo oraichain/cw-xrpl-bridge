@@ -1,6 +1,6 @@
 // #[test]
 // fn ticket_recovery() {
-//     let app = OraiTestApp::new();
+//     let app = CosmosTestApp::new();
 //     let accounts_number = 3;
 //     let accounts = app
 //         .init_accounts(&coins(100_000_000_000, FEE_DENOM), accounts_number)
@@ -578,7 +578,7 @@
 
 // #[test]
 // fn rejected_ticket_allocation_with_no_tickets_left() {
-//     let app = OraiTestApp::new();
+//     let app = CosmosTestApp::new();
 //     let signer = app
 //         .init_account(&coins(100_000_000_000, FEE_DENOM))
 //         .unwrap();
@@ -758,7 +758,7 @@
 
 // #[test]
 // fn ticket_return_invalid_transactions() {
-//     let app = OraiTestApp::new();
+//     let app = CosmosTestApp::new();
 //     let accounts_number = 3;
 //     let accounts = app
 //         .init_accounts(&coins(100_000_000_000, FEE_DENOM), accounts_number)

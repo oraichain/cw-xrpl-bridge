@@ -127,7 +127,7 @@ pub enum ContractError {
     InvalidSendingPrecision {},
 
     #[error(
-        "InvalidDecimals: registered Orai token can't have more than {} decimals",
+        "InvalidDecimals: registered Cosmos token can't have more than {} decimals",
         MAX_COSMOS_TOKEN_DECIMALS
     )]
     InvalidDecimals {},

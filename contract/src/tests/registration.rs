@@ -1,6 +1,6 @@
 // #[test]
 // fn xrpl_token_registration_recovery() {
-//     let app = OraiTestApp::new();
+//     let app = CosmosTestApp::new();
 //     let signer = app
 //         .init_account(&coins(100_000_000_000, FEE_DENOM))
 //         .unwrap();

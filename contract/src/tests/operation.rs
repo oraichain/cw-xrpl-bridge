@@ -1,6 +1,6 @@
 // #[test]
 // fn cancel_pending_operation() {
-//     let app = OraiTestApp::new();
+//     let app = CosmosTestApp::new();
 //     let signer = app
 //         .init_account(&coins(100_000_000_000, FEE_DENOM))
 //         .unwrap();
@@ -154,7 +154,7 @@
 //     )
 //     .unwrap();
 
-//     // OraiToXRPLTransfer pending operation
+//     // CosmosToXRPLTransfer pending operation
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SendToXRPL {
@@ -283,7 +283,7 @@
 
 //     assert_eq!(query_pending_operations.operations.len(), 2);
 
-//     // Cancel the second pending operation (OraiToXRPLTransfer), which should create a pending refund for the sender
+//     // Cancel the second pending operation (CosmosToXRPLTransfer), which should create a pending refund for the sender
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::CancelPendingOperation {
@@ -377,7 +377,7 @@
 
 // #[test]
 // fn invalid_transaction_evidences() {
-//     let app = OraiTestApp::new();
+//     let app = CosmosTestApp::new();
 //     let signer = app
 //         .init_account(&coins(100_000_000_000, FEE_DENOM))
 //         .unwrap();
@@ -502,7 +502,7 @@
 
 // #[test]
 // fn unauthorized_access() {
-//     let app = OraiTestApp::new();
+//     let app = CosmosTestApp::new();
 //     let signer = app
 //         .init_account(&coins(100_000_000_000, FEE_DENOM))
 //         .unwrap();
@@ -551,7 +551,7 @@
 //             .as_str()
 //     ));
 
-//     // Try registering a oraichain token as not_owner, should fail
+//     // Try registering a cosmos token as not_owner, should fail
 //     let register_cosmos_error = wasm
 //         .execute(
 //             contract_addr.clone(),

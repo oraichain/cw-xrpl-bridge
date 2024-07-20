@@ -1,6 +1,6 @@
 // #[test]
 // fn token_update() {
-//     let app = OraiTestApp::new();
+//     let app = CosmosTestApp::new();
 //     let accounts_number = 3;
 //     let accounts = app
 //         .init_accounts(&coins(100_000_000_000, FEE_DENOM), accounts_number)
@@ -50,7 +50,7 @@
 //     .unwrap();
 
 //     let tx_hash = generate_hash();
-//     for relayer in relayer_accounts.iter() {
+//     for relayer in &relayer_accounts {
 //         app.execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
@@ -65,12 +65,12 @@
 //                 },
 //             },
 //             &[],
-//             relayer,
+//             Addr::unchecked(relayer),
 //         )
 //         .unwrap();
 //     }
 
-//     // Register one XRPL token and one Orai token
+//     // Register one XRPL token and one Cosmos token
 //     let xrpl_token = XRPLToken {
 //         issuer: generate_xrpl_address(),
 //         currency: "USD".to_string(),
@@ -99,10 +99,10 @@
 //         )
 //         .unwrap();
 
-//     let oraichain_token_denom = format!("{}-{}", subunit, "signer").to_lowercase();
+//     let cosmos_token_denom = format!("{}-{}", subunit, "signer").to_lowercase();
 
-//     let oraichain_token = CosmosToken {
-//         denom: oraichain_token_denom.clone(),
+//     let cosmos_token = CosmosToken {
+//         denom: cosmos_token_denom.clone(),
 //         decimals: 6,
 //         sending_precision: 6,
 //         max_holding_amount: Uint128::new(1000000000),
@@ -202,7 +202,7 @@
 //         .contains(ContractError::TokenStateIsImmutable {}.to_string().as_str()));
 
 //     let tx_hash = generate_hash();
-//     for relayer in relayer_accounts.iter() {
+//     for relayer in &relayer_accounts {
 //         app.execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
@@ -215,7 +215,7 @@
 //                 },
 //             },
 //             &[],
-//             relayer,
+//             Addr::unchecked(relayer),
 //         )
 //         .unwrap();
 //     }
@@ -373,15 +373,15 @@
 //         .to_string()
 //         .contains(ContractError::TokenNotEnabled {}.to_string().as_str()));
 
-//     // Register the Orai Token
+//     // Register the Cosmos Token
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::RegisterCosmosToken {
-//             denom: oraichain_token_denom.clone(),
-//             decimals: oraichain_token.decimals,
-//             sending_precision: oraichain_token.sending_precision,
-//             max_holding_amount: oraichain_token.max_holding_amount,
-//             bridging_fee: oraichain_token.bridging_fee,
+//             denom: cosmos_token_denom.clone(),
+//             decimals: cosmos_token.decimals,
+//             sending_precision: cosmos_token.sending_precision,
+//             max_holding_amount: cosmos_token.max_holding_amount,
+//             bridging_fee: cosmos_token.bridging_fee,
 //         },
 //         &[],
 //         Addr::unchecked(signer),
@@ -393,7 +393,7 @@
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::UpdateCosmosToken {
-//                 denom: oraichain_token_denom.clone(),
+//                 denom: cosmos_token_denom.clone(),
 //                 state: Some(TokenState::Processing),
 //                 sending_precision: None,
 //                 bridging_fee: None,
@@ -410,11 +410,11 @@
 //             .as_str()
 //     ));
 
-//     // Disable the Orai Token
+//     // Disable the Cosmos Token
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::UpdateCosmosToken {
-//             denom: oraichain_token_denom.clone(),
+//             denom: cosmos_token_denom.clone(),
 //             state: Some(TokenState::Disabled),
 //             sending_precision: None,
 //             bridging_fee: None,
@@ -433,7 +433,7 @@
 //                 recipient: generate_xrpl_address(),
 //                 deliver_amount: None,
 //             },
-//             &coins(1, oraichain_token_denom.clone()),
+//             &coins(1, cosmos_token_denom.clone()),
 //             Addr::unchecked(signer),
 //         )
 //         .unwrap_err();
@@ -446,7 +446,7 @@
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::UpdateCosmosToken {
-//             denom: oraichain_token_denom.clone(),
+//             denom: cosmos_token_denom.clone(),
 //             state: Some(TokenState::Enabled),
 //             sending_precision: Some(5),
 //             bridging_fee: None,
@@ -475,7 +475,7 @@
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::UpdateCosmosToken {
-//                 denom: oraichain_token_denom.clone(),
+//                 denom: cosmos_token_denom.clone(),
 //                 state: None,
 //                 sending_precision: Some(7),
 //                 bridging_fee: None,
@@ -677,11 +677,11 @@
 //             .unwrap()
 //     );
 
-//     // Updating bridging fee for Orai Token should work
+//     // Updating bridging fee for Cosmos Token should work
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::UpdateCosmosToken {
-//             denom: oraichain_token_denom.clone(),
+//             denom: cosmos_token_denom.clone(),
 //             state: None,
 //             sending_precision: None,
 //             bridging_fee: Some(Uint128::new(1000)),
@@ -864,7 +864,7 @@
 //             .unwrap()
 //     );
 
-//     // Let's bridge some tokens from Orai to XRPL to have some amount in the bridge
+//     // Let's bridge some tokens from Cosmos to XRPL to have some amount in the bridge
 //     let current_max_amount = 10000;
 //     app.execute(
 //         contract_addr.clone(),
@@ -872,7 +872,7 @@
 //             recipient: generate_xrpl_address(),
 //             deliver_amount: None,
 //         },
-//         &coins(current_max_amount, oraichain_token_denom.clone()),
+//         &coins(current_max_amount, cosmos_token_denom.clone()),
 //         Addr::unchecked(signer),
 //     )
 //     .unwrap();
@@ -890,7 +890,7 @@
 //     assert_eq!(query_pending_operations.operations.len(), 1);
 
 //     let tx_hash = generate_hash();
-//     for relayer in relayer_accounts.iter() {
+//     for relayer in &relayer_accounts {
 //         app.execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
@@ -907,7 +907,7 @@
 //                 },
 //             },
 //             &[],
-//             relayer,
+//             Addr::unchecked(relayer),
 //         )
 //         .unwrap();
 //     }
@@ -915,18 +915,18 @@
 //     let request_balance = asset_ft
 //         .query_balance(&QueryBalanceRequest {
 //             account: contract_addr.clone(),
-//             denom: oraichain_token_denom.clone(),
+//             denom: cosmos_token_denom.clone(),
 //         })
 //         .unwrap();
 
 //     assert_eq!(request_balance.balance, current_max_amount.to_string());
 
-//     // Updating max holding amount for Orai Token should work with less than current holding amount should not work
+//     // Updating max holding amount for Cosmos Token should work with less than current holding amount should not work
 //     let error_update = wasm
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::UpdateCosmosToken {
-//                 denom: oraichain_token_denom.clone(),
+//                 denom: cosmos_token_denom.clone(),
 //                 state: None,
 //                 sending_precision: None,
 //                 bridging_fee: None,
@@ -947,7 +947,7 @@
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::UpdateCosmosToken {
-//             denom: oraichain_token_denom.clone(),
+//             denom: cosmos_token_denom.clone(),
 //             state: None,
 //             sending_precision: None,
 //             bridging_fee: None,
@@ -1137,7 +1137,7 @@
 
 // #[test]
 // fn test_burning_rate_and_commission_fee_cosmos_tokens() {
-//     let app = OraiTestApp::new();
+//     let app = CosmosTestApp::new();
 //     let accounts_number = 3;
 //     let accounts = app
 //         .init_accounts(&coins(100_000_000_000, FEE_DENOM), accounts_number)
@@ -1299,7 +1299,7 @@
 
 //     assert_eq!(request_balance.balance, "100".to_string());
 
-//     // Let's confirm the briding XRPL and bridge the entire amount back to Orai
+//     // Let's confirm the briding XRPL and bridge the entire amount back to Cosmos
 //     let query_pending_operations = wasm
 //         .query::<QueryMsg, PendingOperationsResponse>(
 //             contract_addr.clone(),
@@ -1338,20 +1338,20 @@
 //         )
 //         .unwrap();
 
-//     let oraichain_originated_token = query_cosmos_tokens
+//     let cosmos_originated_token = query_cosmos_tokens
 //         .tokens
 //         .iter()
 //         .find(|t| t.denom == denom)
 //         .unwrap();
 
-//     let amount_to_send_back = Uint128::new(100_000_000_000); // 100 utokens on Orai are represented as 1e11 on XRPL
+//     let amount_to_send_back = Uint128::new(100_000_000_000); // 100 utokens on Cosmos are represented as 1e11 on XRPL
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
 //             evidence: Evidence::XRPLToCosmosTransfer {
 //                 tx_hash: generate_hash(),
 //                 issuer: bridge_xrpl_address.clone(),
-//                 currency: oraichain_originated_token.xrpl_currency.clone(),
+//                 currency: cosmos_originated_token.xrpl_currency.clone(),
 //                 amount: amount_to_send_back.clone(),
 //                 recipient: Addr::unchecked(sender.address()),
 //             },

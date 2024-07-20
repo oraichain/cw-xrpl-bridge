@@ -1,6 +1,6 @@
 // #[test]
 // fn key_rotation() {
-//     let app = OraiTestApp::new();
+//     let app = CosmosTestApp::new();
 //     let accounts_number = 4;
 //     let accounts = app
 //         .init_accounts(&coins(100_000_000_000, FEE_DENOM), accounts_number)
@@ -56,7 +56,7 @@
 //     .unwrap();
 
 //     let tx_hash = generate_hash();
-//     for relayer in relayer_accounts.iter() {
+//     for relayer in &relayer_accounts {
 //         app.execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
@@ -71,7 +71,7 @@
 //                 },
 //             },
 //             &[],
-//             relayer,
+//             Addr::unchecked(relayer),
 //         )
 //         .unwrap();
 //     }
@@ -199,7 +199,7 @@
 
 //     // We are going to confirm the RotateKeys as rejected and check that nothing is changed and bridge is still halted
 //     let tx_hash = generate_hash();
-//     for relayer in relayer_accounts.iter() {
+//     for relayer in &relayer_accounts {
 //         app.execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
@@ -212,7 +212,7 @@
 //                 },
 //             },
 //             &[],
-//             relayer,
+//             Addr::unchecked(relayer),
 //         )
 //         .unwrap();
 //     }
@@ -281,7 +281,7 @@
 
 //     // We are going to confirm the RotateKeys as accepted and check that config has been updated correctly
 //     let tx_hash = generate_hash();
-//     for relayer in relayer_accounts.iter() {
+//     for relayer in &relayer_accounts {
 //         app.execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
@@ -294,7 +294,7 @@
 //                 },
 //             },
 //             &[],
-//             relayer,
+//             Addr::unchecked(relayer),
 //         )
 //         .unwrap();
 //     }

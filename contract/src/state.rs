@@ -137,7 +137,7 @@ pub const XRPL_TOKENS: IndexedMap<String, XRPLToken, XRPLTokensIndexes> = Indexe
         ),
     },
 );
-// Tokens registered from Orai side. These tokens are coreum originated tokens that are registered to be bridged - key is denom on Orai chain
+// Tokens registered from Cosmos side. These tokens are coreum originated tokens that are registered to be bridged - key is denom on Cosmos chain
 // CosmosTokens will have xrpl_currency as a secondary index so that we can get the CosmosToken corresponding to a xrpl_currency
 pub struct CosmosTokensIndexes<'a> {
     pub xrpl_currency: UniqueIndex<'a, String, CosmosToken, String>,
@@ -177,7 +177,7 @@ pub const PENDING_OPERATIONS: Map<u64, Operation> = Map::new(TopKey::PendingOper
 pub const PENDING_TICKET_UPDATE: Item<bool> = Item::new(TopKey::PendingTicketUpdate.as_str());
 // Flag to know if we are currently waiting for a rotate keys operation to be completed
 pub const PENDING_ROTATE_KEYS: Item<bool> = Item::new(TopKey::PendingRotateKeys.as_str());
-// Amounts for rejected/invalid transactions on XRPL for each Orai user that they can reclaim manually.
+// Amounts for rejected/invalid transactions on XRPL for each Cosmos user that they can reclaim manually.
 // Key is the tuple (user_address, pending_refund_id)
 pub struct PendingRefundsIndexes<'a> {
     // One address can have multiple pending refunds

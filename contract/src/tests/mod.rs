@@ -1,4 +1,5 @@
 mod bridge;
+mod fee;
 mod helper;
 mod instantiation;
 mod ownership;

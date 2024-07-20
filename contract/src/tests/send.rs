@@ -763,7 +763,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
         )
         .unwrap();
 
-    let oraichain_originated_token = query_cosmos_tokens
+    let cosmos_originated_token = query_cosmos_tokens
         .tokens
         .iter()
         .find(|t| t.denom == denom)
@@ -784,9 +784,9 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     assert_eq!(query_pending_operations.operations.len(), 1);
     assert_eq!(
         query_pending_operations.operations[0].operation_type,
-        OperationType::OraiToXRPLTransfer {
+        OperationType::CosmosToXRPLTransfer {
             issuer: bridge_xrpl_address.clone(),
-            currency: oraichain_originated_token.xrpl_currency.clone(),
+            currency: cosmos_originated_token.xrpl_currency.clone(),
             amount: amount_truncated_and_converted,
             max_amount: Some(amount_truncated_and_converted),
             sender: Addr::unchecked(sender),
@@ -1007,7 +1007,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
 
     assert_eq!(query_pending_operations.operations.len(), 0);
 
-    // Test sending the amount back from XRPL to Orai
+    // Test sending the amount back from XRPL to Cosmos
     // 10000000000 (1e10) is the minimum we can send back (15 - 5 (sending precision))
     let amount_to_send_back = Uint128::new(10000000000);
 
@@ -1020,7 +1020,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
                 evidence: Evidence::XRPLToCosmosTransfer {
                     tx_hash: generate_hash(),
                     issuer: generate_xrpl_address(),
-                    currency: oraichain_originated_token.xrpl_currency.clone(),
+                    currency: cosmos_originated_token.xrpl_currency.clone(),
                     amount: amount_to_send_back.clone(),
                     recipient: Addr::unchecked(sender),
                 },
@@ -1066,7 +1066,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
                 evidence: Evidence::XRPLToCosmosTransfer {
                     tx_hash: generate_hash(),
                     issuer: bridge_xrpl_address.clone(),
-                    currency: oraichain_originated_token.xrpl_currency.clone(),
+                    currency: cosmos_originated_token.xrpl_currency.clone(),
                     amount: amount_to_send_back.checked_sub(Uint128::one()).unwrap(),
                     recipient: Addr::unchecked(sender),
                 },
@@ -1089,7 +1089,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
             evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: generate_hash(),
                 issuer: bridge_xrpl_address.clone(),
-                currency: oraichain_originated_token.xrpl_currency.clone(),
+                currency: cosmos_originated_token.xrpl_currency.clone(),
                 amount: amount_to_send_back.clone(),
                 recipient: Addr::unchecked(sender),
             },
@@ -1225,7 +1225,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
         )
         .unwrap();
 
-    let oraichain_originated_token = query_cosmos_tokens
+    let cosmos_originated_token = query_cosmos_tokens
         .tokens
         .iter()
         .find(|t| t.denom == denom)
@@ -1246,9 +1246,9 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     assert_eq!(query_pending_operations.operations.len(), 1);
     assert_eq!(
         query_pending_operations.operations[0].operation_type,
-        OperationType::OraiToXRPLTransfer {
+        OperationType::CosmosToXRPLTransfer {
             issuer: bridge_xrpl_address.clone(),
-            currency: oraichain_originated_token.xrpl_currency.clone(),
+            currency: cosmos_originated_token.xrpl_currency.clone(),
             amount: amount_truncated_and_converted,
             max_amount: Some(amount_truncated_and_converted),
             sender: Addr::unchecked(sender),
@@ -1391,7 +1391,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
 
     assert_eq!(query_pending_operations.operations.len(), 0);
 
-    // Test sending the amount back from XRPL to Orai
+    // Test sending the amount back from XRPL to Cosmos
     // 100000 (1e5) is the minimum we can send back (15 - 10 (sending precision))
     let amount_to_send_back = Uint128::new(100000);
 
@@ -1404,7 +1404,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
                 evidence: Evidence::XRPLToCosmosTransfer {
                     tx_hash: generate_hash(),
                     issuer: generate_xrpl_address(),
-                    currency: oraichain_originated_token.xrpl_currency.clone(),
+                    currency: cosmos_originated_token.xrpl_currency.clone(),
                     amount: amount_to_send_back.clone(),
                     recipient: Addr::unchecked(sender),
                 },
@@ -1450,7 +1450,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
                 evidence: Evidence::XRPLToCosmosTransfer {
                     tx_hash: generate_hash(),
                     issuer: bridge_xrpl_address.clone(),
-                    currency: oraichain_originated_token.xrpl_currency.clone(),
+                    currency: cosmos_originated_token.xrpl_currency.clone(),
                     amount: amount_to_send_back.checked_sub(Uint128::one()).unwrap(),
                     recipient: Addr::unchecked(sender),
                 },
@@ -1473,7 +1473,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
             evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: generate_hash(),
                 issuer: bridge_xrpl_address.clone(),
-                currency: oraichain_originated_token.xrpl_currency.clone(),
+                currency: cosmos_originated_token.xrpl_currency.clone(),
                 amount: amount_to_send_back.clone(),
                 recipient: Addr::unchecked(sender),
             },
@@ -1714,7 +1714,7 @@ fn send_from_cosmos_to_xrpl() {
             ticket_sequence: Some(1),
             account_sequence: None,
             signatures: vec![],
-            operation_type: OperationType::OraiToXRPLTransfer {
+            operation_type: OperationType::CosmosToXRPLTransfer {
                 issuer: XRP_ISSUER.to_string(),
                 currency: XRP_CURRENCY.to_string(),
                 amount: amount_to_send_back,
@@ -1726,7 +1726,7 @@ fn send_from_cosmos_to_xrpl() {
         }
     );
 
-    // If we try to send tokens from Orai to XRPL using the multisig address as recipient, it should fail.
+    // If we try to send tokens from Cosmos to XRPL using the multisig address as recipient, it should fail.
     let bridge_error = app
         .execute(
             Addr::unchecked(sender),
@@ -1744,7 +1744,7 @@ fn send_from_cosmos_to_xrpl() {
         .to_string()
         .contains(ContractError::ProhibitedAddress {}.to_string().as_str()));
 
-    // If we try to send tokens from Orai to XRPL using a prohibited address, it should fail.
+    // If we try to send tokens from Cosmos to XRPL using a prohibited address, it should fail.
     let bridge_error = app
         .execute(
             Addr::unchecked(sender),
@@ -1762,7 +1762,7 @@ fn send_from_cosmos_to_xrpl() {
         .to_string()
         .contains(ContractError::ProhibitedAddress {}.to_string().as_str()));
 
-    // Sending a OraiToXRPLTransfer evidence with account sequence should fail.
+    // Sending a CosmosToXRPLTransfer evidence with account sequence should fail.
     let invalid_evidence = app
         .execute(
             Addr::unchecked(relayer_account),
@@ -2056,7 +2056,7 @@ fn send_from_cosmos_to_xrpl() {
             ticket_sequence: Some(4),
             account_sequence: None,
             signatures: vec![],
-            operation_type: OperationType::OraiToXRPLTransfer {
+            operation_type: OperationType::CosmosToXRPLTransfer {
                 issuer: xrpl_originated_token.issuer.clone(),
                 currency: xrpl_originated_token.currency.clone(),
                 amount: amount_to_send_back,
@@ -2318,7 +2318,7 @@ fn send_from_cosmos_to_xrpl() {
             ticket_sequence: Some(6),
             account_sequence: None,
             signatures: vec![],
-            operation_type: OperationType::OraiToXRPLTransfer {
+            operation_type: OperationType::CosmosToXRPLTransfer {
                 issuer: xrpl_originated_token.issuer.clone(),
                 currency: xrpl_originated_token.currency.clone(),
                 amount: deliver_amount.unwrap(),
@@ -2394,7 +2394,7 @@ fn send_from_cosmos_to_xrpl() {
 
     assert_eq!(request_balance, request_initial_balance);
 
-    // *** Test sending Orai originated tokens to XRPL
+    // *** Test sending Cosmos originated tokens to XRPL
 
     // Let's issue a token to the sender and register it.
 
@@ -2490,7 +2490,7 @@ fn send_from_cosmos_to_xrpl() {
         )
         .unwrap();
 
-    let oraichain_originated_token = query_cosmos_tokens
+    let cosmos_originated_token = query_cosmos_tokens
         .tokens
         .iter()
         .find(|t| t.denom == denom)
@@ -2510,7 +2510,7 @@ fn send_from_cosmos_to_xrpl() {
     let amount = amount_to_send
         .checked_sub(Uint128::one()) //Truncated amount
         .unwrap()
-        .checked_mul(Uint128::new(10u128.pow(9))) // XRPL Decimals - Orai Decimals -> (15 - 6) = 9
+        .checked_mul(Uint128::new(10u128.pow(9))) // XRPL Decimals - Cosmos Decimals -> (15 - 6) = 9
         .unwrap();
     assert_eq!(
         query_pending_operations.operations[0],
@@ -2520,9 +2520,9 @@ fn send_from_cosmos_to_xrpl() {
             ticket_sequence: Some(7),
             account_sequence: None,
             signatures: vec![],
-            operation_type: OperationType::OraiToXRPLTransfer {
+            operation_type: OperationType::CosmosToXRPLTransfer {
                 issuer: multisig_address.clone(),
-                currency: oraichain_originated_token.xrpl_currency.clone(),
+                currency: cosmos_originated_token.xrpl_currency.clone(),
                 amount: amount.clone(),
                 max_amount: Some(amount.clone()),
                 sender: Addr::unchecked(sender),
@@ -2540,9 +2540,9 @@ fn send_from_cosmos_to_xrpl() {
             ticket_sequence: Some(8),
             account_sequence: None,
             signatures: vec![],
-            operation_type: OperationType::OraiToXRPLTransfer {
+            operation_type: OperationType::CosmosToXRPLTransfer {
                 issuer: multisig_address,
-                currency: oraichain_originated_token.xrpl_currency.clone(),
+                currency: cosmos_originated_token.xrpl_currency.clone(),
                 amount: amount.clone(),
                 max_amount: Some(amount.clone()),
                 sender: Addr::unchecked(sender),

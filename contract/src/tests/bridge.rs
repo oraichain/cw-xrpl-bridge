@@ -112,7 +112,7 @@ fn bridge_fee_collection_and_claiming() {
         .unwrap();
     }
 
-    // We are going to issue 2 tokens, one XRPL originated and one Orai originated, with different fees.
+    // We are going to issue 2 tokens, one XRPL originated and one Cosmos originated, with different fees.
     let test_token_xrpl = XRPLToken {
         issuer: generate_xrpl_address(), // Valid issuer
         currency: "USD".to_string(),     // Valid standard currency code
@@ -224,7 +224,7 @@ fn bridge_fee_collection_and_claiming() {
         .find(|t| t.issuer == test_token_xrpl.issuer && t.currency == test_token_xrpl.currency)
         .unwrap();
 
-    // Register Orai originated token
+    // Register Cosmos originated token
     app.execute(
         Addr::unchecked(signer),
         contract_addr.clone(),
@@ -249,13 +249,13 @@ fn bridge_fee_collection_and_claiming() {
         )
         .unwrap();
 
-    let oraichain_token = query_cosmos_tokens
+    let cosmos_token = query_cosmos_tokens
         .tokens
         .iter()
         .find(|t| t.denom == denom)
         .unwrap();
 
-    // Let's bridge some tokens from XRPL to Orai multiple times and verify that the fees are collected correctly in each step
+    // Let's bridge some tokens from XRPL to Cosmos multiple times and verify that the fees are collected correctly in each step
     let tx_hash = generate_hash();
     for relayer in &relayer_accounts {
         app.execute(
@@ -394,7 +394,7 @@ fn bridge_fee_collection_and_claiming() {
         .unwrap();
     assert_eq!(query_contract_balance.to_string(), "290000".to_string()); // 96666 * 3 + 2 in the remainder
 
-    // Let's try to bridge some tokens back from Orai to XRPL and verify that the fees are also collected correctly
+    // Let's try to bridge some tokens back from Cosmos to XRPL and verify that the fees are also collected correctly
     let xrpl_receiver_address = generate_xrpl_address();
     app.execute(
         Addr::unchecked(receiver),
@@ -426,7 +426,7 @@ fn bridge_fee_collection_and_claiming() {
             ticket_sequence: Some(2),
             account_sequence: None,
             signatures: vec![],
-            operation_type: OperationType::OraiToXRPLTransfer {
+            operation_type: OperationType::CosmosToXRPLTransfer {
                 issuer: test_token_xrpl.issuer.clone(),
                 currency: test_token_xrpl.currency.clone(),
                 amount: Uint128::new(999999999900000),
@@ -525,7 +525,7 @@ fn bridge_fee_collection_and_claiming() {
             ticket_sequence: Some(3),
             account_sequence: None,
             signatures: vec![],
-            operation_type: OperationType::OraiToXRPLTransfer {
+            operation_type: OperationType::CosmosToXRPLTransfer {
                 issuer: test_token_xrpl.issuer.clone(),
                 currency: test_token_xrpl.currency.clone(),
                 amount: Uint128::new(700000000000000),
@@ -600,7 +600,7 @@ fn bridge_fee_collection_and_claiming() {
     )
     .unwrap();
 
-    // Now let's bridge tokens from Orai to XRPL and verify that the fees are collected correctly in each step and accumulated with the previous ones
+    // Now let's bridge tokens from Cosmos to XRPL and verify that the fees are collected correctly in each step and accumulated with the previous ones
 
     // Trying to send less than the bridging fees should fail
     let bridging_error = app
@@ -651,9 +651,9 @@ fn bridge_fee_collection_and_claiming() {
             ticket_sequence: Some(4),
             account_sequence: None,
             signatures: vec![],
-            operation_type: OperationType::OraiToXRPLTransfer {
+            operation_type: OperationType::CosmosToXRPLTransfer {
                 issuer: bridge_xrpl_address.clone(),
-                currency: oraichain_token.xrpl_currency.clone(),
+                currency: cosmos_token.xrpl_currency.clone(),
                 amount: Uint128::new(300000000000000),
                 max_amount: Some(Uint128::new(300000000000000)),
                 sender: Addr::unchecked(receiver),
@@ -731,9 +731,9 @@ fn bridge_fee_collection_and_claiming() {
             ticket_sequence: Some(5),
             account_sequence: None,
             signatures: vec![],
-            operation_type: OperationType::OraiToXRPLTransfer {
+            operation_type: OperationType::CosmosToXRPLTransfer {
                 issuer: bridge_xrpl_address.clone(),
-                currency: oraichain_token.xrpl_currency.clone(),
+                currency: cosmos_token.xrpl_currency.clone(),
                 amount: Uint128::new(600000000000000),
                 max_amount: Some(Uint128::new(600000000000000)),
                 sender: Addr::unchecked(receiver),
@@ -781,7 +781,7 @@ fn bridge_fee_collection_and_claiming() {
         .unwrap();
     }
 
-    // Let's try to send the Orai originated token in the opposite direction (from XRPL to Orai) and see that fees are also accumulated correctly.
+    // Let's try to send the Cosmos originated token in the opposite direction (from XRPL to Cosmos) and see that fees are also accumulated correctly.
     let previous_balance = app
         .query_balance(Addr::unchecked(receiver), denom.clone())
         .unwrap();
@@ -795,7 +795,7 @@ fn bridge_fee_collection_and_claiming() {
                 evidence: Evidence::XRPLToCosmosTransfer {
                     tx_hash: tx_hash.clone(),
                     issuer: bridge_xrpl_address.clone(),
-                    currency: oraichain_token.xrpl_currency.clone(),
+                    currency: cosmos_token.xrpl_currency.clone(),
                     amount: Uint128::new(650010000000000), // 650010000000000 will convert to 650010, which after charging bridging fees (300000) and truncating (10) will send 350000 to the receiver
                     recipient: Addr::unchecked(receiver),
                 },
@@ -1126,7 +1126,7 @@ fn bridge_halting_and_resuming() {
         .to_string()
         .contains(ContractError::BridgeHalted {}.to_string().as_str()));
 
-    // Sending from Orai to XRPL should fail
+    // Sending from Cosmos to XRPL should fail
     let bridge_halted_error = app
         .execute(
             Addr::unchecked(signer),

@@ -45,7 +45,7 @@ pub enum OperationType {
         new_evidence_threshold: u32,
     },
     #[serde(rename = "cosmos_to_xrpl_transfer")]
-    OraiToXRPLTransfer {
+    CosmosToXRPLTransfer {
         issuer: String,
         currency: String,
         amount: Uint128,
@@ -62,7 +62,7 @@ impl OperationType {
             Self::AllocateTickets { .. } => "allocate_tickets",
             Self::TrustSet { .. } => "trust_set",
             Self::RotateKeys { .. } => "rotate_keys",
-            Self::OraiToXRPLTransfer { .. } => "cosmos_to_xrpl_transfer",
+            Self::CosmosToXRPLTransfer { .. } => "cosmos_to_xrpl_transfer",
         }
     }
 }
@@ -153,7 +153,7 @@ pub fn handle_operation(
                 transaction_result,
             )?;
         }
-        OperationType::OraiToXRPLTransfer { .. } => {
+        OperationType::CosmosToXRPLTransfer { .. } => {
             handle_cosmos_to_xrpl_transfer_confirmation(
                 storage,
                 transaction_result,
@@ -213,7 +213,7 @@ pub fn handle_cosmos_to_xrpl_transfer_confirmation(
         .map_err(|_| ContractError::PendingOperationNotFound {})?;
 
     match pending_operation.operation_type {
-        OperationType::OraiToXRPLTransfer {
+        OperationType::CosmosToXRPLTransfer {
             issuer,
             currency,
             amount,
@@ -229,7 +229,7 @@ pub fn handle_cosmos_to_xrpl_transfer_confirmation(
                     let amount_sent = max_amount.unwrap_or(amount);
                     // If transaction was accepted and the token that was sent back was an XRPL originated token, we must burn the token amount
                     if transaction_result.eq(&TransactionResult::Accepted) {
-                        // let burn_msg = CosmosMsg::from(OraiMsg::AssetFT(assetft::Msg::Burn {
+                        // let burn_msg = CosmosMsg::from(CosmosMsg::AssetFT(assetft::Msg::Burn {
                         //     coin: coin(amount_sent.u128(), xrpl_token.cosmos_denom),
                         // }));
 
@@ -256,7 +256,7 @@ pub fn handle_cosmos_to_xrpl_transfer_confirmation(
                     }
                 }
                 None => {
-                    // If the token sent was a Orai originated token we only need to store refundable amount in case of rejection.
+                    // If the token sent was a Cosmos originated token we only need to store refundable amount in case of rejection.
                     if transaction_result.ne(&TransactionResult::Accepted) {
                         match COSMOS_TOKENS
                             .idx
@@ -280,7 +280,7 @@ pub fn handle_cosmos_to_xrpl_transfer_confirmation(
                                     coin(amount_to_send_back.u128(), token.denom),
                                 )?;
                             }
-                            // In practice this will never happen because any token issued from the multisig address is a token that was bridged from Orai so it will be registered.
+                            // In practice this will never happen because any token issued from the multisig address is a token that was bridged from Cosmos so it will be registered.
                             // This could theoretically happen if the multisig address on XRPL issued a token on its own and then tried to bridge it
                             None => return Err(ContractError::TokenNotRegistered {}),
                         };
@@ -289,7 +289,7 @@ pub fn handle_cosmos_to_xrpl_transfer_confirmation(
             }
         }
 
-        // We will never get into this case unless relayers misbehave (send an OraiToXRPLTransfer operation result for a different operation type)
+        // We will never get into this case unless relayers misbehave (send an CosmosToXRPLTransfer operation result for a different operation type)
         _ => return Err(ContractError::InvalidOperationResult {}),
     }
 

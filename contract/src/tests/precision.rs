@@ -735,7 +735,7 @@ fn precisions() {
             .as_str()
     ));
 
-    // *** Test with Orai originated tokens ***
+    // *** Test with Cosmos originated tokens ***
 
     // Let's issue a few assets to the sender and registering them with different precisions and max sending amounts.
 
