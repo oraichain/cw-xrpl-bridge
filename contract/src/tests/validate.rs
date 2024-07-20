@@ -44,3 +44,140 @@ fn validate_xrpl_addresses() {
         validate_xrpl_address_format(address).unwrap_err();
     }
 }
+
+// #[test]
+// fn enum_hashes() {
+//     let hash = generate_hash();
+//     let issuer = "issuer".to_string();
+//     let currency = "currency".to_string();
+//     let amount = Uint128::new(100);
+//     let recipient = Addr::unchecked(signer);
+
+//     // Create multiple evidences changing only 1 field to verify that all of them have different hashes
+//     let xrpl_to_cosmos_transfer_evidences = vec![
+//         Evidence::XRPLToCosmosTransfer {
+//             tx_hash: hash.clone(),
+//             issuer: issuer.clone(),
+//             currency: currency.clone(),
+//             amount: amount.clone(),
+//             recipient: recipient.clone(),
+//         },
+//         Evidence::XRPLToCosmosTransfer {
+//             tx_hash: generate_hash(),
+//             issuer: issuer.clone(),
+//             currency: currency.clone(),
+//             amount: amount.clone(),
+//             recipient: recipient.clone(),
+//         },
+//         Evidence::XRPLToCosmosTransfer {
+//             tx_hash: hash.clone(),
+//             issuer: "new_issuer".to_string(),
+//             currency: currency.clone(),
+//             amount: amount.clone(),
+//             recipient: recipient.clone(),
+//         },
+//         Evidence::XRPLToCosmosTransfer {
+//             tx_hash: hash.clone(),
+//             issuer: issuer.clone(),
+//             currency: "new_currency".to_string(),
+//             amount: amount.clone(),
+//             recipient: recipient.clone(),
+//         },
+//         Evidence::XRPLToCosmosTransfer {
+//             tx_hash: hash.clone(),
+//             issuer: issuer.clone(),
+//             currency: currency.clone(),
+//             amount: Uint128::one(),
+//             recipient: recipient.clone(),
+//         },
+//         Evidence::XRPLToCosmosTransfer {
+//             tx_hash: hash.clone(),
+//             issuer: issuer.clone(),
+//             currency: currency.clone(),
+//             amount: amount.clone(),
+//             recipient: Addr::unchecked(new_recipient),
+//         },
+//     ];
+
+//     // Add them all to a map to see that they create different entries
+//     let mut evidence_map = HashMap::new();
+//     for evidence in xrpl_to_cosmos_transfer_evidences.iter() {
+//         evidence_map.insert(hash_bytes(to_string(evidence).unwrap().into_bytes()), true);
+//     }
+
+//     assert_eq!(evidence_map.len(), xrpl_to_cosmos_transfer_evidences.len());
+
+//     let hash = Some(generate_hash());
+//     let operation_id = Some(1);
+//     let transaction_result = TransactionResult::Accepted;
+//     let operation_result = None;
+//     // Create multiple evidences changing only 1 field to verify that all of them have different hashes
+//     let xrpl_transaction_result_evidences = vec![
+//         Evidence::XRPLTransactionResult {
+//             tx_hash: hash.clone(),
+//             account_sequence: operation_id,
+//             ticket_sequence: None,
+//             transaction_result: transaction_result.clone(),
+//             operation_result: operation_result.clone(),
+//         },
+//         Evidence::XRPLTransactionResult {
+//             tx_hash: Some(generate_hash()),
+//             account_sequence: operation_id,
+//             ticket_sequence: None,
+//             transaction_result: transaction_result.clone(),
+//             operation_result: operation_result.clone(),
+//         },
+//         Evidence::XRPLTransactionResult {
+//             tx_hash: hash.clone(),
+//             account_sequence: Some(2),
+//             ticket_sequence: None,
+//             transaction_result: transaction_result.clone(),
+//             operation_result: operation_result.clone(),
+//         },
+//         Evidence::XRPLTransactionResult {
+//             tx_hash: hash.clone(),
+//             account_sequence: None,
+//             ticket_sequence: operation_id,
+//             transaction_result: transaction_result.clone(),
+//             operation_result: operation_result.clone(),
+//         },
+//         Evidence::XRPLTransactionResult {
+//             tx_hash: hash.clone(),
+//             account_sequence: None,
+//             ticket_sequence: Some(2),
+//             transaction_result: transaction_result.clone(),
+//             operation_result: operation_result.clone(),
+//         },
+//         Evidence::XRPLTransactionResult {
+//             tx_hash: hash.clone(),
+//             account_sequence: operation_id,
+//             ticket_sequence: None,
+//             transaction_result: TransactionResult::Rejected,
+//             operation_result: operation_result.clone(),
+//         },
+//         Evidence::XRPLTransactionResult {
+//             tx_hash: hash.clone(),
+//             account_sequence: operation_id,
+//             ticket_sequence: None,
+//             transaction_result: transaction_result.clone(),
+//             operation_result: Some(OperationResult::TicketsAllocation { tickets: None }),
+//         },
+//         Evidence::XRPLTransactionResult {
+//             tx_hash: hash.clone(),
+//             account_sequence: operation_id,
+//             ticket_sequence: None,
+//             transaction_result: transaction_result.clone(),
+//             operation_result: Some(OperationResult::TicketsAllocation {
+//                 tickets: Some(vec![1, 2, 3]),
+//             }),
+//         },
+//     ];
+
+//     // Add them all to a map to see that they create different entries
+//     let mut evidence_map = HashMap::new();
+//     for evidence in xrpl_transaction_result_evidences.iter() {
+//         evidence_map.insert(hash_bytes(to_vec(evidence).unwrap()), true);
+//     }
+
+//     assert_eq!(evidence_map.len(), xrpl_transaction_result_evidences.len());
+// }
