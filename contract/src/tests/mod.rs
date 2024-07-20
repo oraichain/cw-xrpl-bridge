@@ -2,7 +2,7 @@ mod bridge;
 mod fee;
 mod helper;
 mod instantiation;
-// mod key_rotation;
+mod key_rotation;
 // mod operation;
 mod ownership;
 mod precision;

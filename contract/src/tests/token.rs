@@ -25,7 +25,7 @@ fn token_update() {
         .init_accounts(&coins(100_000_000_000, FEE_DENOM), accounts_number)
         .unwrap();
 
-    let signer = accounts.get((accounts_number - 1) as usize).unwrap();
+    let signer = &accounts[accounts_number - 1];
     let xrpl_addresses: Vec<String> = (0..2).map(|_| generate_xrpl_address()).collect();
     let xrpl_pub_keys: Vec<String> = (0..2).map(|_| generate_xrpl_pub_key()).collect();
 
@@ -33,9 +33,9 @@ fn token_update() {
     let mut relayers = vec![];
 
     for i in 0..accounts_number - 1 {
-        relayer_accounts.push(accounts.get(i as usize).unwrap());
+        relayer_accounts.push(&accounts[i]);
         relayers.push(Relayer {
-            cosmos_address: Addr::unchecked(accounts.get(i as usize).unwrap().address()),
+            cosmos_address: Addr::unchecked(&accounts[i].address()),
             xrpl_address: xrpl_addresses[i as usize].to_string(),
             xrpl_pub_key: xrpl_pub_keys[i as usize].to_string(),
         });
@@ -159,7 +159,7 @@ fn token_update() {
         .clone();
 
     // Updating XRP token to an invalid sending precision (more than decimals, 6) should fail
-    let update_precision_error = wasm
+    let update_precision_error = app
         .execute(
             contract_addr.clone(),
             &ExecuteMsg::UpdateXRPLToken {
@@ -198,7 +198,7 @@ fn token_update() {
     .unwrap();
 
     // If we try to update the status of a token that is in processing state, it should fail
-    let update_status_error = wasm
+    let update_status_error = app
         .execute(
             contract_addr.clone(),
             &ExecuteMsg::UpdateXRPLToken {
@@ -215,6 +215,7 @@ fn token_update() {
         .unwrap_err();
 
     assert!(update_status_error
+        .root_cause()
         .to_string()
         .contains(ContractError::TokenStateIsImmutable {}.to_string().as_str()));
 
@@ -273,7 +274,7 @@ fn token_update() {
     .unwrap();
 
     // If we send second evidence it should fail because token is disabled
-    let disabled_error = wasm
+    let disabled_error = app
         .execute(
             contract_addr.clone(),
             &ExecuteMsg::SaveEvidence {
@@ -291,11 +292,12 @@ fn token_update() {
         .unwrap_err();
 
     assert!(disabled_error
+        .root_cause()
         .to_string()
         .contains(ContractError::TokenNotEnabled {}.to_string().as_str()));
 
     // If we try to change the status to something that is not disabled or enabled it should fail
-    let update_status_error = wasm
+    let update_status_error = app
         .execute(
             contract_addr.clone(),
             &ExecuteMsg::UpdateXRPLToken {
@@ -374,7 +376,7 @@ fn token_update() {
     )
     .unwrap();
 
-    let send_error = wasm
+    let send_error = app
         .execute(
             contract_addr.clone(),
             &ExecuteMsg::SendToXRPL {
@@ -387,6 +389,7 @@ fn token_update() {
         .unwrap_err();
 
     assert!(send_error
+        .root_cause()
         .to_string()
         .contains(ContractError::TokenNotEnabled {}.to_string().as_str()));
 
@@ -406,7 +409,7 @@ fn token_update() {
     .unwrap();
 
     // If we try to change the status to something that is not disabled or enabled it should fail
-    let update_status_error = wasm
+    let update_status_error = app
         .execute(
             contract_addr.clone(),
             &ExecuteMsg::UpdateCosmosToken {
@@ -443,7 +446,7 @@ fn token_update() {
     .unwrap();
 
     // If we try to send now it will fail because the token is disabled
-    let send_error = wasm
+    let send_error = app
         .execute(
             contract_addr.clone(),
             &ExecuteMsg::SendToXRPL {
@@ -456,6 +459,7 @@ fn token_update() {
         .unwrap_err();
 
     assert!(send_error
+        .root_cause()
         .to_string()
         .contains(ContractError::TokenNotEnabled {}.to_string().as_str()));
 
@@ -488,7 +492,7 @@ fn token_update() {
     assert_eq!(query_cosmos_tokens.tokens[0].sending_precision, 5);
 
     // If we try to update to an invalid sending precision it should fail
-    let update_error = wasm
+    let update_error = app
         .execute(
             contract_addr.clone(),
             &ExecuteMsg::UpdateCosmosToken {
@@ -561,7 +565,7 @@ fn token_update() {
     )
     .unwrap();
 
-    let evidence_error = wasm
+    let evidence_error = app
         .execute(
             contract_addr.clone(),
             &ExecuteMsg::SaveEvidence {
@@ -763,7 +767,7 @@ fn token_update() {
     .unwrap();
 
     // If we try to send the second evidence it should fail because we can't cover new updated bridging fee
-    let bridging_error = wasm
+    let bridging_error = app
         .execute(
             contract_addr.clone(),
             &ExecuteMsg::SaveEvidence {
@@ -803,7 +807,7 @@ fn token_update() {
     .unwrap();
 
     // If we try to send the second evidence it should fail because amount is 0 after applying bridging fees
-    let bridging_error = wasm
+    let bridging_error = app
         .execute(
             contract_addr.clone(),
             &ExecuteMsg::SaveEvidence {
@@ -939,7 +943,7 @@ fn token_update() {
     assert_eq!(request_balance.balance, current_max_amount.to_string());
 
     // Updating max holding amount for Cosmos Token should work with less than current holding amount should not work
-    let error_update = wasm
+    let error_update = app
         .execute(
             contract_addr.clone(),
             &ExecuteMsg::UpdateCosmosToken {
@@ -1008,7 +1012,7 @@ fn token_update() {
     }
 
     // Let's update the max holding amount with current bridged amount - 1 (it should fail)
-    let update_error = wasm
+    let update_error = app
         .execute(
             contract_addr.clone(),
             &ExecuteMsg::UpdateXRPLToken {
@@ -1068,7 +1072,7 @@ fn token_update() {
     .unwrap();
 
     // If we try to send the second evidence it should fail because we can't go over max holding amount
-    let bridging_error = wasm
+    let bridging_error = app
         .execute(
             contract_addr.clone(),
             &ExecuteMsg::SaveEvidence {

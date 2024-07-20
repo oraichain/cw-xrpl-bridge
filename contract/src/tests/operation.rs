@@ -216,7 +216,7 @@ fn cancel_pending_operation() {
     assert_eq!(query_pending_operations.operations.len(), 3);
 
     // If someone that is not the owner tries to cancel it should fail
-    let cancel_error = wasm
+    let cancel_error = app
         .execute(
             contract_addr.clone(),
             &ExecuteMsg::CancelPendingOperation {
@@ -230,11 +230,12 @@ fn cancel_pending_operation() {
         .unwrap_err();
 
     assert!(cancel_error
+        .root_cause()
         .to_string()
         .contains(ContractError::UnauthorizedSender {}.to_string().as_str()));
 
     // If owner tries to cancel a pending operation that does not exist it should fail
-    let cancel_error = wasm
+    let cancel_error = app
         .execute(
             contract_addr.clone(),
             &ExecuteMsg::CancelPendingOperation { operation_id: 50 },
@@ -498,7 +499,7 @@ fn invalid_transaction_evidences() {
     .unwrap();
 
     for (index, evidence) in invalid_evidences_input.iter().enumerate() {
-        let invalid_evidence = wasm
+        let invalid_evidence = app
             .execute(
                 contract_addr.clone(),
                 &ExecuteMsg::SaveEvidence {
@@ -510,6 +511,7 @@ fn invalid_transaction_evidences() {
             .unwrap_err();
 
         assert!(invalid_evidence
+            .root_cause()
             .to_string()
             .contains(expected_errors[index].to_string().as_str()));
     }
@@ -546,7 +548,7 @@ fn unauthorized_access() {
     );
 
     // Try transfering from user that is not owner, should fail
-    let transfer_error = wasm
+    let transfer_error = app
         .execute(
             contract_addr.clone(),
             &ExecuteMsg::UpdateOwnership(cw_ownable::Action::TransferOwnership {
@@ -565,7 +567,7 @@ fn unauthorized_access() {
     ));
 
     // Try registering a cosmos token as not_owner, should fail
-    let register_cosmos_error = wasm
+    let register_cosmos_error = app
         .execute(
             contract_addr.clone(),
             &ExecuteMsg::RegisterCosmosToken {
@@ -581,11 +583,12 @@ fn unauthorized_access() {
         .unwrap_err();
 
     assert!(register_cosmos_error
+        .root_cause()
         .to_string()
         .contains(ContractError::UnauthorizedSender {}.to_string().as_str()));
 
     // Try registering an XRPL token as not_owner, should fail
-    let register_xrpl_error = wasm
+    let register_xrpl_error = app
         .execute(
             contract_addr.clone(),
             &ExecuteMsg::RegisterXRPLToken {
@@ -601,11 +604,12 @@ fn unauthorized_access() {
         .unwrap_err();
 
     assert!(register_xrpl_error
+        .root_cause()
         .to_string()
         .contains(ContractError::UnauthorizedSender {}.to_string().as_str()));
 
     // Trying to send from an address that is not a relayer should fail
-    let relayer_error = wasm
+    let relayer_error = app
         .execute(
             contract_addr.clone(),
             &ExecuteMsg::SaveEvidence {
@@ -623,11 +627,12 @@ fn unauthorized_access() {
         .unwrap_err();
 
     assert!(relayer_error
+        .root_cause()
         .to_string()
         .contains(ContractError::UnauthorizedSender {}.to_string().as_str()));
 
     // Try recovering tickets as not_owner, should fail
-    let recover_tickets = wasm
+    let recover_tickets = app
         .execute(
             contract_addr.clone(),
             &ExecuteMsg::RecoverTickets {
