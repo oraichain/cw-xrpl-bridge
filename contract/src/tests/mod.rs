@@ -10,5 +10,5 @@ mod queries;
 mod register;
 mod send;
 mod ticket;
-// mod token;
+mod token;
 mod validate;
