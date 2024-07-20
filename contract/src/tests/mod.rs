@@ -3,7 +3,7 @@ mod fee;
 mod helper;
 mod instantiation;
 mod key_rotation;
-// mod operation;
+mod operation;
 mod ownership;
 mod precision;
 mod queries;

@@ -1,31 +1,36 @@
-use crate::contract::{MAX_COSMOS_TOKEN_DECIMALS, XRPL_DENOM_PREFIX};
 use crate::error::ContractError;
 use crate::evidence::{Evidence, OperationResult, TransactionResult};
-use crate::msg::{PendingOperationsResponse, XRPLTokensResponse};
-use crate::operation::{Operation, OperationType};
-use crate::state::{Config, CosmosToken, XRPLToken};
+use crate::msg::{
+    AvailableTicketsResponse, PendingOperationsResponse, PendingRefundsResponse, XRPLTokensResponse,
+};
+
+use crate::state::{BridgeState, Config};
 use crate::tests::helper::{
     generate_hash, generate_xrpl_address, generate_xrpl_pub_key, MockApp, FEE_DENOM,
     TRUST_SET_LIMIT_AMOUNT,
 };
 use crate::{
-    contract::XRP_CURRENCY,
-    msg::{CosmosTokensResponse, ExecuteMsg, InstantiateMsg, QueryMsg},
+    msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
     relayer::Relayer,
     state::TokenState,
 };
-use cosmwasm_std::{coins, Addr, Uint128};
-use token_bindings::DenomsByCreatorResponse;
+use cosmwasm_std::{coin, coins, Addr, Uint128};
 
 #[test]
 fn cancel_pending_operation() {
-    let app = CosmosTestApp::new();
-    let signer = app
-        .init_account(&coins(100_000_000_000, FEE_DENOM))
-        .unwrap();
-    let not_owner = app
-        .init_account(&coins(100_000_000_000, FEE_DENOM))
-        .unwrap();
+    let accounts_number = 2;
+    let accounts: Vec<_> = (0..accounts_number)
+        .into_iter()
+        .map(|i| format!("account{i}"))
+        .collect();
+
+    let mut app = MockApp::new(&[
+        (accounts[0].as_str(), &coins(100_000_000_000, FEE_DENOM)),
+        (accounts[1].as_str(), &coins(100_000_000_000, FEE_DENOM)),
+    ]);
+
+    let signer = &accounts[0];
+    let not_owner = &accounts[1];
 
     let relayer = Relayer {
         cosmos_address: Addr::unchecked(signer),
@@ -34,26 +39,34 @@ fn cancel_pending_operation() {
     };
 
     let new_relayer = Relayer {
-        cosmos_address: Addr::unchecked(not_owner.address()),
+        cosmos_address: Addr::unchecked(not_owner),
         xrpl_address: generate_xrpl_address(),
         xrpl_pub_key: generate_xrpl_pub_key(),
     };
 
-    let contract_addr = store_and_instantiate(
-        &wasm,
-        Addr::unchecked(signer),
-        Addr::unchecked(signer),
-        vec![relayer.clone()],
-        1,
-        3,
-        Uint128::new(TRUST_SET_LIMIT_AMOUNT),
-        query_issue_fee(&asset_ft),
-        generate_xrpl_address(),
-        10,
-    );
+    let token_factory_addr = app.create_tokenfactory(Addr::unchecked(signer)).unwrap();
+
+    // Test with 1 relayer and 1 evidence threshold first
+    let contract_addr = app
+        .create_bridge(
+            Addr::unchecked(signer),
+            &InstantiateMsg {
+                owner: Addr::unchecked(signer),
+                relayers: vec![relayer.clone()],
+                evidence_threshold: 1,
+                used_ticket_sequence_threshold: 3,
+                trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
+                bridge_xrpl_address: generate_xrpl_address(),
+                xrpl_base_fee: 10,
+                token_factory_addr: token_factory_addr.clone(),
+                issue_token: true,
+            },
+        )
+        .unwrap();
 
     // Register COSMOS Token
     app.execute(
+        Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::RegisterCosmosToken {
             denom: FEE_DENOM.to_string(),
@@ -63,19 +76,18 @@ fn cancel_pending_operation() {
             bridging_fee: Uint128::zero(),
         },
         &[],
-        Addr::unchecked(signer),
     )
     .unwrap();
 
     // Set up enough tickets
     app.execute(
+        Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::RecoverTickets {
             account_sequence: 1,
             number_of_tickets: Some(10),
         },
         &[],
-        Addr::unchecked(signer),
     )
     .unwrap();
 
@@ -93,6 +105,7 @@ fn cancel_pending_operation() {
     assert_eq!(query_pending_operations.operations.len(), 1);
 
     app.execute(
+        Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::CancelPendingOperation {
             operation_id: query_pending_operations.operations[0]
@@ -100,7 +113,6 @@ fn cancel_pending_operation() {
                 .unwrap(),
         },
         &[],
-        Addr::unchecked(signer),
     )
     .unwrap();
 
@@ -125,17 +137,18 @@ fn cancel_pending_operation() {
 
     // This time we set them up correctly without cancelling
     app.execute(
+        Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::RecoverTickets {
             account_sequence: 1,
             number_of_tickets: Some(10),
         },
         &[],
-        Addr::unchecked(signer),
     )
     .unwrap();
 
     app.execute(
+        Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::SaveEvidence {
             evidence: Evidence::XRPLTransactionResult {
@@ -149,7 +162,6 @@ fn cancel_pending_operation() {
             },
         },
         &[],
-        Addr::unchecked(signer),
     )
     .unwrap();
 
@@ -158,6 +170,7 @@ fn cancel_pending_operation() {
     let issuer = generate_xrpl_address();
     let currency = "USD".to_string();
     app.execute(
+        Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::RegisterXRPLToken {
             issuer: issuer.clone(),
@@ -167,31 +180,30 @@ fn cancel_pending_operation() {
             bridging_fee: Uint128::zero(),
         },
         &[],
-        Addr::unchecked(signer),
     )
     .unwrap();
 
     // CosmosToXRPLTransfer pending operation
     app.execute(
+        Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::SendToXRPL {
             recipient: generate_xrpl_address(),
             deliver_amount: None,
         },
         &coins(1, FEE_DENOM.to_string()),
-        Addr::unchecked(signer),
     )
     .unwrap();
 
     // RotateKeys operation
     app.execute(
+        Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::RotateKeys {
             new_relayers: vec![new_relayer.clone()],
             new_evidence_threshold: 1,
         },
         &[],
-        Addr::unchecked(signer),
     )
     .unwrap();
 
@@ -218,6 +230,7 @@ fn cancel_pending_operation() {
     // If someone that is not the owner tries to cancel it should fail
     let cancel_error = app
         .execute(
+            Addr::unchecked(not_owner),
             contract_addr.clone(),
             &ExecuteMsg::CancelPendingOperation {
                 operation_id: query_pending_operations.operations[0]
@@ -225,7 +238,6 @@ fn cancel_pending_operation() {
                     .unwrap(),
             },
             &[],
-            &not_owner,
         )
         .unwrap_err();
 
@@ -237,10 +249,10 @@ fn cancel_pending_operation() {
     // If owner tries to cancel a pending operation that does not exist it should fail
     let cancel_error = app
         .execute(
+            Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::CancelPendingOperation { operation_id: 50 },
             &[],
-            Addr::unchecked(signer),
         )
         .unwrap_err();
 
@@ -252,6 +264,7 @@ fn cancel_pending_operation() {
 
     // Cancel the first pending operation (trust set) and check that ticket is returned and token is put in Inactive state
     app.execute(
+        Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::CancelPendingOperation {
             operation_id: query_pending_operations.operations[0]
@@ -259,7 +272,6 @@ fn cancel_pending_operation() {
                 .unwrap(),
         },
         &[],
-        Addr::unchecked(signer),
     )
     .unwrap();
 
@@ -303,6 +315,7 @@ fn cancel_pending_operation() {
 
     // Cancel the second pending operation (CosmosToXRPLTransfer), which should create a pending refund for the sender
     app.execute(
+        Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::CancelPendingOperation {
             operation_id: query_pending_operations.operations[0]
@@ -310,7 +323,6 @@ fn cancel_pending_operation() {
                 .unwrap(),
         },
         &[],
-        Addr::unchecked(signer),
     )
     .unwrap();
 
@@ -353,6 +365,7 @@ fn cancel_pending_operation() {
 
     // Cancel the RotateKeys operation, it should keep the bridge halted and not rotate the relayers
     app.execute(
+        Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::CancelPendingOperation {
             operation_id: query_pending_operations.operations[0]
@@ -360,7 +373,6 @@ fn cancel_pending_operation() {
                 .unwrap(),
         },
         &[],
-        Addr::unchecked(signer),
     )
     .unwrap();
 
@@ -395,10 +407,8 @@ fn cancel_pending_operation() {
 
 #[test]
 fn invalid_transaction_evidences() {
-    let app = CosmosTestApp::new();
-    let signer = app
-        .init_account(&coins(100_000_000_000, FEE_DENOM))
-        .unwrap();
+    let signer = "signer";
+    let mut app = MockApp::new(&[(signer, &coins(100_000_000_000, FEE_DENOM))]);
 
     let relayer = Relayer {
         cosmos_address: Addr::unchecked(signer),
@@ -406,18 +416,25 @@ fn invalid_transaction_evidences() {
         xrpl_pub_key: generate_xrpl_pub_key(),
     };
 
-    let contract_addr = store_and_instantiate(
-        &wasm,
-        Addr::unchecked(signer),
-        Addr::unchecked(signer),
-        vec![relayer],
-        1,
-        4,
-        Uint128::new(TRUST_SET_LIMIT_AMOUNT),
-        query_issue_fee(&asset_ft),
-        generate_xrpl_address(),
-        10,
-    );
+    let token_factory_addr = app.create_tokenfactory(Addr::unchecked(signer)).unwrap();
+
+    // Test with 1 relayer and 1 evidence threshold first
+    let contract_addr = app
+        .create_bridge(
+            Addr::unchecked(signer),
+            &InstantiateMsg {
+                owner: Addr::unchecked(signer),
+                relayers: vec![relayer],
+                evidence_threshold: 1,
+                used_ticket_sequence_threshold: 4,
+                trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
+                bridge_xrpl_address: generate_xrpl_address(),
+                xrpl_base_fee: 10,
+                token_factory_addr: token_factory_addr.clone(),
+                issue_token: true,
+            },
+        )
+        .unwrap();
 
     let tx_hash = generate_hash();
     let account_sequence = 1;
@@ -488,25 +505,25 @@ fn invalid_transaction_evidences() {
     ];
 
     app.execute(
+        Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::RecoverTickets {
             account_sequence,
             number_of_tickets: Some(5),
         },
         &[],
-        Addr::unchecked(signer),
     )
     .unwrap();
 
     for (index, evidence) in invalid_evidences_input.iter().enumerate() {
         let invalid_evidence = app
             .execute(
+                Addr::unchecked(signer),
                 contract_addr.clone(),
                 &ExecuteMsg::SaveEvidence {
                     evidence: evidence.clone(),
                 },
                 &[],
-                Addr::unchecked(signer),
             )
             .unwrap_err();
 
@@ -519,14 +536,19 @@ fn invalid_transaction_evidences() {
 
 #[test]
 fn unauthorized_access() {
-    let app = CosmosTestApp::new();
-    let signer = app
-        .init_account(&coins(100_000_000_000, FEE_DENOM))
-        .unwrap();
+    let accounts_number = 2;
+    let accounts: Vec<_> = (0..accounts_number)
+        .into_iter()
+        .map(|i| format!("account{i}"))
+        .collect();
 
-    let not_owner = app
-        .init_account(&coins(100_000_000_000, FEE_DENOM))
-        .unwrap();
+    let mut app = MockApp::new(&[
+        (accounts[0].as_str(), &coins(100_000_000_000, FEE_DENOM)),
+        (accounts[1].as_str(), &coins(100_000_000_000, FEE_DENOM)),
+    ]);
+
+    let signer = &accounts[0];
+    let not_owner = &accounts[1];
 
     let relayer = Relayer {
         cosmos_address: Addr::unchecked(signer),
@@ -534,29 +556,36 @@ fn unauthorized_access() {
         xrpl_pub_key: generate_xrpl_pub_key(),
     };
 
-    let contract_addr = store_and_instantiate(
-        &wasm,
-        Addr::unchecked(signer),
-        Addr::unchecked(signer),
-        vec![relayer],
-        1,
-        50,
-        Uint128::new(TRUST_SET_LIMIT_AMOUNT),
-        query_issue_fee(&asset_ft),
-        generate_xrpl_address(),
-        10,
-    );
+    let token_factory_addr = app.create_tokenfactory(Addr::unchecked(signer)).unwrap();
+
+    // Test with 1 relayer and 1 evidence threshold first
+    let contract_addr = app
+        .create_bridge(
+            Addr::unchecked(signer),
+            &InstantiateMsg {
+                owner: Addr::unchecked(signer),
+                relayers: vec![relayer],
+                evidence_threshold: 1,
+                used_ticket_sequence_threshold: 50,
+                trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
+                bridge_xrpl_address: generate_xrpl_address(),
+                xrpl_base_fee: 10,
+                token_factory_addr: token_factory_addr.clone(),
+                issue_token: true,
+            },
+        )
+        .unwrap();
 
     // Try transfering from user that is not owner, should fail
     let transfer_error = app
         .execute(
+            Addr::unchecked(not_owner),
             contract_addr.clone(),
             &ExecuteMsg::UpdateOwnership(cw_ownable::Action::TransferOwnership {
-                new_owner: not_owner.address(),
+                new_owner: not_owner.to_string(),
                 expiry: None,
             }),
             &[],
-            &not_owner,
         )
         .unwrap_err();
 
@@ -569,6 +598,7 @@ fn unauthorized_access() {
     // Try registering a cosmos token as not_owner, should fail
     let register_cosmos_error = app
         .execute(
+            Addr::unchecked(not_owner),
             contract_addr.clone(),
             &ExecuteMsg::RegisterCosmosToken {
                 denom: "any_denom".to_string(),
@@ -578,7 +608,6 @@ fn unauthorized_access() {
                 bridging_fee: Uint128::zero(),
             },
             &[],
-            &not_owner,
         )
         .unwrap_err();
 
@@ -590,6 +619,7 @@ fn unauthorized_access() {
     // Try registering an XRPL token as not_owner, should fail
     let register_xrpl_error = app
         .execute(
+            Addr::unchecked(not_owner),
             contract_addr.clone(),
             &ExecuteMsg::RegisterXRPLToken {
                 issuer: generate_xrpl_address(),
@@ -599,7 +629,6 @@ fn unauthorized_access() {
                 bridging_fee: Uint128::zero(),
             },
             &[],
-            &not_owner,
         )
         .unwrap_err();
 
@@ -611,6 +640,7 @@ fn unauthorized_access() {
     // Trying to send from an address that is not a relayer should fail
     let relayer_error = app
         .execute(
+            Addr::unchecked(not_owner),
             contract_addr.clone(),
             &ExecuteMsg::SaveEvidence {
                 evidence: Evidence::XRPLToCosmosTransfer {
@@ -622,7 +652,6 @@ fn unauthorized_access() {
                 },
             },
             &[],
-            &not_owner,
         )
         .unwrap_err();
 
@@ -634,17 +663,18 @@ fn unauthorized_access() {
     // Try recovering tickets as not_owner, should fail
     let recover_tickets = app
         .execute(
+            Addr::unchecked(not_owner),
             contract_addr.clone(),
             &ExecuteMsg::RecoverTickets {
                 account_sequence: 1,
                 number_of_tickets: Some(5),
             },
             &[],
-            &not_owner,
         )
         .unwrap_err();
 
     assert!(recover_tickets
+        .root_cause()
         .to_string()
         .contains(ContractError::UnauthorizedSender {}.to_string().as_str()));
 }
