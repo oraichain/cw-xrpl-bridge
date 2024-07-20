@@ -1,3 +1,4 @@
+mod bridge;
 mod helper;
 mod instantiation;
 mod ownership;
