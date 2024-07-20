@@ -1,22 +1,18 @@
-use crate::contract::{
-    INITIAL_PROHIBITED_XRPL_ADDRESSES, MAX_RELAYERS, XRPL_DENOM_PREFIX, XRP_ISSUER, XRP_SYMBOL,
-};
+use crate::contract::{XRPL_DENOM_PREFIX, XRP_ISSUER};
 use crate::error::ContractError;
 use crate::evidence::{Evidence, OperationResult, TransactionResult};
 use crate::msg::{
-    CosmosTokensResponse, ExecuteMsg, PendingOperationsResponse, PendingRefundsResponse,
-    ProcessedTxsResponse, QueryMsg, XRPLTokensResponse,
+    CosmosTokensResponse, ExecuteMsg, PendingOperationsResponse, QueryMsg, XRPLTokensResponse,
 };
-use crate::operation::{Operation, OperationType};
+
 use crate::state::{Config, CosmosToken, TokenState, XRPLToken};
 use crate::tests::helper::{
     generate_hash, generate_xrpl_address, generate_xrpl_pub_key, MockApp, FEE_DENOM,
     TRUST_SET_LIMIT_AMOUNT,
 };
 use crate::{contract::XRP_CURRENCY, msg::InstantiateMsg, relayer::Relayer};
-use cosmwasm_std::{coin, coins, Addr, BalanceResponse, BankMsg, SupplyResponse, Uint128};
-use cosmwasm_testing_util::{BankSudo, Executor};
-use token_bindings::{DenomUnit, FullDenomResponse, Metadata, MetadataResponse};
+use cosmwasm_std::{coins, Addr, Uint128};
+use token_bindings::{DenomUnit, Metadata};
 
 #[test]
 fn precisions() {

@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, Coin, StdResult};
+use cosmwasm_std::{Addr, Coin};
 use cosmwasm_testing_util::{ContractWrapper, MockResult};
 use derive_more::{Deref, DerefMut};
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
