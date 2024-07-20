@@ -1,8 +1,10 @@
 use cosmwasm_std::{coins, Addr, Uint128};
 use token_bindings::DenomsByCreatorResponse;
 use crate::contract::{MAX_COSMOS_TOKEN_DECIMALS, XRPL_DENOM_PREFIX};
+use crate::error::ContractError;
 use crate::evidence::{Evidence, OperationResult, TransactionResult};
-use crate::msg::XRPLTokensResponse;
+use crate::msg::{PendingOperationsResponse, XRPLTokensResponse};
+use crate::operation::{Operation, OperationType};
 use crate::state::{ Config, CosmosToken, XRPLToken};
 use crate::tests::helper::{
     generate_hash, generate_xrpl_address, generate_xrpl_pub_key, MockApp, FEE_DENOM, TRUST_SET_LIMIT_AMOUNT
@@ -651,210 +653,229 @@ fn register_xrpl_token() {
     assert_eq!(query_xrpl_tokens.tokens.len(), 2);
 }
 
-// #[test]
-// fn xrpl_token_registration_recovery() {
-//     let app = CosmosTestApp::new();
-//     let signer = app
-//         .init_account(&coins(100_000_000_000, FEE_DENOM))
-//         .unwrap();
-//
+#[test]
+fn xrpl_token_registration_recovery() {
+    let signer = "signer";
+    let mut app = MockApp::new(&[
+        (signer, &coins(100_000_000_000, FEE_DENOM)),
+    ]);
 
-//     let relayer = Relayer {
-//         cosmos_address: Addr::unchecked(signer),
-//         xrpl_address: generate_xrpl_address(),
-//         xrpl_pub_key: generate_xrpl_pub_key(),
-//     };
 
-//     let token_issuer = generate_xrpl_address();
-//     let token_currency = "BTC".to_string();
-//     let token = XRPLToken {
-//         issuer: token_issuer.clone(),
-//         currency: token_currency.clone(),
-//         sending_precision: -15,
-//         max_holding_amount: Uint128::new(100),
-//         bridging_fee: Uint128::zero(),
-//     };
-//     let xrpl_base_fee = 10;
+    let relayer = Relayer {
+        cosmos_address: Addr::unchecked(signer),
+        xrpl_address: generate_xrpl_address(),
+        xrpl_pub_key: generate_xrpl_pub_key(),
+    };
 
-//     let contract_addr = store_and_instantiate(
-//         &wasm,
-//         Addr::unchecked(signer),
-//         Addr::unchecked(signer),
-//         vec![relayer.clone()],
-//         1,
-//         2,
-//         Uint128::new(TRUST_SET_LIMIT_AMOUNT),
-//         query_issue_fee(&asset_ft),
-//         generate_xrpl_address(),
-//         xrpl_base_fee,
-//     );
+    let token_issuer = generate_xrpl_address();
+    let token_currency = "BTC".to_string();
+    let xrpl_base_fee = 10;
 
-//     // We successfully recover 3 tickets to perform operations
-//     app.execute(
-//         contract_addr.clone(),
-//         &ExecuteMsg::RecoverTickets {
-//             account_sequence: 1,
-//             number_of_tickets: Some(3),
-//         },
-//         &[],
-//         Addr::unchecked(signer),
-//     )
-//     .unwrap();
+    let token_factory_addr = app.create_tokenfactory(Addr::unchecked(signer)).unwrap();
 
-//     app.execute(
-//         contract_addr.clone(),
-//         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLTransactionResult {
-//                 tx_hash: Some(generate_hash()),
-//                 account_sequence: Some(1),
-//                 ticket_sequence: None,
-//                 transaction_result: TransactionResult::Accepted,
-//                 operation_result: Some(OperationResult::TicketsAllocation {
-//                     tickets: Some((1..4).collect()),
-//                 }),
-//             },
-//         },
-//         &[],
-//         Addr::unchecked(signer),
-//     )
-//     .unwrap();
+    // Test with 1 relayer and 1 evidence threshold first
+    let contract_addr = app
+        .create_bridge(
+            Addr::unchecked(signer),
+            &InstantiateMsg {
+                owner: Addr::unchecked(signer),
+                relayers: vec![relayer.clone()],
+                evidence_threshold: 1,
+                used_ticket_sequence_threshold: 2,
+                trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
+                bridge_xrpl_address:generate_xrpl_address(),
+                xrpl_base_fee,
+                token_factory_addr: token_factory_addr.clone(),
+                issue_token: true,
+            },
+        )
+        .unwrap();
 
-//     // We perform the register token operation, which should put the token to Processing state and create the PendingOperation
-//     app.execute(
-//         contract_addr.clone(),
-//         &ExecuteMsg::RegisterXRPLToken {
-//             issuer: token.issuer.clone(),
-//             currency: token.currency.clone(),
-//             sending_precision: token.sending_precision,
-//             max_holding_amount: token.max_holding_amount,
-//             bridging_fee: token.bridging_fee,
-//         },
-//         &[],
-//         Addr::unchecked(signer),
-//     )
-//     .unwrap();
+    let config: Config = app
+        .query(contract_addr.clone(), &QueryMsg::Config {})
+        .unwrap();
 
-//     // If we try to recover a token that is not in Inactive state, it should fail.
-//     let recover_error = wasm
-//         .execute(
-//             contract_addr.clone(),
-//             &ExecuteMsg::RecoverXRPLTokenRegistration {
-//                 issuer: token.issuer.clone(),
-//                 currency: token.currency.clone(),
-//             },
-//             &[],
-//             Addr::unchecked(signer),
-//         )
-//         .unwrap_err();
+    
+    let token = XRPLToken {
+        issuer: token_issuer.clone(),
+        currency: token_currency.clone(),
+        sending_precision: -15,
+        max_holding_amount: Uint128::new(100),
+        bridging_fee: Uint128::zero(),
+        cosmos_denom: config.build_denom(&XRPL_DENOM_PREFIX.to_uppercase()),
+        state: TokenState::Enabled,
+    };    
 
-//     assert!(recover_error
-//         .to_string()
-//         .contains(ContractError::XRPLTokenNotInactive {}.to_string().as_str()));
+    // We successfully recover 3 tickets to perform operations
+    app.execute(
+        Addr::unchecked(signer),
+        contract_addr.clone(),
+        &ExecuteMsg::RecoverTickets {
+            account_sequence: 1,
+            number_of_tickets: Some(3),
+        },
+        &[],
+        
+    )
+    .unwrap();
 
-//     // If we try to recover a token that is not registered, it should fail
-//     let recover_error = wasm
-//         .execute(
-//             contract_addr.clone(),
-//             &ExecuteMsg::RecoverXRPLTokenRegistration {
-//                 issuer: token.issuer.clone(),
-//                 currency: "NOT".to_string(),
-//             },
-//             &[],
-//             Addr::unchecked(signer),
-//         )
-//         .unwrap_err();
+    app.execute(
+        Addr::unchecked(signer),
+        contract_addr.clone(),
+        &ExecuteMsg::SaveEvidence {
+            evidence: Evidence::XRPLTransactionResult {
+                tx_hash: Some(generate_hash()),
+                account_sequence: Some(1),
+                ticket_sequence: None,
+                transaction_result: TransactionResult::Accepted,
+                operation_result: Some(OperationResult::TicketsAllocation {
+                    tickets: Some((1..4).collect()),
+                }),
+            },
+        },
+        &[],
+        
+    )
+    .unwrap();
 
-//     assert!(recover_error
-//         .to_string()
-//         .contains(ContractError::TokenNotRegistered {}.to_string().as_str()));
+    // We perform the register token operation, which should put the token to Processing state and create the PendingOperation
+    app.execute(
+        Addr::unchecked(signer),
+        contract_addr.clone(),
+        &ExecuteMsg::RegisterXRPLToken {
+            issuer: token.issuer.clone(),
+            currency: token.currency.clone(),
+            sending_precision: token.sending_precision,
+            max_holding_amount: token.max_holding_amount,
+            bridging_fee: token.bridging_fee,
+        },
+        &[],
+        
+    )
+    .unwrap();
 
-//     // Let's fail the trust set operation to put the token to Inactive so that we can recover it
+    // If we try to recover a token that is not in Inactive state, it should fail.
+    let recover_error = app
+        .execute(
+            Addr::unchecked(signer),
+            contract_addr.clone(),
+            &ExecuteMsg::RecoverXRPLTokenRegistration {
+                issuer: token.issuer.clone(),
+                currency: token.currency.clone(),
+            },
+            &[],
+            
+        )
+        .unwrap_err();
 
-//     let query_pending_operations = wasm
-//         .query::<QueryMsg, PendingOperationsResponse>(
-//             contract_addr.clone(),
-//             &QueryMsg::PendingOperations {
-//                 start_after_key: None,
-//                 limit: None,
-//             },
-//         )
-//         .unwrap();
+    assert!(recover_error.root_cause()
+        .to_string()
+        .contains(ContractError::XRPLTokenNotInactive {}.to_string().as_str()));
 
-//     assert_eq!(query_pending_operations.operations.len(), 1);
+    // If we try to recover a token that is not registered, it should fail
+    let recover_error = app
+        .execute(
+            Addr::unchecked(signer),
+            contract_addr.clone(),
+            &ExecuteMsg::RecoverXRPLTokenRegistration {
+                issuer: token.issuer.clone(),
+                currency: "NOT".to_string(),
+            },
+            &[],
+            
+        )
+        .unwrap_err();
 
-//     app.execute(
-//         contract_addr.clone(),
-//         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLTransactionResult {
-//                 tx_hash: Some(generate_hash()),
-//                 account_sequence: None,
-//                 ticket_sequence: Some(
-//                     query_pending_operations.operations[0]
-//                         .ticket_sequence
-//                         .unwrap(),
-//                 ),
-//                 transaction_result: TransactionResult::Rejected,
-//                 operation_result: None,
-//             },
-//         },
-//         &[],
-//         Addr::unchecked(signer),
-//     )
-//     .unwrap();
+    assert!(recover_error.root_cause()
+        .to_string()
+        .contains(ContractError::TokenNotRegistered {}.to_string().as_str()));
 
-//     let query_pending_operations = wasm
-//         .query::<QueryMsg, PendingOperationsResponse>(
-//             contract_addr.clone(),
-//             &QueryMsg::PendingOperations {
-//                 start_after_key: None,
-//                 limit: None,
-//             },
-//         )
-//         .unwrap();
+    // Let's fail the trust set operation to put the token to Inactive so that we can recover it
 
-//     assert!(query_pending_operations.operations.is_empty());
+    let query_pending_operations :PendingOperationsResponse = app.query(
+            contract_addr.clone(),
+            &QueryMsg::PendingOperations {
+                start_after_key: None,
+                limit: None,
+            },
+        )
+        .unwrap();
 
-//     // We should be able to recover the token now
-//     app.execute(
-//         contract_addr.clone(),
-//         &ExecuteMsg::RecoverXRPLTokenRegistration {
-//             issuer: token.issuer.clone(),
-//             currency: token.currency.clone(),
-//         },
-//         &[],
-//         Addr::unchecked(signer),
-//     )
-//     .unwrap();
+    assert_eq!(query_pending_operations.operations.len(), 1);
 
-//     let query_pending_operations = wasm
-//         .query::<QueryMsg, PendingOperationsResponse>(
-//             contract_addr.clone(),
-//             &QueryMsg::PendingOperations {
-//                 start_after_key: None,
-//                 limit: None,
-//             },
-//         )
-//         .unwrap();
+    app.execute(
+        Addr::unchecked(signer),
+        contract_addr.clone(),
+        &ExecuteMsg::SaveEvidence {
+            evidence: Evidence::XRPLTransactionResult {
+                tx_hash: Some(generate_hash()),
+                account_sequence: None,
+                ticket_sequence: Some(
+                    query_pending_operations.operations[0]
+                        .ticket_sequence
+                        .unwrap(),
+                ),
+                transaction_result: TransactionResult::Rejected,
+                operation_result: None,
+            },
+        },
+        &[],
+        
+    )
+    .unwrap();
 
-//     assert_eq!(query_pending_operations.operations.len(), 1);
-//     assert_eq!(
-//         query_pending_operations.operations[0],
-//         Operation {
-//             id: query_pending_operations.operations[0].id.clone(),
-//             version: 1,
-//             ticket_sequence: Some(
-//                 query_pending_operations.operations[0]
-//                     .ticket_sequence
-//                     .unwrap()
-//             ),
-//             account_sequence: None,
-//             signatures: vec![],
-//             operation_type: OperationType::TrustSet {
-//                 issuer: token_issuer,
-//                 currency: token_currency,
-//                 trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
-//             },
-//             xrpl_base_fee,
-//         }
-//     );
-// }
+    let query_pending_operations :PendingOperationsResponse = app.query(
+            contract_addr.clone(),
+            &QueryMsg::PendingOperations {
+                start_after_key: None,
+                limit: None,
+            },
+        )
+        .unwrap();
+
+    assert!(query_pending_operations.operations.is_empty());
+
+    // We should be able to recover the token now
+    app.execute(
+        Addr::unchecked(signer),
+        contract_addr.clone(),
+        &ExecuteMsg::RecoverXRPLTokenRegistration {
+            issuer: token.issuer.clone(),
+            currency: token.currency.clone(),
+        },
+        &[],
+        
+    )
+    .unwrap();
+
+    let query_pending_operations :PendingOperationsResponse = app.query(
+            contract_addr.clone(),
+            &QueryMsg::PendingOperations {
+                start_after_key: None,
+                limit: None,
+            },
+        )
+        .unwrap();
+
+    assert_eq!(query_pending_operations.operations.len(), 1);
+    assert_eq!(
+        query_pending_operations.operations[0],
+        Operation {
+            id: query_pending_operations.operations[0].id.clone(),
+            version: 1,
+            ticket_sequence: Some(
+                query_pending_operations.operations[0]
+                    .ticket_sequence
+                    .unwrap()
+            ),
+            account_sequence: None,
+            signatures: vec![],
+            operation_type: OperationType::TrustSet {
+                issuer: token_issuer,
+                currency: token_currency,
+                trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
+            },
+            xrpl_base_fee,
+        }
+    );
+}

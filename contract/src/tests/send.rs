@@ -50,9 +50,9 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
         });
     }
 
-    let token_factory_addr = app.create_tokenfactory(Addr::unchecked(signer)).unwrap();
-
     let bridge_xrpl_address = generate_xrpl_address();
+
+    let token_factory_addr = app.create_tokenfactory(Addr::unchecked(signer)).unwrap();
 
     // Test with 1 relayer and 1 evidence threshold first
     let contract_addr = app
