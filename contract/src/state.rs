@@ -13,9 +13,9 @@ pub enum TopKey {
     Config = b'1',
     TxEvidences = b'2',
     ProcessedTxs = b'3',
-    OraiTokens = b'4',
+    CosmosTokens = b'4',
     XRPLTokens = b'5',
-    UsedXRPLCurrenciesForOraiTokens = b'6',
+    UsedXRPLCurrenciesForCosmosTokens = b'6',
     AvailableTickets = b'7',
     UsedTickets = b'8',
     PendingOperations = b'9',
@@ -93,7 +93,7 @@ pub enum TokenState {
 }
 
 #[cw_serde]
-pub struct OraiToken {
+pub struct CosmosToken {
     pub denom: String,
     pub decimals: u32,
     pub xrpl_currency: String,
@@ -138,21 +138,21 @@ pub const XRPL_TOKENS: IndexedMap<String, XRPLToken, XRPLTokensIndexes> = Indexe
     },
 );
 // Tokens registered from Orai side. These tokens are coreum originated tokens that are registered to be bridged - key is denom on Orai chain
-// OraiTokens will have xrpl_currency as a secondary index so that we can get the OraiToken corresponding to a xrpl_currency
-pub struct OraiTokensIndexes<'a> {
-    pub xrpl_currency: UniqueIndex<'a, String, OraiToken, String>,
+// CosmosTokens will have xrpl_currency as a secondary index so that we can get the CosmosToken corresponding to a xrpl_currency
+pub struct CosmosTokensIndexes<'a> {
+    pub xrpl_currency: UniqueIndex<'a, String, CosmosToken, String>,
 }
 
-impl<'a> IndexList<OraiToken> for OraiTokensIndexes<'a> {
-    fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<OraiToken>> + '_> {
-        let v: Vec<&dyn Index<OraiToken>> = vec![&self.xrpl_currency];
+impl<'a> IndexList<CosmosToken> for CosmosTokensIndexes<'a> {
+    fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<CosmosToken>> + '_> {
+        let v: Vec<&dyn Index<CosmosToken>> = vec![&self.xrpl_currency];
         Box::new(v.into_iter())
     }
 }
 
-pub const COREUM_TOKENS: IndexedMap<String, OraiToken, OraiTokensIndexes> = IndexedMap::new(
-    TopKey::OraiTokens.as_str(),
-    OraiTokensIndexes {
+pub const COSMOS_TOKENS: IndexedMap<String, CosmosToken, CosmosTokensIndexes> = IndexedMap::new(
+    TopKey::CosmosTokens.as_str(),
+    CosmosTokensIndexes {
         xrpl_currency: UniqueIndex::new(
             |cosmos_token| cosmos_token.xrpl_currency.clone(),
             "cosmos_token__xrpl_currency",
@@ -214,7 +214,7 @@ pub const PROHIBITED_XRPL_ADDRESSES: Map<String, Empty> =
 
 pub enum ContractActions {
     Instantiation,
-    RegisterOraiToken,
+    RegisterCosmosToken,
     RegisterXRPLToken,
     RecoverTickets,
     RecoverXRPLTokenRegistration,
@@ -223,7 +223,7 @@ pub enum ContractActions {
     SendToXRPL,
     ClaimFees,
     UpdateXRPLToken,
-    UpdateOraiToken,
+    UpdateCosmosToken,
     UpdateXRPLBaseFee,
     UpdateProhibitedXRPLAddresses,
     ClaimRefunds,
@@ -242,7 +242,7 @@ impl UserType {
     pub fn is_authorized(&self, action: &ContractActions) -> bool {
         match &action {
             ContractActions::Instantiation => true,
-            ContractActions::RegisterOraiToken => matches!(self, Self::Owner),
+            ContractActions::RegisterCosmosToken => matches!(self, Self::Owner),
             ContractActions::RegisterXRPLToken => matches!(self, Self::Owner),
             ContractActions::SaveEvidence => matches!(self, Self::Relayer),
             ContractActions::RecoverTickets => matches!(self, Self::Owner),
@@ -251,7 +251,7 @@ impl UserType {
             ContractActions::SendToXRPL => true,
             ContractActions::ClaimFees => matches!(self, Self::Relayer),
             ContractActions::UpdateXRPLToken => matches!(self, Self::Owner),
-            ContractActions::UpdateOraiToken => matches!(self, Self::Owner),
+            ContractActions::UpdateCosmosToken => matches!(self, Self::Owner),
             ContractActions::UpdateXRPLBaseFee => matches!(self, Self::Owner),
             ContractActions::UpdateProhibitedXRPLAddresses => matches!(self, Self::Owner),
             ContractActions::ClaimRefunds => true,
@@ -267,7 +267,7 @@ impl ContractActions {
     pub const fn as_str(&self) -> &'static str {
         match self {
             Self::Instantiation => "bridge_instantiation",
-            Self::RegisterOraiToken => "register_cosmos_token",
+            Self::RegisterCosmosToken => "register_cosmos_token",
             Self::RegisterXRPLToken => "register_xrpl_token",
             Self::RecoverTickets => "recover_tickets",
             Self::RecoverXRPLTokenRegistration => "recover_xrpl_token_registration",
@@ -277,7 +277,7 @@ impl ContractActions {
             Self::ClaimFees => "claim_fees",
             Self::ClaimRefunds => "claim_refunds",
             Self::UpdateXRPLToken => "update_xrpl_token",
-            Self::UpdateOraiToken => "update_cosmos_token",
+            Self::UpdateCosmosToken => "update_cosmos_token",
             Self::UpdateXRPLBaseFee => "update_xrpl_base_fee",
             Self::UpdateProhibitedXRPLAddresses => "update_invalid_xrpl_addresses",
             Self::HaltBridge => "halt_bridge",

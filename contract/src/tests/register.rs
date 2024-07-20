@@ -1,16 +1,16 @@
 use cosmwasm_std::{coins, Addr, Uint128};
 use token_bindings::DenomsByCreatorResponse;
-use crate::contract::{MAX_COREUM_TOKEN_DECIMALS, XRPL_DENOM_PREFIX};
+use crate::contract::{MAX_COSMOS_TOKEN_DECIMALS, XRPL_DENOM_PREFIX};
 use crate::evidence::{Evidence, OperationResult, TransactionResult};
 use crate::msg::XRPLTokensResponse;
-use crate::state::{ OraiToken, XRPLToken};
+use crate::state::{ CosmosToken, XRPLToken};
 use crate::tests::helper::{
     generate_hash, generate_xrpl_address, generate_xrpl_pub_key, MockApp, FEE_DENOM, TRUST_SET_LIMIT_AMOUNT
 };
 use crate::{
     contract::XRP_CURRENCY,
     msg::{
-        OraiTokensResponse, ExecuteMsg, InstantiateMsg, QueryMsg,
+        CosmosTokensResponse, ExecuteMsg, InstantiateMsg, QueryMsg,
     },
     relayer::Relayer,
     state::TokenState,
@@ -18,21 +18,22 @@ use crate::{
 
 #[test]
 fn register_cosmos_token() {
-    let mut app = MockApp::new(&[("signer", &coins(100_000_000_000, FEE_DENOM))]);
+    let signer = "signer";
+    let mut app = MockApp::new(&[(signer, &coins(100_000_000_000, FEE_DENOM))]);
 
     let relayer = Relayer {
-        cosmos_address: Addr::unchecked("signer"),
+        cosmos_address: Addr::unchecked(signer),
         xrpl_address: generate_xrpl_address(),
         xrpl_pub_key: generate_xrpl_pub_key(),
     };
 
-    let token_factory_addr = app.create_tokenfactory(Addr::unchecked("signer")).unwrap();
+    let token_factory_addr = app.create_tokenfactory(Addr::unchecked(signer)).unwrap();
 
     let contract_addr = app
         .create_bridge(
-            Addr::unchecked("signer"),
+            Addr::unchecked(signer),
             &InstantiateMsg {
-                owner: Addr::unchecked("signer"),
+                owner: Addr::unchecked(signer),
                 relayers: vec![relayer],
                 evidence_threshold: 1,
                 used_ticket_sequence_threshold: 50,
@@ -45,7 +46,7 @@ fn register_cosmos_token() {
         .unwrap();
 
     let test_tokens = vec![
-        OraiToken {
+        CosmosToken {
             denom: "denom1".to_string(),
             decimals: 6,
             sending_precision: 6,
@@ -54,7 +55,7 @@ fn register_cosmos_token() {
             xrpl_currency: XRP_CURRENCY.to_string(),
             state: TokenState::Enabled,
         },
-        OraiToken {
+        CosmosToken {
             denom: "denom2".to_string(),
             decimals: 6,
             sending_precision: 6,
@@ -68,9 +69,9 @@ fn register_cosmos_token() {
     // Register two tokens correctly
     for token in test_tokens.clone() {
         app.execute(
-            Addr::unchecked("signer"),
+            Addr::unchecked(signer),
             contract_addr.clone(),
-            &ExecuteMsg::RegisterOraiToken {
+            &ExecuteMsg::RegisterCosmosToken {
                 denom: token.denom,
                 decimals: token.decimals,
                 sending_precision: token.sending_precision,
@@ -84,9 +85,9 @@ fn register_cosmos_token() {
 
     // Registering a token with same denom, should fail    
     app.execute(
-        Addr::unchecked("signer"),
+        Addr::unchecked(signer),
         contract_addr.clone(),
-        &ExecuteMsg::RegisterOraiToken {
+        &ExecuteMsg::RegisterCosmosToken {
             denom:test_tokens[0].denom.clone(),
             decimals: 6,
             sending_precision: 6,
@@ -99,9 +100,9 @@ fn register_cosmos_token() {
 
     // Registering a token with invalid sending precision should fail
     app.execute(
-        Addr::unchecked("signer"),
+        Addr::unchecked(signer),
         contract_addr.clone(),
-        &ExecuteMsg::RegisterOraiToken {
+        &ExecuteMsg::RegisterCosmosToken {
             denom: test_tokens[0].denom.clone(),
             decimals: 6,
             sending_precision: -17,
@@ -114,11 +115,11 @@ fn register_cosmos_token() {
 
     // Registering a token with invalid decimals should fail
     app.execute(
-        Addr::unchecked("signer"),
+        Addr::unchecked(signer),
         contract_addr.clone(),
-        &ExecuteMsg::RegisterOraiToken {
+        &ExecuteMsg::RegisterCosmosToken {
             denom: test_tokens[0].denom.clone(),
-            decimals: MAX_COREUM_TOKEN_DECIMALS + 1,
+            decimals: MAX_COSMOS_TOKEN_DECIMALS + 1,
             sending_precision: test_tokens[0].sending_precision,
             max_holding_amount: Uint128::one(),
             bridging_fee: test_tokens[0].bridging_fee,
@@ -129,9 +130,9 @@ fn register_cosmos_token() {
 
     // Registering tokens with invalid denoms will fail
     app.execute(
-        Addr::unchecked("signer"),
+        Addr::unchecked(signer),
         contract_addr.clone(),
-        &ExecuteMsg::RegisterOraiToken {
+        &ExecuteMsg::RegisterCosmosToken {
             denom: "1aa".to_string(), // Starts with a number
             decimals: test_tokens[0].decimals,
             sending_precision: test_tokens[0].sending_precision,
@@ -143,9 +144,9 @@ fn register_cosmos_token() {
     .unwrap_err();
 
     app.execute(
-        Addr::unchecked("signer"),
+        Addr::unchecked(signer),
         contract_addr.clone(),
-        &ExecuteMsg::RegisterOraiToken {
+        &ExecuteMsg::RegisterCosmosToken {
             denom: "aa".to_string(), // Too short
             decimals: test_tokens[0].decimals,
             sending_precision: test_tokens[0].sending_precision,
@@ -158,9 +159,9 @@ fn register_cosmos_token() {
 
      app
             .execute(
-                Addr::unchecked("signer"),
+                Addr::unchecked(signer),
                 contract_addr.clone(),
-                &ExecuteMsg::RegisterOraiToken {
+                &ExecuteMsg::RegisterCosmosToken {
                     denom: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string(), // Too long
                     decimals: test_tokens[0].decimals,
                     sending_precision: test_tokens[0].sending_precision,
@@ -176,9 +177,9 @@ fn register_cosmos_token() {
 
     app
         .execute(
-            Addr::unchecked("signer"),
+            Addr::unchecked(signer),
             contract_addr.clone(),
-            &ExecuteMsg::RegisterOraiToken {
+            &ExecuteMsg::RegisterCosmosToken {
                 denom: "aa$".to_string(), // Invalid symbols
                 decimals: test_tokens[0].decimals,
                 sending_precision: test_tokens[0].sending_precision,
@@ -193,10 +194,10 @@ fn register_cosmos_token() {
     
 
     // Query all tokens
-    let query_cosmos_tokens :OraiTokensResponse= app
+    let query_cosmos_tokens :CosmosTokensResponse= app
         .query(
             contract_addr.clone(),
-            &QueryMsg::OraiTokens {
+            &QueryMsg::CosmosTokens {
                 start_after_key: None,
                 limit: None,
             },
@@ -215,10 +216,10 @@ fn register_cosmos_token() {
     );
 
     // Query tokens with limit
-    let query_cosmos_tokens:OraiTokensResponse = app
+    let query_cosmos_tokens:CosmosTokensResponse = app
         .query(
             contract_addr.clone(),
-            &QueryMsg::OraiTokens {
+            &QueryMsg::CosmosTokens {
                 start_after_key: None,
                 limit: Some(1),
             },
@@ -228,10 +229,10 @@ fn register_cosmos_token() {
     assert_eq!(query_cosmos_tokens.tokens[0].denom, test_tokens[0].denom);
 
     // Query tokens with pagination
-    let query_cosmos_tokens:OraiTokensResponse = app
+    let query_cosmos_tokens:CosmosTokensResponse = app
         .query(
             contract_addr.clone(),
-            &QueryMsg::OraiTokens {
+            &QueryMsg::CosmosTokens {
                 start_after_key: query_cosmos_tokens.last_key,
                 limit: Some(1),
             },
@@ -244,24 +245,25 @@ fn register_cosmos_token() {
 
 #[test]
 fn register_xrpl_token() {
-    let mut app = MockApp::new(&[("signer", &coins(100_000_000_000, FEE_DENOM))]);
+    let signer = "signer";
+    let mut app = MockApp::new(&[(signer, &coins(100_000_000_000, FEE_DENOM))]);
 
     
     let relayer = Relayer {
-        cosmos_address: Addr::unchecked("signer"),
+        cosmos_address: Addr::unchecked(signer),
         xrpl_address: generate_xrpl_address(),
         xrpl_pub_key: generate_xrpl_pub_key(),
     };
 
     let xrpl_bridge_address = generate_xrpl_address();
 
-    let token_factory_addr = app.create_tokenfactory(Addr::unchecked("signer")).unwrap();
+    let token_factory_addr = app.create_tokenfactory(Addr::unchecked(signer)).unwrap();
 
     let contract_addr = app
         .create_bridge(
-            Addr::unchecked("signer"),
+            Addr::unchecked(signer),
             &InstantiateMsg {
-                owner: Addr::unchecked("signer"),
+                owner: Addr::unchecked(signer),
                 relayers: vec![relayer],
                 evidence_threshold: 1,
                 used_ticket_sequence_threshold: 2,
@@ -298,7 +300,7 @@ fn register_xrpl_token() {
     // Registering a token with an invalid issuer should fail.
     app
         .execute(
-            Addr::unchecked("signer"),
+            Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::RegisterXRPLToken {
                 issuer: "not_valid_issuer".to_string(),
@@ -315,7 +317,7 @@ fn register_xrpl_token() {
     // Registering a token with an invalid precision should fail.
      app
         .execute(
-            Addr::unchecked("signer"),
+            Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::RegisterXRPLToken {
                 issuer: test_tokens[0].issuer.clone(),
@@ -333,7 +335,7 @@ fn register_xrpl_token() {
     // Registering a token with an invalid precision should fail.
     app
         .execute(
-            Addr::unchecked("signer"),
+            Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::RegisterXRPLToken {
                 issuer: test_tokens[0].issuer.clone(),
@@ -351,7 +353,7 @@ fn register_xrpl_token() {
     // Registering a token with a valid issuer but invalid currency should fail.
     app
         .execute(
-            Addr::unchecked("signer"),
+            Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::RegisterXRPLToken {
                 issuer: test_tokens[1].issuer.clone(),
@@ -370,7 +372,7 @@ fn register_xrpl_token() {
     // Registering a token with an invalid symbol should fail
     app
         .execute(
-            Addr::unchecked("signer"),
+            Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::RegisterXRPLToken {
                 issuer: test_tokens[1].issuer.clone(),
@@ -389,7 +391,7 @@ fn register_xrpl_token() {
     // Registering a token with an invalid hexadecimal currency (not uppercase) should fail
     app
         .execute(
-            Addr::unchecked("signer"),
+            Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::RegisterXRPLToken {
                 issuer: test_tokens[1].issuer.clone(),
@@ -408,7 +410,7 @@ fn register_xrpl_token() {
     // Registering a token with an invalid hexadecimal currency (starting with 0x00) should fail
     app
         .execute(
-            Addr::unchecked("signer"),
+            Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::RegisterXRPLToken {
                 issuer: test_tokens[1].issuer.clone(),
@@ -427,7 +429,7 @@ fn register_xrpl_token() {
     // Registering a token with an "XRP" as currency should fail
     app
         .execute(
-            Addr::unchecked("signer"),
+            Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::RegisterXRPLToken {
                 issuer: test_tokens[1].issuer.clone(),
@@ -446,7 +448,7 @@ fn register_xrpl_token() {
     // Register token with incorrect fee (too much), should fail
     app
         .execute(
-            Addr::unchecked("signer"),
+            Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::RegisterXRPLToken {
                 issuer: test_tokens[0].issuer.clone(),
@@ -465,7 +467,7 @@ fn register_xrpl_token() {
     // Registering a token with an prohibited address as issuer should fail
     app
         .execute(
-            Addr::unchecked("signer"),
+            Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::RegisterXRPLToken {
                 issuer: xrpl_bridge_address,
@@ -484,7 +486,7 @@ fn register_xrpl_token() {
     // Registering a token without having tickets for the TrustSet operation should fail
     app
         .execute(
-            Addr::unchecked("signer"),
+            Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::RegisterXRPLToken {
                 issuer: test_tokens[0].issuer.clone(),
@@ -503,7 +505,7 @@ fn register_xrpl_token() {
     // Register two tokens correctly
     // Set up enough tickets first to allow registering tokens.
     app.execute(
-        Addr::unchecked("signer"),
+        Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::RecoverTickets {
             account_sequence: 1,
@@ -515,7 +517,7 @@ fn register_xrpl_token() {
     .unwrap();
 
     app.execute(
-        Addr::unchecked("signer"),
+        Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::SaveEvidence {
             evidence: Evidence::XRPLTransactionResult {
@@ -535,7 +537,7 @@ fn register_xrpl_token() {
 
     for token in test_tokens.clone() {
         app.execute(
-            Addr::unchecked("signer"),
+            Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::RegisterXRPLToken {
                 issuer: token.issuer,
@@ -563,7 +565,7 @@ fn register_xrpl_token() {
 
     app
         .execute(
-            Addr::unchecked("signer"),
+            Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::RegisterXRPLToken {
                 issuer: extra_token.issuer,
@@ -594,7 +596,7 @@ fn register_xrpl_token() {
     // Register 1 token with same issuer+currency, should fail
     app
         .execute(
-            Addr::unchecked("signer"),
+            Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::RegisterXRPLToken {
                 issuer: test_tokens[0].issuer.clone(),

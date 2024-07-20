@@ -3,7 +3,7 @@ use cw_ownable::OwnershipError;
 use cw_utils::PaymentError;
 use thiserror::Error;
 
-use crate::contract::{MAX_COREUM_TOKEN_DECIMALS, MAX_RELAYERS, MAX_TICKETS};
+use crate::contract::{MAX_COSMOS_TOKEN_DECIMALS, MAX_RELAYERS, MAX_TICKETS};
 
 #[derive(Error, Debug)]
 pub enum ContractError {
@@ -31,8 +31,8 @@ pub enum ContractError {
     #[error("DuplicatedRelayer: All relayers must have different XRPL addresses, public keys and coreum addresses")]
     DuplicatedRelayer {},
 
-    #[error("OraiTokenAlreadyRegistered: Token {} already registered", denom)]
-    OraiTokenAlreadyRegistered { denom: String },
+    #[error("CosmosTokenAlreadyRegistered: Token {} already registered", denom)]
+    CosmosTokenAlreadyRegistered { denom: String },
 
     #[error(
         "XRPLTokenAlreadyRegistered: Token with issuer: {} and currency: {} is already registered",
@@ -131,7 +131,7 @@ pub enum ContractError {
 
     #[error(
         "InvalidDecimals: registered Orai token can't have more than {} decimals",
-        MAX_COREUM_TOKEN_DECIMALS
+        MAX_COSMOS_TOKEN_DECIMALS
     )]
     InvalidDecimals {},
 

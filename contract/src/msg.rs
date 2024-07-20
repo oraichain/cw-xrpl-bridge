@@ -3,7 +3,7 @@ use cosmwasm_std::{Addr, Coin, Uint128};
 use cw_ownable::{cw_ownable_execute, cw_ownable_query};
 
 #[allow(unused_imports)]
-use crate::state::{Config, OraiToken, XRPLToken};
+use crate::state::{Config, CosmosToken, XRPLToken};
 use crate::{
     evidence::Evidence,
     operation::Operation,
@@ -39,7 +39,7 @@ pub struct MigrateMsg {}
 pub enum ExecuteMsg {
     // Registers a Orai token so that it can be bridged to XRPL
     // Only the owner can do this
-    RegisterOraiToken {
+    RegisterCosmosToken {
         denom: String,
         decimals: u32,
         sending_precision: i32,
@@ -108,7 +108,7 @@ pub enum ExecuteMsg {
         max_holding_amount: Option<Uint128>,
     },
     // Update the configuration of a Orai originated token
-    UpdateOraiToken {
+    UpdateCosmosToken {
         denom: String,
         // All fields that can be updatable for Orai tokens will be updated with this message.
         // They are all optional, so any fields that have to be updated can be included in the message.
@@ -172,8 +172,8 @@ pub enum QueryMsg {
         start_after_key: Option<String>,
         limit: Option<u32>,
     },
-    #[returns(OraiTokensResponse)]
-    OraiTokens {
+    #[returns(CosmosTokensResponse)]
+    CosmosTokens {
         start_after_key: Option<String>,
         limit: Option<u32>,
     },
@@ -220,9 +220,9 @@ pub struct XRPLTokensResponse {
 }
 
 #[cw_serde]
-pub struct OraiTokensResponse {
+pub struct CosmosTokensResponse {
     pub last_key: Option<String>,
-    pub tokens: Vec<OraiToken>,
+    pub tokens: Vec<CosmosToken>,
 }
 
 #[cw_serde]

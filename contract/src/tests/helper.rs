@@ -1,5 +1,5 @@
 use cosmwasm_std::{Addr, Coin, StdResult};
-use cosmwasm_testing_util::ContractWrapper;
+use cosmwasm_testing_util::{ContractWrapper, MockResult};
 use derive_more::{Deref, DerefMut};
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use ripple_keypairs::Seed;
@@ -34,10 +34,9 @@ impl MockApp {
         &mut self,
         sender: Addr,
         init_msg: &crate::msg::InstantiateMsg,
-    ) -> StdResult<Addr> {
+    ) -> MockResult<Addr> {
         let code_id = self.bridge_id;
-        let addr = self.instantiate(code_id, sender, init_msg, &[], "cw-xrpl-bridge")?;
-        Ok(addr)
+        self.instantiate(code_id, sender, init_msg, &[], "cw-xrpl-bridge")
     }
 }
 

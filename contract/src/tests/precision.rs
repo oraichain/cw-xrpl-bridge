@@ -4,11 +4,11 @@ use crate::contract::{
 use crate::error::ContractError;
 use crate::evidence::{Evidence, OperationResult, TransactionResult};
 use crate::msg::{
-    ExecuteMsg, OraiTokensResponse, PendingOperationsResponse, PendingRefundsResponse,
+    CosmosTokensResponse, ExecuteMsg, PendingOperationsResponse, PendingRefundsResponse,
     ProcessedTxsResponse, QueryMsg, XRPLTokensResponse,
 };
 use crate::operation::{Operation, OperationType};
-use crate::state::{Config, TokenState, XRPLToken};
+use crate::state::{Config, CosmosToken, TokenState, XRPLToken};
 use crate::tests::helper::{
     generate_hash, generate_xrpl_address, generate_xrpl_pub_key, MockApp, FEE_DENOM,
     TRUST_SET_LIMIT_AMOUNT,
@@ -20,33 +20,47 @@ use token_bindings::{DenomUnit, FullDenomResponse, Metadata, MetadataResponse};
 
 #[test]
 fn precisions() {
-    let app = OraiTestApp::new();
-    let signer = app
-        .init_account(&coins(100_000_000_000, FEE_DENOM))
-        .unwrap();
+    let accounts_number = 2;
+    let accounts: Vec<_> = (0..accounts_number)
+        .into_iter()
+        .map(|i| format!("account{i}"))
+        .collect();
 
-    let receiver = app
-        .init_account(&coins(100_000_000_000, FEE_DENOM))
-        .unwrap();
+    let mut app = MockApp::new(&[
+        (accounts[0].as_str(), &coins(100_000_000_000, FEE_DENOM)),
+        (accounts[1].as_str(), &coins(100_000_000_000, FEE_DENOM)),
+    ]);
+
+    let signer = &accounts[0];
+    let receiver = &accounts[1];
 
     let relayer = Relayer {
-        cosmos_address: Addr::unchecked("signer"),
+        cosmos_address: Addr::unchecked(signer),
         xrpl_address: generate_xrpl_address(),
         xrpl_pub_key: generate_xrpl_pub_key(),
     };
 
-    let contract_addr = store_and_instantiate(
-        &wasm,
-        Addr::unchecked(signer),
-        Addr::unchecked("signer"),
-        vec![relayer],
-        1,
-        7,
-        Uint128::new(TRUST_SET_LIMIT_AMOUNT),
-        query_issue_fee(&asset_ft),
-        generate_xrpl_address(),
-        10,
-    );
+    let token_factory_addr = app.create_tokenfactory(Addr::unchecked(signer)).unwrap();
+
+    let contract_addr = app
+        .create_bridge(
+            Addr::unchecked(signer),
+            &InstantiateMsg {
+                owner: Addr::unchecked(signer),
+                relayers: vec![relayer.clone()],
+                evidence_threshold: 1,
+                used_ticket_sequence_threshold: 7,
+                trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
+                bridge_xrpl_address: generate_xrpl_address(),
+                xrpl_base_fee: 10,
+                token_factory_addr: token_factory_addr.clone(),
+            },
+        )
+        .unwrap();
+
+    let config: Config = app
+        .query(contract_addr.clone(), &QueryMsg::Config {})
+        .unwrap();
 
     // *** Test with XRPL originated tokens ***
 
@@ -56,6 +70,8 @@ fn precisions() {
         sending_precision: -2,
         max_holding_amount: Uint128::new(200000000000000000),
         bridging_fee: Uint128::zero(),
+        cosmos_denom: config.build_denom(&XRPL_DENOM_PREFIX.to_uppercase()),
+        state: TokenState::Enabled,
     };
     let test_token2 = XRPLToken {
         issuer: generate_xrpl_address().to_string(),
@@ -63,6 +79,8 @@ fn precisions() {
         sending_precision: 13,
         max_holding_amount: Uint128::new(499),
         bridging_fee: Uint128::zero(),
+        cosmos_denom: config.build_denom(&XRPL_DENOM_PREFIX.to_uppercase()),
+        state: TokenState::Enabled,
     };
 
     let test_token3 = XRPLToken {
@@ -71,21 +89,24 @@ fn precisions() {
         sending_precision: 0,
         max_holding_amount: Uint128::new(5000000000000000),
         bridging_fee: Uint128::zero(),
+        cosmos_denom: config.build_denom(&XRPL_DENOM_PREFIX.to_uppercase()),
+        state: TokenState::Enabled,
     };
 
     // Set up enough tickets first to allow registering tokens.
     app.execute(
+        Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::RecoverTickets {
             account_sequence: 1,
             number_of_tickets: Some(8),
         },
         &[],
-        Addr::unchecked(signer),
     )
     .unwrap();
 
     app.execute(
+        Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::SaveEvidence {
             evidence: Evidence::XRPLTransactionResult {
@@ -99,7 +120,6 @@ fn precisions() {
             },
         },
         &[],
-        Addr::unchecked(signer),
     )
     .unwrap();
 
@@ -107,6 +127,7 @@ fn precisions() {
 
     // Register token
     app.execute(
+        Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::RegisterXRPLToken {
             issuer: test_token1.issuer.clone(),
@@ -116,12 +137,11 @@ fn precisions() {
             bridging_fee: test_token1.bridging_fee,
         },
         &[],
-        Addr::unchecked(signer),
     )
     .unwrap();
 
-    let query_xrpl_tokens = wasm
-        .query::<QueryMsg, XRPLTokensResponse>(
+    let query_xrpl_tokens: XRPLTokensResponse = app
+        .query(
             contract_addr.clone(),
             &QueryMsg::XRPLTokens {
                 start_after_key: None,
@@ -139,8 +159,8 @@ fn precisions() {
         .clone();
 
     // Activate the token
-    let query_pending_operations = wasm
-        .query::<QueryMsg, PendingOperationsResponse>(
+    let query_pending_operations: PendingOperationsResponse = app
+        .query(
             contract_addr.clone(),
             &QueryMsg::PendingOperations {
                 start_after_key: None,
@@ -150,6 +170,7 @@ fn precisions() {
         .unwrap();
 
     app.execute(
+        Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::SaveEvidence {
             evidence: Evidence::XRPLTransactionResult {
@@ -161,15 +182,15 @@ fn precisions() {
             },
         },
         &[],
-        Addr::unchecked(signer),
     )
     .unwrap();
 
-    let precision_error = wasm
+    let precision_error = app
         .execute(
+            Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::SaveEvidence {
-                evidence: Evidence::XRPLToOraiTransfer {
+                evidence: Evidence::XRPLToCosmosTransfer {
                     tx_hash: generate_hash(),
                     issuer: test_token1.issuer.clone(),
                     currency: test_token1.currency.clone(),
@@ -179,20 +200,20 @@ fn precisions() {
                 },
             },
             &[],
-            Addr::unchecked(signer),
         )
         .unwrap_err();
 
-    assert!(precision_error.to_string().contains(
+    assert!(precision_error.root_cause().to_string().contains(
         ContractError::AmountSentIsZeroAfterTruncation {}
             .to_string()
             .as_str()
     ));
 
     app.execute(
+        Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLToOraiTransfer {
+            evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: generate_hash(),
                 issuer: test_token1.issuer.clone(),
                 currency: test_token1.currency.clone(),
@@ -202,25 +223,22 @@ fn precisions() {
             },
         },
         &[],
-        Addr::unchecked(signer),
     )
     .unwrap();
 
-    let request_balance = asset_ft
-        .query_balance(&QueryBalanceRequest {
-            Addr::unchecked(receiver),
-            denom: denom.clone(),
-        })
+    let request_balance = app
+        .query_balance(Addr::unchecked(receiver), denom.clone())
         .unwrap();
 
-    assert_eq!(request_balance.balance, "100000000000000000".to_string());
+    assert_eq!(request_balance, Uint128::from(100000000000000000u128));
 
     // Sending anything again should not work because we already sent the maximum amount possible including the fees in the contract.
-    let maximum_amount_error = wasm
+    let maximum_amount_error = app
         .execute(
+            Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::SaveEvidence {
-                evidence: Evidence::XRPLToOraiTransfer {
+                evidence: Evidence::XRPLToCosmosTransfer {
                     tx_hash: generate_hash(),
                     issuer: test_token1.issuer.clone(),
                     currency: test_token1.currency.clone(),
@@ -229,30 +247,27 @@ fn precisions() {
                 },
             },
             &[],
-            Addr::unchecked(signer),
         )
         .unwrap_err();
 
-    assert!(maximum_amount_error.to_string().contains(
+    assert!(maximum_amount_error.root_cause().to_string().contains(
         ContractError::MaximumBridgedAmountReached {}
             .to_string()
             .as_str()
     ));
 
-    let request_balance = asset_ft
-        .query_balance(&QueryBalanceRequest {
-            contract_addr.clone(),
-            denom: denom.clone(),
-        })
+    let request_balance = app
+        .query_balance(contract_addr.clone(), denom.clone())
         .unwrap();
 
     // Fees collected
-    assert_eq!(request_balance.balance, "99999999999999999".to_string());
+    assert_eq!(request_balance, Uint128::from(99999999999999999u128));
 
     // Test positive sending precisions
 
     // Register token
     app.execute(
+        Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::RegisterXRPLToken {
             issuer: test_token2.issuer.clone(),
@@ -262,13 +277,12 @@ fn precisions() {
             bridging_fee: test_token2.bridging_fee,
         },
         &[],
-        Addr::unchecked(signer),
     )
     .unwrap();
 
     // Activate the token
-    let query_pending_operations = wasm
-        .query::<QueryMsg, PendingOperationsResponse>(
+    let query_pending_operations: PendingOperationsResponse = app
+        .query(
             contract_addr.clone(),
             &QueryMsg::PendingOperations {
                 start_after_key: None,
@@ -278,6 +292,7 @@ fn precisions() {
         .unwrap();
 
     app.execute(
+        Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::SaveEvidence {
             evidence: Evidence::XRPLTransactionResult {
@@ -289,12 +304,11 @@ fn precisions() {
             },
         },
         &[],
-        Addr::unchecked(signer),
     )
     .unwrap();
 
-    let query_xrpl_tokens = wasm
-        .query::<QueryMsg, XRPLTokensResponse>(
+    let query_xrpl_tokens: XRPLTokensResponse = app
+        .query(
             contract_addr.clone(),
             &QueryMsg::XRPLTokens {
                 start_after_key: None,
@@ -311,11 +325,12 @@ fn precisions() {
         .cosmos_denom
         .clone();
 
-    let precision_error = wasm
+    let precision_error = app
         .execute(
+            Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::SaveEvidence {
-                evidence: Evidence::XRPLToOraiTransfer {
+                evidence: Evidence::XRPLToCosmosTransfer {
                     tx_hash: generate_hash(),
                     issuer: test_token2.issuer.clone(),
                     currency: test_token2.currency.clone(),
@@ -325,21 +340,21 @@ fn precisions() {
                 },
             },
             &[],
-            Addr::unchecked(signer),
         )
         .unwrap_err();
 
-    assert!(precision_error.to_string().contains(
+    assert!(precision_error.root_cause().to_string().contains(
         ContractError::MaximumBridgedAmountReached {}
             .to_string()
             .as_str()
     ));
 
-    let precision_error = wasm
+    let precision_error = app
         .execute(
+            Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::SaveEvidence {
-                evidence: Evidence::XRPLToOraiTransfer {
+                evidence: Evidence::XRPLToCosmosTransfer {
                     tx_hash: generate_hash(),
                     issuer: test_token2.issuer.clone(),
                     currency: test_token2.currency.clone(),
@@ -349,20 +364,20 @@ fn precisions() {
                 },
             },
             &[],
-            Addr::unchecked(signer),
         )
         .unwrap_err();
 
-    assert!(precision_error.to_string().contains(
+    assert!(precision_error.root_cause().to_string().contains(
         ContractError::AmountSentIsZeroAfterTruncation {}
             .to_string()
             .as_str()
     ));
 
     app.execute(
+        Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLToOraiTransfer {
+            evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: generate_hash(),
                 issuer: test_token2.issuer.clone(),
                 currency: test_token2.currency.clone(),
@@ -372,24 +387,21 @@ fn precisions() {
             },
         },
         &[],
-        Addr::unchecked(signer),
     )
     .unwrap();
 
-    let request_balance = asset_ft
-        .query_balance(&QueryBalanceRequest {
-            Addr::unchecked(receiver),
-            denom: denom.clone(),
-        })
+    let request_balance = app
+        .query_balance(Addr::unchecked(receiver), denom.clone())
         .unwrap();
 
-    assert_eq!(request_balance.balance, "200".to_string());
+    assert_eq!(request_balance, Uint128::from(200u128));
 
     // Sending 200 should work because we will reach exactly the maximum bridged amount.
     app.execute(
+        Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLToOraiTransfer {
+            evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: generate_hash(),
                 issuer: test_token2.issuer.clone(),
                 currency: test_token2.currency.clone(),
@@ -398,34 +410,28 @@ fn precisions() {
             },
         },
         &[],
-        Addr::unchecked(signer),
     )
     .unwrap();
 
-    let request_balance = asset_ft
-        .query_balance(&QueryBalanceRequest {
-            Addr::unchecked(receiver),
-            denom: denom.clone(),
-        })
+    let request_balance = app
+        .query_balance(Addr::unchecked(receiver), denom.clone())
         .unwrap();
 
-    assert_eq!(request_balance.balance, "400".to_string());
+    assert_eq!(request_balance, Uint128::from(400u128));
 
-    let request_balance = asset_ft
-        .query_balance(&QueryBalanceRequest {
-            contract_addr.clone(),
-            denom: denom.clone(),
-        })
+    let request_balance = app
+        .query_balance(contract_addr.clone(), denom.clone())
         .unwrap();
 
-    assert_eq!(request_balance.balance, "99".to_string());
+    assert_eq!(request_balance, Uint128::from(99u128));
 
     // Sending anything again should fail because we passed the maximum bridged amount
-    let maximum_amount_error = wasm
+    let maximum_amount_error = app
         .execute(
+            Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::SaveEvidence {
-                evidence: Evidence::XRPLToOraiTransfer {
+                evidence: Evidence::XRPLToCosmosTransfer {
                     tx_hash: generate_hash(),
                     issuer: test_token2.issuer.clone(),
                     currency: test_token2.currency.clone(),
@@ -434,11 +440,10 @@ fn precisions() {
                 },
             },
             &[],
-            Addr::unchecked(signer),
         )
         .unwrap_err();
 
-    assert!(maximum_amount_error.to_string().contains(
+    assert!(maximum_amount_error.root_cause().to_string().contains(
         ContractError::MaximumBridgedAmountReached {}
             .to_string()
             .as_str()
@@ -448,6 +453,7 @@ fn precisions() {
 
     // Register token
     app.execute(
+        Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::RegisterXRPLToken {
             issuer: test_token3.issuer.clone(),
@@ -457,13 +463,12 @@ fn precisions() {
             bridging_fee: test_token3.bridging_fee,
         },
         &[],
-        Addr::unchecked(signer),
     )
     .unwrap();
 
     // Activate the token
-    let query_pending_operations = wasm
-        .query::<QueryMsg, PendingOperationsResponse>(
+    let query_pending_operations: PendingOperationsResponse = app
+        .query(
             contract_addr.clone(),
             &QueryMsg::PendingOperations {
                 start_after_key: None,
@@ -473,6 +478,7 @@ fn precisions() {
         .unwrap();
 
     app.execute(
+        Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::SaveEvidence {
             evidence: Evidence::XRPLTransactionResult {
@@ -484,12 +490,11 @@ fn precisions() {
             },
         },
         &[],
-        Addr::unchecked(signer),
     )
     .unwrap();
 
-    let query_xrpl_tokens = wasm
-        .query::<QueryMsg, XRPLTokensResponse>(
+    let query_xrpl_tokens: XRPLTokensResponse = app
+        .query(
             contract_addr.clone(),
             &QueryMsg::XRPLTokens {
                 start_after_key: None,
@@ -506,11 +511,12 @@ fn precisions() {
         .cosmos_denom
         .clone();
 
-    let precision_error = wasm
+    let precision_error = app
         .execute(
+            Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::SaveEvidence {
-                evidence: Evidence::XRPLToOraiTransfer {
+                evidence: Evidence::XRPLToCosmosTransfer {
                     tx_hash: generate_hash(),
                     issuer: test_token3.issuer.clone(),
                     currency: test_token3.currency.clone(),
@@ -520,21 +526,21 @@ fn precisions() {
                 },
             },
             &[],
-            Addr::unchecked(signer),
         )
         .unwrap_err();
 
-    assert!(precision_error.to_string().contains(
+    assert!(precision_error.root_cause().to_string().contains(
         ContractError::MaximumBridgedAmountReached {}
             .to_string()
             .as_str()
     ));
 
-    let precision_error = wasm
+    let precision_error = app
         .execute(
+            Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::SaveEvidence {
-                evidence: Evidence::XRPLToOraiTransfer {
+                evidence: Evidence::XRPLToCosmosTransfer {
                     tx_hash: generate_hash(),
                     issuer: test_token3.issuer.clone(),
                     currency: test_token3.currency.clone(),
@@ -544,20 +550,20 @@ fn precisions() {
                 },
             },
             &[],
-            Addr::unchecked(signer),
         )
         .unwrap_err();
 
-    assert!(precision_error.to_string().contains(
+    assert!(precision_error.root_cause().to_string().contains(
         ContractError::AmountSentIsZeroAfterTruncation {}
             .to_string()
             .as_str()
     ));
 
     app.execute(
+        Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLToOraiTransfer {
+            evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: generate_hash(),
                 issuer: test_token3.issuer.clone(),
                 currency: test_token3.currency.clone(),
@@ -567,23 +573,20 @@ fn precisions() {
             },
         },
         &[],
-        Addr::unchecked(signer),
     )
     .unwrap();
 
-    let request_balance = asset_ft
-        .query_balance(&QueryBalanceRequest {
-            Addr::unchecked(receiver),
-            denom: denom.clone(),
-        })
+    let request_balance = app
+        .query_balance(Addr::unchecked(receiver), denom.clone())
         .unwrap();
 
-    assert_eq!(request_balance.balance, "1000000000000000".to_string());
+    assert_eq!(request_balance, Uint128::from(1000000000000000u128));
 
     app.execute(
+        Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLToOraiTransfer {
+            evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: generate_hash(),
                 issuer: test_token3.issuer.clone(),
                 currency: test_token3.currency.clone(),
@@ -593,33 +596,27 @@ fn precisions() {
             },
         },
         &[],
-        Addr::unchecked(signer),
     )
     .unwrap();
 
-    let request_balance = asset_ft
-        .query_balance(&QueryBalanceRequest {
-            Addr::unchecked(receiver),
-            denom: denom.clone(),
-        })
+    let request_balance = app
+        .query_balance(Addr::unchecked(receiver), denom.clone())
         .unwrap();
 
-    assert_eq!(request_balance.balance, "4000000000000000".to_string());
+    assert_eq!(request_balance, Uint128::from(4000000000000000u128));
 
-    let request_balance = asset_ft
-        .query_balance(&QueryBalanceRequest {
-            contract_addr.clone(),
-            denom: denom.clone(),
-        })
+    let request_balance = app
+        .query_balance(contract_addr.clone(), denom.clone())
         .unwrap();
 
-    assert_eq!(request_balance.balance, "222222222222222".to_string());
+    assert_eq!(request_balance, Uint128::from(222222222222222u128));
 
-    let maximum_amount_error = wasm
+    let maximum_amount_error = app
         .execute(
+            Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::SaveEvidence {
-                evidence: Evidence::XRPLToOraiTransfer {
+                evidence: Evidence::XRPLToCosmosTransfer {
                     tx_hash: generate_hash(),
                     issuer: test_token2.issuer.clone(),
                     currency: test_token2.currency.clone(),
@@ -629,11 +626,10 @@ fn precisions() {
                 },
             },
             &[],
-            Addr::unchecked(signer),
         )
         .unwrap_err();
 
-    assert!(maximum_amount_error.to_string().contains(
+    assert!(maximum_amount_error.root_cause().to_string().contains(
         ContractError::MaximumBridgedAmountReached {}
             .to_string()
             .as_str()
@@ -648,11 +644,12 @@ fn precisions() {
         .cosmos_denom
         .clone();
 
-    let precision_error = wasm
+    let precision_error = app
         .execute(
+            Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::SaveEvidence {
-                evidence: Evidence::XRPLToOraiTransfer {
+                evidence: Evidence::XRPLToCosmosTransfer {
                     tx_hash: generate_hash(),
                     issuer: XRP_ISSUER.to_string(),
                     currency: XRP_CURRENCY.to_string(),
@@ -662,20 +659,20 @@ fn precisions() {
                 },
             },
             &[],
-            Addr::unchecked(signer),
         )
         .unwrap_err();
 
-    assert!(precision_error.to_string().contains(
+    assert!(precision_error.root_cause().to_string().contains(
         ContractError::MaximumBridgedAmountReached {}
             .to_string()
             .as_str()
     ));
 
     app.execute(
+        Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLToOraiTransfer {
+            evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: generate_hash(),
                 issuer: XRP_ISSUER.to_string(),
                 currency: XRP_CURRENCY.to_string(),
@@ -685,23 +682,20 @@ fn precisions() {
             },
         },
         &[],
-        Addr::unchecked(signer),
     )
     .unwrap();
 
-    let request_balance = asset_ft
-        .query_balance(&QueryBalanceRequest {
-            Addr::unchecked(receiver),
-            denom: denom.clone(),
-        })
+    let request_balance = app
+        .query_balance(Addr::unchecked(receiver), denom.clone())
         .unwrap();
 
-    assert_eq!(request_balance.balance, "1".to_string());
+    assert_eq!(request_balance, Uint128::from(1u128));
 
     app.execute(
+        Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLToOraiTransfer {
+            evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: generate_hash(),
                 issuer: XRP_ISSUER.to_string(),
                 currency: XRP_CURRENCY.to_string(),
@@ -711,24 +705,21 @@ fn precisions() {
             },
         },
         &[],
-        Addr::unchecked(signer),
     )
     .unwrap();
 
-    let request_balance = asset_ft
-        .query_balance(&QueryBalanceRequest {
-            Addr::unchecked(receiver),
-            denom: denom.clone(),
-        })
+    let request_balance = app
+        .query_balance(Addr::unchecked(receiver), denom.clone())
         .unwrap();
 
-    assert_eq!(request_balance.balance, "10000000000000000".to_string());
+    assert_eq!(request_balance, Uint128::from(10000000000000000u128));
 
-    let maximum_amount_error = wasm
+    let maximum_amount_error = app
         .execute(
+            Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::SaveEvidence {
-                evidence: Evidence::XRPLToOraiTransfer {
+                evidence: Evidence::XRPLToCosmosTransfer {
                     tx_hash: generate_hash(),
                     issuer: XRP_ISSUER.to_string(),
                     currency: XRP_CURRENCY.to_string(),
@@ -738,11 +729,10 @@ fn precisions() {
                 },
             },
             &[],
-            Addr::unchecked(signer),
         )
         .unwrap_err();
 
-    assert!(maximum_amount_error.to_string().contains(
+    assert!(maximum_amount_error.root_cause().to_string().contains(
         ContractError::MaximumBridgedAmountReached {}
             .to_string()
             .as_str()
@@ -755,51 +745,75 @@ fn precisions() {
     for i in 1..=3 {
         let symbol = "TEST".to_string() + &i.to_string();
         let subunit = "utest".to_string() + &i.to_string();
-        asset_ft
-            .issue(
-                MsgIssue {
-                    issuer: "signer",
-                    symbol,
-                    subunit,
-                    precision: 6,
-                    initial_amount: "100000000000000".to_string(),
-                    description: "description".to_string(),
-                    features: vec![MINTING as i32],
-                    burn_rate: "0".to_string(),
-                    send_commission_rate: "0".to_string(),
-                    uri: "uri".to_string(),
-                    uri_hash: "uri_hash".to_string(),
-                },
-                Addr::unchecked(signer),
-            )
-            .unwrap();
+
+        app.execute(
+            Addr::unchecked(signer),
+            token_factory_addr.clone(),
+            &tokenfactory::msg::ExecuteMsg::CreateDenom {
+                subdenom: subunit.to_uppercase(),
+                metadata: Some(Metadata {
+                    symbol: Some(symbol),
+                    denom_units: vec![DenomUnit {
+                        denom: subunit.clone(),
+                        exponent: 6,
+                        aliases: vec![],
+                    }],
+                    description: Some("description".to_string()),
+                    base: None,
+                    display: None,
+                    name: None,
+                }),
+            },
+            &[],
+        )
+        .unwrap();
+
+        let denom = config.build_denom(&subunit.to_uppercase());
+
+        app.execute(
+            Addr::unchecked(signer),
+            token_factory_addr.clone(),
+            &tokenfactory::msg::ExecuteMsg::MintTokens {
+                denom: denom.to_string(),
+                amount: Uint128::from(100000000000000u128),
+                mint_to_address: signer.to_string(),
+            },
+            &[],
+        )
+        .unwrap();
     }
 
-    let denom1 = format!("{}-{}", "utest1", "signer").to_lowercase();
-    let denom2 = format!("{}-{}", "utest2", "signer").to_lowercase();
-    let denom3 = format!("{}-{}", "utest3", "signer").to_lowercase();
+    let denom1 = config.build_denom("UTEST1");
+    let denom2 = config.build_denom("UTEST2");
+    let denom3 = config.build_denom("UTEST3");
 
     let test_tokens = vec![
-        OraiToken {
+        CosmosToken {
             denom: denom1.clone(),
             decimals: 6,
             sending_precision: 6,
             max_holding_amount: Uint128::new(3),
             bridging_fee: Uint128::zero(),
+            xrpl_currency: XRP_CURRENCY.to_string(),
+            state: TokenState::Enabled,
         },
-        OraiToken {
+        CosmosToken {
             denom: denom2.clone(),
             decimals: 6,
             sending_precision: 0,
             max_holding_amount: Uint128::new(3990000),
             bridging_fee: Uint128::zero(),
+            xrpl_currency: XRP_CURRENCY.to_string(),
+            state: TokenState::Enabled,
         },
-        OraiToken {
+        CosmosToken {
             denom: denom3.clone(),
             decimals: 6,
             sending_precision: -6,
             max_holding_amount: Uint128::new(2000000000000),
             bridging_fee: Uint128::zero(),
+            xrpl_currency: XRP_CURRENCY.to_string(),
+            state: TokenState::Enabled,
         },
     ];
 
@@ -807,8 +821,9 @@ fn precisions() {
 
     for token in test_tokens.clone() {
         app.execute(
+            Addr::unchecked(signer),
             contract_addr.clone(),
-            &ExecuteMsg::RegisterOraiToken {
+            &ExecuteMsg::RegisterCosmosToken {
                 denom: token.denom,
                 decimals: token.decimals,
                 sending_precision: token.sending_precision,
@@ -816,15 +831,14 @@ fn precisions() {
                 bridging_fee: token.bridging_fee,
             },
             &[],
-            Addr::unchecked(signer),
         )
         .unwrap();
     }
 
-    let query_cosmos_tokens = wasm
-        .query::<QueryMsg, OraiTokensResponse>(
+    let query_cosmos_tokens: CosmosTokensResponse = app
+        .query(
             contract_addr.clone(),
-            &QueryMsg::OraiTokens {
+            &QueryMsg::CosmosTokens {
                 start_after_key: None,
                 limit: None,
             },
@@ -839,72 +853,69 @@ fn precisions() {
 
     // Sending 2 would work as it hasn't reached the maximum holding amount yet
     app.execute(
+        Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::SendToXRPL {
             recipient: generate_xrpl_address(),
             deliver_amount: None,
         },
         &coins(2, denom1.clone()),
-        Addr::unchecked(signer),
     )
     .unwrap();
 
     // Sending 1 more will hit max amount but will not fail
     app.execute(
+        Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::SendToXRPL {
             recipient: generate_xrpl_address(),
             deliver_amount: None,
         },
         &coins(1, denom1.clone()),
-        Addr::unchecked(signer),
     )
     .unwrap();
 
     // Trying to send 1 again would fail because we go over max bridge amount
-    let maximum_amount_error = wasm
+    let maximum_amount_error = app
         .execute(
+            Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::SendToXRPL {
                 recipient: generate_xrpl_address(),
                 deliver_amount: None,
             },
             &coins(1, denom1.clone()),
-            Addr::unchecked(signer),
         )
         .unwrap_err();
 
-    assert!(maximum_amount_error.to_string().contains(
+    assert!(maximum_amount_error.root_cause().to_string().contains(
         ContractError::MaximumBridgedAmountReached {}
             .to_string()
             .as_str()
     ));
 
-    let request_balance = asset_ft
-        .query_balance(&QueryBalanceRequest {
-            contract_addr.clone(),
-            denom: denom1.clone(),
-        })
+    let request_balance = app
+        .query_balance(contract_addr.clone(), denom1.clone())
         .unwrap();
 
-    assert_eq!(request_balance.balance, "3".to_string());
+    assert_eq!(request_balance, Uint128::from(3u128));
 
     // Test sending token 2 with medium precision
 
     // Sending under sending precision would return error because it will be truncated to 0.
-    let precision_error = wasm
+    let precision_error = app
         .execute(
+            Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::SendToXRPL {
                 recipient: generate_xrpl_address(),
                 deliver_amount: None,
             },
             &coins(100000, denom2.clone()),
-            Addr::unchecked(signer),
         )
         .unwrap_err();
 
-    assert!(precision_error.to_string().contains(
+    assert!(precision_error.root_cause().to_string().contains(
         ContractError::AmountSentIsZeroAfterTruncation {}
             .to_string()
             .as_str()
@@ -912,121 +923,115 @@ fn precisions() {
 
     // Sending 3990000 would work as it is the maximum bridgable amount
     app.execute(
+        Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::SendToXRPL {
             recipient: generate_xrpl_address(),
             deliver_amount: None,
         },
         &coins(3990000, denom2.clone()),
-        Addr::unchecked(signer),
     )
     .unwrap();
 
     // Sending 100000 will fail because truncating will truncate to 0.
-    let precision_error = wasm
+    let precision_error = app
         .execute(
+            Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::SendToXRPL {
                 recipient: generate_xrpl_address(),
                 deliver_amount: None,
             },
             &coins(100000, denom2.clone()),
-            Addr::unchecked(signer),
         )
         .unwrap_err();
 
-    assert!(precision_error.to_string().contains(
+    assert!(precision_error.root_cause().to_string().contains(
         ContractError::AmountSentIsZeroAfterTruncation {}
             .to_string()
             .as_str()
     ));
 
     // Trying to send 1000000 would fail because we go over max bridge amount
-    let maximum_amount_error = wasm
+    let maximum_amount_error = app
         .execute(
+            Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::SendToXRPL {
                 recipient: generate_xrpl_address(),
                 deliver_amount: None,
             },
             &coins(1000000, denom2.clone()),
-            Addr::unchecked(signer),
         )
         .unwrap_err();
 
-    assert!(maximum_amount_error.to_string().contains(
+    assert!(maximum_amount_error.root_cause().to_string().contains(
         ContractError::MaximumBridgedAmountReached {}
             .to_string()
             .as_str()
     ));
 
-    let request_balance = asset_ft
-        .query_balance(&QueryBalanceRequest {
-            contract_addr.clone(),
-            denom: denom2.clone(),
-        })
+    let request_balance = app
+        .query_balance(contract_addr.clone(), denom2.clone())
         .unwrap();
 
-    assert_eq!(request_balance.balance, "3990000".to_string());
+    assert_eq!(request_balance, Uint128::from(3990000u128));
 
     // Test sending token 3 with low precision
 
     // Sending 2000000000000 would work as it is the maximum bridgable amount
     app.execute(
+        Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::SendToXRPL {
             recipient: generate_xrpl_address(),
             deliver_amount: None,
         },
         &coins(2000000000000, denom3.clone()),
-        Addr::unchecked(signer),
     )
     .unwrap();
 
     // Sending 200000000000 (1 less zero) will fail because truncating will truncate to 0.
-    let precision_error = wasm
+    let precision_error = app
         .execute(
+            Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::SendToXRPL {
                 recipient: generate_xrpl_address(),
                 deliver_amount: None,
             },
             &coins(200000000000, denom3.clone()),
-            Addr::unchecked(signer),
         )
         .unwrap_err();
 
-    assert!(precision_error.to_string().contains(
+    assert!(precision_error.root_cause().to_string().contains(
         ContractError::AmountSentIsZeroAfterTruncation {}
             .to_string()
             .as_str()
     ));
 
     // Trying to send 1000000000000 would fail because we go over max bridge amount
-    let maximum_amount_error = wasm
+    let maximum_amount_error = app
         .execute(
+            Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::SendToXRPL {
                 recipient: generate_xrpl_address(),
                 deliver_amount: None,
             },
             &coins(1000000000000, denom3.clone()),
-            Addr::unchecked(signer),
         )
         .unwrap_err();
 
-    assert!(maximum_amount_error.to_string().contains(
+    assert!(maximum_amount_error.root_cause().to_string().contains(
         ContractError::MaximumBridgedAmountReached {}
             .to_string()
             .as_str()
     ));
 
-    let request_balance = asset_ft
-        .query_balance(&QueryBalanceRequest {
-            contract_addr.clone(),
-            denom: denom3.clone(),
-        })
+    let request_balance = app
+        .query_balance(contract_addr.clone(), denom3.clone())
         .unwrap();
 
-    assert_eq!(request_balance.balance, "2000000000000".to_string());
+    assert_eq!(request_balance, Uint128::from(2000000000000u128));
 }

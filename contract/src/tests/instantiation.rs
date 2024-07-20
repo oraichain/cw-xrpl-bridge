@@ -1,66 +1,92 @@
 use crate::contract::{MAX_RELAYERS, XRP_SYMBOL};
+use crate::error::ContractError;
 use crate::tests::helper::{
     generate_xrpl_address, generate_xrpl_pub_key, MockApp, FEE_DENOM, TRUST_SET_LIMIT_AMOUNT,
 };
 use crate::{contract::XRP_CURRENCY, msg::InstantiateMsg, relayer::Relayer};
-use cosmwasm_std::{coin, Addr, Uint128};
+use cosmwasm_std::{coins, Addr, Uint128};
 use token_bindings::{DenomUnit, FullDenomResponse, Metadata, MetadataResponse};
 
 #[test]
 fn contract_instantiation() {
+    let accounts_number = 2;
+    let accounts: Vec<_> = (0..accounts_number)
+        .into_iter()
+        .map(|i| format!("account{i}"))
+        .collect();
+
     let mut app = MockApp::new(&[
-        ("signer", &[coin(100_000_000_000, FEE_DENOM)]),
-        ("relayer", &[coin(100_000_000_000, FEE_DENOM)]),
+        (accounts[0].as_str(), &coins(100_000_000_000, FEE_DENOM)),
+        (accounts[1].as_str(), &coins(100_000_000_000, FEE_DENOM)),
     ]);
+
+    let signer = &accounts[0];
+    let relayer_addr = &accounts[1];
 
     let xrpl_address = generate_xrpl_address();
     let xrpl_pub_key = generate_xrpl_pub_key();
 
     let relayer = Relayer {
-        cosmos_address: Addr::unchecked("signer"),
+        cosmos_address: Addr::unchecked(signer),
         xrpl_address: xrpl_address.clone(),
         xrpl_pub_key: xrpl_pub_key.clone(),
     };
 
     let relayer_duplicated_xrpl_address = Relayer {
-        cosmos_address: Addr::unchecked("signer"),
+        cosmos_address: Addr::unchecked(signer),
         xrpl_address,
         xrpl_pub_key: generate_xrpl_pub_key(),
     };
 
     let relayer_duplicated_xrpl_pub_key = Relayer {
-        cosmos_address: Addr::unchecked("signer"),
+        cosmos_address: Addr::unchecked(signer),
         xrpl_address: generate_xrpl_address(),
         xrpl_pub_key,
     };
 
     let relayer_duplicated_cosmos_address = Relayer {
-        cosmos_address: Addr::unchecked("signer"),
+        cosmos_address: Addr::unchecked(signer),
         xrpl_address: generate_xrpl_address(),
         xrpl_pub_key: generate_xrpl_pub_key(),
     };
 
     let relayer_prohibited_xrpl_address = Relayer {
-        cosmos_address: Addr::unchecked("relayer"),
+        cosmos_address: Addr::unchecked(relayer_addr),
         xrpl_address: "rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh".to_string(),
         xrpl_pub_key: generate_xrpl_pub_key(),
     };
 
     let relayer_correct = Relayer {
-        cosmos_address: Addr::unchecked("relayer"),
+        cosmos_address: Addr::unchecked(relayer_addr),
         xrpl_address: generate_xrpl_address(),
         xrpl_pub_key: generate_xrpl_pub_key(),
     };
 
-    let token_factory_addr = app.create_tokenfactory(Addr::unchecked("signer")).unwrap();
+    let token_factory_addr = app.create_tokenfactory(Addr::unchecked(signer)).unwrap();
 
     // We check that we can store and instantiate
-    let contract_addr = app
+    app.create_bridge(
+        Addr::unchecked(signer),
+        &InstantiateMsg {
+            owner: Addr::unchecked(signer),
+            relayers: vec![relayer.clone(), relayer_correct.clone()],
+            evidence_threshold: 1,
+            used_ticket_sequence_threshold: 50,
+            trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
+            bridge_xrpl_address: generate_xrpl_address(),
+            xrpl_base_fee: 10,
+            token_factory_addr: token_factory_addr.clone(),
+        },
+    )
+    .unwrap();
+
+    // We check that trying to instantiate with relayers with the same xrpl address fails
+    let error = app
         .create_bridge(
-            Addr::unchecked("signer"),
+            Addr::unchecked(signer),
             &InstantiateMsg {
-                owner: Addr::unchecked("signer"),
-                relayers: vec![relayer.clone(), relayer_correct.clone()],
+                owner: Addr::unchecked(signer),
+                relayers: vec![relayer.clone(), relayer_duplicated_xrpl_address.clone()],
                 evidence_threshold: 1,
                 used_ticket_sequence_threshold: 50,
                 trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
@@ -69,138 +95,166 @@ fn contract_instantiation() {
                 token_factory_addr: token_factory_addr.clone(),
             },
         )
-        .unwrap();
+        .unwrap_err();
 
-    println!("contract_addr {}", contract_addr);
-
-    // We check that trying to instantiate with relayers with the same xrpl address fails
-    app.create_bridge(
-        Addr::unchecked("signer"),
-        &InstantiateMsg {
-            owner: Addr::unchecked("signer"),
-            relayers: vec![relayer.clone(), relayer_duplicated_xrpl_address.clone()],
-            evidence_threshold: 1,
-            used_ticket_sequence_threshold: 50,
-            trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
-            bridge_xrpl_address: generate_xrpl_address(),
-            xrpl_base_fee: 10,
-            token_factory_addr: token_factory_addr.clone(),
-        },
-    )
-    .unwrap_err();
+    assert!(error
+        .root_cause()
+        .to_string()
+        .contains(ContractError::DuplicatedRelayer {}.to_string().as_str()));
 
     // We check that trying to instantiate with relayers with the same xrpl public key fails
-    app.create_bridge(
-        Addr::unchecked("signer"),
-        &InstantiateMsg {
-            owner: Addr::unchecked("signer"),
-            relayers: vec![relayer.clone(), relayer_duplicated_xrpl_pub_key.clone()],
-            evidence_threshold: 1,
-            used_ticket_sequence_threshold: 50,
-            trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
-            bridge_xrpl_address: generate_xrpl_address(),
-            xrpl_base_fee: 10,
-            token_factory_addr: token_factory_addr.clone(),
-        },
-    )
-    .unwrap_err();
+    let error = app
+        .create_bridge(
+            Addr::unchecked(signer),
+            &InstantiateMsg {
+                owner: Addr::unchecked(signer),
+                relayers: vec![relayer.clone(), relayer_duplicated_xrpl_pub_key.clone()],
+                evidence_threshold: 1,
+                used_ticket_sequence_threshold: 50,
+                trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
+                bridge_xrpl_address: generate_xrpl_address(),
+                xrpl_base_fee: 10,
+                token_factory_addr: token_factory_addr.clone(),
+            },
+        )
+        .unwrap_err();
+
+    assert!(error
+        .root_cause()
+        .to_string()
+        .contains(ContractError::DuplicatedRelayer {}.to_string().as_str()));
 
     // We check that trying to instantiate with relayers with the same oraichain address fails
-    app.create_bridge(
-        Addr::unchecked("signer"),
-        &InstantiateMsg {
-            owner: Addr::unchecked("signer"),
-            relayers: vec![relayer.clone(), relayer_duplicated_cosmos_address.clone()],
-            evidence_threshold: 1,
-            used_ticket_sequence_threshold: 50,
-            trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
-            bridge_xrpl_address: generate_xrpl_address(),
-            xrpl_base_fee: 10,
-            token_factory_addr: token_factory_addr.clone(),
-        },
-    )
-    .unwrap_err();
+    let error = app
+        .create_bridge(
+            Addr::unchecked(signer),
+            &InstantiateMsg {
+                owner: Addr::unchecked(signer),
+                relayers: vec![relayer.clone(), relayer_duplicated_cosmos_address.clone()],
+                evidence_threshold: 1,
+                used_ticket_sequence_threshold: 50,
+                trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
+                bridge_xrpl_address: generate_xrpl_address(),
+                xrpl_base_fee: 10,
+                token_factory_addr: token_factory_addr.clone(),
+            },
+        )
+        .unwrap_err();
+    assert!(error
+        .to_string()
+        .contains(ContractError::DuplicatedRelayer {}.to_string().as_str()));
 
     // We check that trying to use a relayer with a prohibited address fails
-    app.create_bridge(
-        Addr::unchecked("signer"),
-        &InstantiateMsg {
-            owner: Addr::unchecked("signer"),
-            relayers: vec![relayer.clone(), relayer_prohibited_xrpl_address.clone()],
-            evidence_threshold: 1,
-            used_ticket_sequence_threshold: 50,
-            trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
-            bridge_xrpl_address: generate_xrpl_address(),
-            xrpl_base_fee: 10,
-            token_factory_addr: token_factory_addr.clone(),
-        },
-    )
-    .unwrap_err();
+    let error = app
+        .create_bridge(
+            Addr::unchecked(signer),
+            &InstantiateMsg {
+                owner: Addr::unchecked(signer),
+                relayers: vec![relayer.clone(), relayer_prohibited_xrpl_address.clone()],
+                evidence_threshold: 1,
+                used_ticket_sequence_threshold: 50,
+                trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
+                bridge_xrpl_address: generate_xrpl_address(),
+                xrpl_base_fee: 10,
+                token_factory_addr: token_factory_addr.clone(),
+            },
+        )
+        .unwrap_err();
+
+    assert!(error
+        .root_cause()
+        .to_string()
+        .contains(ContractError::ProhibitedAddress {}.to_string().as_str()));
 
     // We check that trying to instantiate with invalid bridge_xrpl_address fails
     let invalid_address = "rf0BiGeXwwQoi8Z2ueFYTEXSwuJYfV2Jpn".to_string(); //invalid because contains a 0
-    app.create_bridge(
-        Addr::unchecked("signer"),
-        &InstantiateMsg {
-            owner: Addr::unchecked("signer"),
-            relayers: vec![relayer.clone()],
-            evidence_threshold: 1,
-            used_ticket_sequence_threshold: 50,
-            trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
-            bridge_xrpl_address: invalid_address.clone(),
-            xrpl_base_fee: 10,
-            token_factory_addr: token_factory_addr.clone(),
-        },
-    )
-    .unwrap_err();
+    let error = app
+        .create_bridge(
+            Addr::unchecked(signer),
+            &InstantiateMsg {
+                owner: Addr::unchecked(signer),
+                relayers: vec![relayer.clone()],
+                evidence_threshold: 1,
+                used_ticket_sequence_threshold: 50,
+                trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
+                bridge_xrpl_address: invalid_address.clone(),
+                xrpl_base_fee: 10,
+                token_factory_addr: token_factory_addr.clone(),
+            },
+        )
+        .unwrap_err();
+
+    assert!(error.root_cause().to_string().contains(
+        ContractError::InvalidXRPLAddress {
+            address: invalid_address
+        }
+        .to_string()
+        .as_str()
+    ));
 
     // We check that trying to instantiate with invalid issue fee fails.
-    app.create_bridge(
-        Addr::unchecked("signer"),
-        &InstantiateMsg {
-            owner: Addr::unchecked("signer"),
-            relayers: vec![relayer.clone()],
-            evidence_threshold: 1,
-            used_ticket_sequence_threshold: 50,
-            trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
-            bridge_xrpl_address: generate_xrpl_address(),
-            xrpl_base_fee: 10,
-            token_factory_addr: token_factory_addr.clone(),
-        },
-    )
-    .unwrap_err();
+    let error = app
+        .create_bridge(
+            Addr::unchecked(signer),
+            &InstantiateMsg {
+                owner: Addr::unchecked(signer),
+                relayers: vec![relayer.clone()],
+                evidence_threshold: 1,
+                used_ticket_sequence_threshold: 50,
+                trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
+                bridge_xrpl_address: generate_xrpl_address(),
+                xrpl_base_fee: 10,
+                token_factory_addr: token_factory_addr.clone(),
+            },
+        )
+        .unwrap_err();
+    assert!(error
+        .to_string()
+        .contains(ContractError::InvalidFundsAmount {}.to_string().as_str()));
 
     // We check that trying to instantiate with invalid max allowed ticket fails.
-    app.create_bridge(
-        Addr::unchecked("signer"),
-        &InstantiateMsg {
-            owner: Addr::unchecked("signer"),
-            relayers: vec![relayer.clone()],
-            evidence_threshold: 1,
-            used_ticket_sequence_threshold: 1,
-            trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
-            bridge_xrpl_address: generate_xrpl_address(),
-            xrpl_base_fee: 10,
-            token_factory_addr: token_factory_addr.clone(),
-        },
-    )
-    .unwrap_err();
+    let error = app
+        .create_bridge(
+            Addr::unchecked(signer),
+            &InstantiateMsg {
+                owner: Addr::unchecked(signer),
+                relayers: vec![relayer.clone()],
+                evidence_threshold: 1,
+                used_ticket_sequence_threshold: 1,
+                trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
+                bridge_xrpl_address: generate_xrpl_address(),
+                xrpl_base_fee: 10,
+                token_factory_addr: token_factory_addr.clone(),
+            },
+        )
+        .unwrap_err();
+    assert!(error.root_cause().to_string().contains(
+        ContractError::InvalidUsedTicketSequenceThreshold {}
+            .to_string()
+            .as_str()
+    ));
 
     // Instantiating with threshold 0 will fail
-    app.create_bridge(
-        Addr::unchecked("signer"),
-        &InstantiateMsg {
-            owner: Addr::unchecked("signer"),
-            relayers: vec![],
-            evidence_threshold: 0,
-            used_ticket_sequence_threshold: 50,
-            trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
-            bridge_xrpl_address: generate_xrpl_address(),
-            xrpl_base_fee: 10,
-            token_factory_addr: token_factory_addr.clone(),
-        },
-    )
-    .unwrap_err();
+    let error = app
+        .create_bridge(
+            Addr::unchecked(signer),
+            &InstantiateMsg {
+                owner: Addr::unchecked(signer),
+                relayers: vec![],
+                evidence_threshold: 0,
+                used_ticket_sequence_threshold: 50,
+                trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
+                bridge_xrpl_address: generate_xrpl_address(),
+                xrpl_base_fee: 10,
+                token_factory_addr: token_factory_addr.clone(),
+            },
+        )
+        .unwrap_err();
+
+    assert!(error
+        .root_cause()
+        .to_string()
+        .contains(ContractError::InvalidThreshold {}.to_string().as_str()));
 
     // Instantiating with too many relayers (> 32) should fail
     let mut too_many_relayers = vec![];
@@ -212,36 +266,48 @@ fn contract_instantiation() {
         });
     }
 
-    app.create_bridge(
-        Addr::unchecked("signer"),
-        &InstantiateMsg {
-            owner: Addr::unchecked("signer"),
-            relayers: too_many_relayers,
-            evidence_threshold: 1,
-            used_ticket_sequence_threshold: 50,
-            trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
-            bridge_xrpl_address: generate_xrpl_address(),
-            xrpl_base_fee: 10,
-            token_factory_addr: token_factory_addr.clone(),
-        },
-    )
-    .unwrap_err();
+    let error = app
+        .create_bridge(
+            Addr::unchecked(signer),
+            &InstantiateMsg {
+                owner: Addr::unchecked(signer),
+                relayers: too_many_relayers,
+                evidence_threshold: 1,
+                used_ticket_sequence_threshold: 50,
+                trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
+                bridge_xrpl_address: generate_xrpl_address(),
+                xrpl_base_fee: 10,
+                token_factory_addr: token_factory_addr.clone(),
+            },
+        )
+        .unwrap_err();
+
+    assert!(error
+        .root_cause()
+        .to_string()
+        .contains(ContractError::TooManyRelayers {}.to_string().as_str()));
 
     // We check that trying to instantiate with an invalid trust set amount will fail
-    app.create_bridge(
-        Addr::unchecked("signer"),
-        &InstantiateMsg {
-            owner: Addr::unchecked("signer"),
-            relayers: vec![relayer, relayer_correct],
-            evidence_threshold: 1,
-            used_ticket_sequence_threshold: 50,
-            trust_set_limit_amount: Uint128::new(10000000000000001),
-            bridge_xrpl_address: generate_xrpl_address(),
-            xrpl_base_fee: 10,
-            token_factory_addr: token_factory_addr.clone(),
-        },
-    )
-    .unwrap_err();
+    let error = app
+        .create_bridge(
+            Addr::unchecked(signer),
+            &InstantiateMsg {
+                owner: Addr::unchecked(signer),
+                relayers: vec![relayer, relayer_correct],
+                evidence_threshold: 1,
+                used_ticket_sequence_threshold: 50,
+                trust_set_limit_amount: Uint128::new(10000000000000001),
+                bridge_xrpl_address: generate_xrpl_address(),
+                xrpl_base_fee: 10,
+                token_factory_addr: token_factory_addr.clone(),
+            },
+        )
+        .unwrap_err();
+
+    assert!(error
+        .root_cause()
+        .to_string()
+        .contains(ContractError::InvalidXRPLAmount {}.to_string().as_str()));
 
     let FullDenomResponse { denom } = app
         .query(
@@ -316,7 +382,7 @@ fn contract_instantiation() {
 //     let contract_addr = store_and_instantiate(
 //         &wasm,
 //         signer,
-//         Addr::unchecked("signer"),
+//         Addr::unchecked(signer),
 //         vec![relayers[0].clone()],
 //         1,
 //         2,
@@ -404,7 +470,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: hash.clone(),
 //                     issuer: test_token.issuer.clone(),
 //                     currency: test_token.currency.clone(),
@@ -454,7 +520,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToOraiTransfer {
+//             evidence: Evidence::XRPLToCosmosTransfer {
 //                 tx_hash: hash.clone(),
 //                 issuer: test_token.issuer.clone(),
 //                 currency: test_token.currency.clone(),
@@ -481,7 +547,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: test_token.issuer.clone(),
 //                     currency: test_token.currency.clone(),
@@ -502,7 +568,7 @@ fn contract_instantiation() {
 //     let contract_addr = store_and_instantiate(
 //         &wasm,
 //         signer,
-//         Addr::unchecked("signer"),
+//         Addr::unchecked(signer),
 //         vec![relayers[0].clone(), relayers[1].clone()],
 //         2,
 //         2,
@@ -643,7 +709,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: hash.clone(),
 //                     issuer: test_token.issuer.clone(),
 //                     currency: test_token.currency.clone(),
@@ -665,7 +731,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: hash.clone(),
 //                     issuer: "not_registered".to_string(),
 //                     currency: "not_registered".to_string(),
@@ -687,7 +753,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: hash.clone(),
 //                     issuer: test_token.issuer.clone(),
 //                     currency: test_token.currency.clone(),
@@ -708,7 +774,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToOraiTransfer {
+//             evidence: Evidence::XRPLToCosmosTransfer {
 //                 tx_hash: hash.clone(),
 //                 issuer: test_token.issuer.clone(),
 //                 currency: test_token.currency.clone(),
@@ -736,7 +802,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: hash.clone(),
 //                     issuer: test_token.issuer.clone(),
 //                     currency: test_token.currency.clone(),
@@ -749,7 +815,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(relayer_error.to_string().contains(
+//     assert!(relayer_error.root_cause().to_string().contains(
 //         ContractError::EvidenceAlreadyProvided {}
 //             .to_string()
 //             .as_str()
@@ -759,7 +825,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToOraiTransfer {
+//             evidence: Evidence::XRPLToCosmosTransfer {
 //                 tx_hash: hash.clone(),
 //                 issuer: test_token.issuer.clone(),
 //                 currency: test_token.currency.clone(),
@@ -787,7 +853,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: hash.clone(),
 //                     issuer: test_token.issuer.clone(),
 //                     currency: test_token.currency.clone(),
@@ -800,7 +866,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(relayer_error.to_string().contains(
+//     assert!(relayer_error.root_cause().to_string().contains(
 //         ContractError::OperationAlreadyExecuted {}
 //             .to_string()
 //             .as_str()
@@ -812,7 +878,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: hash.clone(),
 //                     issuer: test_token.issuer.clone(),
 //                     currency: test_token.currency.clone(),
@@ -825,7 +891,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(relayer_error.to_string().contains(
+//     assert!(relayer_error.root_cause().to_string().contains(
 //         ContractError::OperationAlreadyExecuted {}
 //             .to_string()
 //             .as_str()
@@ -844,7 +910,7 @@ fn contract_instantiation() {
 //     let sender = accounts.get(1).unwrap();
 //     let relayer_account = accounts.get(2).unwrap();
 //     let relayer = Relayer {
-//         cosmos_address: Addr::unchecked("relayer"),
+//         cosmos_address: Addr::unchecked(relayer),
 //         xrpl_address: generate_xrpl_address(),
 //         xrpl_pub_key: generate_xrpl_pub_key(),
 //     };
@@ -857,7 +923,7 @@ fn contract_instantiation() {
 //     let contract_addr = store_and_instantiate(
 //         &wasm,
 //         signer,
-//         Addr::unchecked("signer"),
+//         Addr::unchecked(signer),
 //         vec![relayer.clone()],
 //         1,
 //         9,
@@ -942,7 +1008,7 @@ fn contract_instantiation() {
 
 //     app.execute(
 //         contract_addr.clone(),
-//         &ExecuteMsg::RegisterOraiToken {
+//         &ExecuteMsg::RegisterCosmosToken {
 //             denom: denom.clone(),
 //             decimals,
 //             sending_precision: 5,
@@ -970,7 +1036,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(send_error.to_string().contains(
+//     assert!(send_error.root_cause().to_string().contains(
 //         ContractError::DeliverAmountIsProhibited {}
 //             .to_string()
 //             .as_str()
@@ -1032,9 +1098,9 @@ fn contract_instantiation() {
 
 //     // Get the token information
 //     let query_cosmos_tokens = wasm
-//         .query::<QueryMsg, OraiTokensResponse>(
+//         .query::<QueryMsg, CosmosTokensResponse>(
 //             contract_addr.clone(),
-//             &QueryMsg::OraiTokens {
+//             &QueryMsg::CosmosTokens {
 //                 start_after_key: None,
 //                 limit: None,
 //             },
@@ -1104,7 +1170,7 @@ fn contract_instantiation() {
 //         .query::<QueryMsg, PendingRefundsResponse>(
 //             contract_addr.clone(),
 //             &QueryMsg::PendingRefunds {
-//                 address: Addr::unchecked("any_address"),
+//                 address: Addr::unchecked(any_address),
 //                 start_after_key: None,
 //                 limit: None,
 //             },
@@ -1308,7 +1374,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: generate_xrpl_address(),
 //                     currency: oraichain_originated_token.xrpl_currency.clone(),
@@ -1330,7 +1396,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: bridge_xrpl_address.clone(),
 //                     currency: "invalid_currency".to_string(),
@@ -1352,7 +1418,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: bridge_xrpl_address.clone(),
 //                     currency: oraichain_originated_token.xrpl_currency.clone(),
@@ -1365,7 +1431,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(transfer_error.to_string().contains(
+//     assert!(transfer_error.root_cause().to_string().contains(
 //         ContractError::AmountSentIsZeroAfterTruncation {}
 //             .to_string()
 //             .as_str()
@@ -1375,7 +1441,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToOraiTransfer {
+//             evidence: Evidence::XRPLToCosmosTransfer {
 //                 tx_hash: generate_hash(),
 //                 issuer: bridge_xrpl_address.clone(),
 //                 currency: oraichain_originated_token.xrpl_currency.clone(),
@@ -1453,7 +1519,7 @@ fn contract_instantiation() {
 
 //     app.execute(
 //         contract_addr.clone(),
-//         &ExecuteMsg::RegisterOraiToken {
+//         &ExecuteMsg::RegisterCosmosToken {
 //             denom: denom.clone(),
 //             decimals,
 //             sending_precision: 10,
@@ -1507,9 +1573,9 @@ fn contract_instantiation() {
 
 //     // Get the token information
 //     let query_cosmos_tokens = wasm
-//         .query::<QueryMsg, OraiTokensResponse>(
+//         .query::<QueryMsg, CosmosTokensResponse>(
 //             contract_addr.clone(),
-//             &QueryMsg::OraiTokens {
+//             &QueryMsg::CosmosTokens {
 //                 start_after_key: None,
 //                 limit: None,
 //             },
@@ -1700,7 +1766,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: generate_xrpl_address(),
 //                     currency: oraichain_originated_token.xrpl_currency.clone(),
@@ -1722,7 +1788,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: bridge_xrpl_address.clone(),
 //                     currency: "invalid_currency".to_string(),
@@ -1744,7 +1810,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: bridge_xrpl_address.clone(),
 //                     currency: oraichain_originated_token.xrpl_currency.clone(),
@@ -1757,7 +1823,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(transfer_error.to_string().contains(
+//     assert!(transfer_error.root_cause().to_string().contains(
 //         ContractError::AmountSentIsZeroAfterTruncation {}
 //             .to_string()
 //             .as_str()
@@ -1767,7 +1833,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToOraiTransfer {
+//             evidence: Evidence::XRPLToCosmosTransfer {
 //                 tx_hash: generate_hash(),
 //                 issuer: bridge_xrpl_address.clone(),
 //                 currency: oraichain_originated_token.xrpl_currency.clone(),
@@ -1830,7 +1896,7 @@ fn contract_instantiation() {
 //     let sender = accounts.get(1).unwrap();
 //     let relayer_account = accounts.get(2).unwrap();
 //     let relayer = Relayer {
-//         cosmos_address: Addr::unchecked("relayer"),
+//         cosmos_address: Addr::unchecked(relayer),
 //         xrpl_address: generate_xrpl_address(),
 //         xrpl_pub_key: generate_xrpl_pub_key(),
 //     };
@@ -1843,7 +1909,7 @@ fn contract_instantiation() {
 //     let contract_addr = store_and_instantiate(
 //         &wasm,
 //         signer,
-//         Addr::unchecked("signer"),
+//         Addr::unchecked(signer),
 //         vec![relayer.clone()],
 //         1,
 //         10,
@@ -1935,7 +2001,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToOraiTransfer {
+//             evidence: Evidence::XRPLToCosmosTransfer {
 //                 tx_hash: generate_hash(),
 //                 issuer: XRP_ISSUER.to_string(),
 //                 currency: XRP_CURRENCY.to_string(),
@@ -1972,7 +2038,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(deliver_error.to_string().contains(
+//     assert!(deliver_error.root_cause().to_string().contains(
 //         ContractError::DeliverAmountIsProhibited {}
 //             .to_string()
 //             .as_str()
@@ -2243,7 +2309,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToOraiTransfer {
+//             evidence: Evidence::XRPLToCosmosTransfer {
 //                 tx_hash: generate_hash(),
 //                 issuer: test_token.issuer.to_string(),
 //                 currency: test_token.currency.to_string(),
@@ -2298,7 +2364,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(invalid_funds_error.to_string().contains(
+//     assert!(invalid_funds_error.root_cause().to_string().contains(
 //         ContractError::Payment(cw_utils::PaymentError::MultipleDenoms {})
 //             .to_string()
 //             .as_str()
@@ -2317,7 +2383,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(invalid_address_error.to_string().contains(
+//     assert!(invalid_address_error.root_cause().to_string().contains(
 //         ContractError::InvalidXRPLAddress {
 //             address: "invalid_address".to_string()
 //         }
@@ -2758,7 +2824,7 @@ fn contract_instantiation() {
 
 //     app.execute(
 //         contract_addr.clone(),
-//         &ExecuteMsg::RegisterOraiToken {
+//         &ExecuteMsg::RegisterCosmosToken {
 //             denom: denom.clone(),
 //             decimals,
 //             sending_precision: 5,
@@ -2801,9 +2867,9 @@ fn contract_instantiation() {
 //         .bridge_xrpl_address;
 
 //     let query_cosmos_tokens = wasm
-//         .query::<QueryMsg, OraiTokensResponse>(
+//         .query::<QueryMsg, CosmosTokensResponse>(
 //             contract_addr.clone(),
-//             &QueryMsg::OraiTokens {
+//             &QueryMsg::CosmosTokens {
 //                 start_after_key: None,
 //                 limit: None,
 //             },
@@ -3035,7 +3101,7 @@ fn contract_instantiation() {
 //
 
 //     let relayer = Relayer {
-//         cosmos_address: Addr::unchecked("signer"),
+//         cosmos_address: Addr::unchecked(signer),
 //         xrpl_address: generate_xrpl_address(),
 //         xrpl_pub_key: generate_xrpl_pub_key(),
 //     };
@@ -3043,7 +3109,7 @@ fn contract_instantiation() {
 //     let contract_addr = store_and_instantiate(
 //         &wasm,
 //         Addr::unchecked(signer),
-//         Addr::unchecked("signer"),
+//         Addr::unchecked(signer),
 //         vec![relayer],
 //         1,
 //         7,
@@ -3174,7 +3240,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: test_token1.issuer.clone(),
 //                     currency: test_token1.currency.clone(),
@@ -3188,7 +3254,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(precision_error.to_string().contains(
+//     assert!(precision_error.root_cause().to_string().contains(
 //         ContractError::AmountSentIsZeroAfterTruncation {}
 //             .to_string()
 //             .as_str()
@@ -3197,7 +3263,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToOraiTransfer {
+//             evidence: Evidence::XRPLToCosmosTransfer {
 //                 tx_hash: generate_hash(),
 //                 issuer: test_token1.issuer.clone(),
 //                 currency: test_token1.currency.clone(),
@@ -3225,7 +3291,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: test_token1.issuer.clone(),
 //                     currency: test_token1.currency.clone(),
@@ -3238,7 +3304,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(maximum_amount_error.to_string().contains(
+//     assert!(maximum_amount_error.root_cause().to_string().contains(
 //         ContractError::MaximumBridgedAmountReached {}
 //             .to_string()
 //             .as_str()
@@ -3320,7 +3386,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: test_token2.issuer.clone(),
 //                     currency: test_token2.currency.clone(),
@@ -3334,7 +3400,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(precision_error.to_string().contains(
+//     assert!(precision_error.root_cause().to_string().contains(
 //         ContractError::MaximumBridgedAmountReached {}
 //             .to_string()
 //             .as_str()
@@ -3344,7 +3410,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: test_token2.issuer.clone(),
 //                     currency: test_token2.currency.clone(),
@@ -3358,7 +3424,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(precision_error.to_string().contains(
+//     assert!(precision_error.root_cause().to_string().contains(
 //         ContractError::AmountSentIsZeroAfterTruncation {}
 //             .to_string()
 //             .as_str()
@@ -3367,7 +3433,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToOraiTransfer {
+//             evidence: Evidence::XRPLToCosmosTransfer {
 //                 tx_hash: generate_hash(),
 //                 issuer: test_token2.issuer.clone(),
 //                 currency: test_token2.currency.clone(),
@@ -3394,7 +3460,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToOraiTransfer {
+//             evidence: Evidence::XRPLToCosmosTransfer {
 //                 tx_hash: generate_hash(),
 //                 issuer: test_token2.issuer.clone(),
 //                 currency: test_token2.currency.clone(),
@@ -3430,7 +3496,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: test_token2.issuer.clone(),
 //                     currency: test_token2.currency.clone(),
@@ -3443,7 +3509,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(maximum_amount_error.to_string().contains(
+//     assert!(maximum_amount_error.root_cause().to_string().contains(
 //         ContractError::MaximumBridgedAmountReached {}
 //             .to_string()
 //             .as_str()
@@ -3515,7 +3581,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: test_token3.issuer.clone(),
 //                     currency: test_token3.currency.clone(),
@@ -3529,7 +3595,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(precision_error.to_string().contains(
+//     assert!(precision_error.root_cause().to_string().contains(
 //         ContractError::MaximumBridgedAmountReached {}
 //             .to_string()
 //             .as_str()
@@ -3539,7 +3605,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: test_token3.issuer.clone(),
 //                     currency: test_token3.currency.clone(),
@@ -3553,7 +3619,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(precision_error.to_string().contains(
+//     assert!(precision_error.root_cause().to_string().contains(
 //         ContractError::AmountSentIsZeroAfterTruncation {}
 //             .to_string()
 //             .as_str()
@@ -3562,7 +3628,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToOraiTransfer {
+//             evidence: Evidence::XRPLToCosmosTransfer {
 //                 tx_hash: generate_hash(),
 //                 issuer: test_token3.issuer.clone(),
 //                 currency: test_token3.currency.clone(),
@@ -3588,7 +3654,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToOraiTransfer {
+//             evidence: Evidence::XRPLToCosmosTransfer {
 //                 tx_hash: generate_hash(),
 //                 issuer: test_token3.issuer.clone(),
 //                 currency: test_token3.currency.clone(),
@@ -3624,7 +3690,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: test_token2.issuer.clone(),
 //                     currency: test_token2.currency.clone(),
@@ -3638,7 +3704,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(maximum_amount_error.to_string().contains(
+//     assert!(maximum_amount_error.root_cause().to_string().contains(
 //         ContractError::MaximumBridgedAmountReached {}
 //             .to_string()
 //             .as_str()
@@ -3657,7 +3723,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: XRP_ISSUER.to_string(),
 //                     currency: XRP_CURRENCY.to_string(),
@@ -3671,7 +3737,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(precision_error.to_string().contains(
+//     assert!(precision_error.root_cause().to_string().contains(
 //         ContractError::MaximumBridgedAmountReached {}
 //             .to_string()
 //             .as_str()
@@ -3680,7 +3746,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToOraiTransfer {
+//             evidence: Evidence::XRPLToCosmosTransfer {
 //                 tx_hash: generate_hash(),
 //                 issuer: XRP_ISSUER.to_string(),
 //                 currency: XRP_CURRENCY.to_string(),
@@ -3706,7 +3772,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToOraiTransfer {
+//             evidence: Evidence::XRPLToCosmosTransfer {
 //                 tx_hash: generate_hash(),
 //                 issuer: XRP_ISSUER.to_string(),
 //                 currency: XRP_CURRENCY.to_string(),
@@ -3733,7 +3799,7 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: XRP_ISSUER.to_string(),
 //                     currency: XRP_CURRENCY.to_string(),
@@ -3747,7 +3813,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(maximum_amount_error.to_string().contains(
+//     assert!(maximum_amount_error.root_cause().to_string().contains(
 //         ContractError::MaximumBridgedAmountReached {}
 //             .to_string()
 //             .as_str()
@@ -3785,21 +3851,21 @@ fn contract_instantiation() {
 //     let denom3 = format!("{}-{}", "utest3", "signer").to_lowercase();
 
 //     let test_tokens = vec![
-//         OraiToken {
+//         CosmosToken {
 //             denom: denom1.clone(),
 //             decimals: 6,
 //             sending_precision: 6,
 //             max_holding_amount: Uint128::new(3),
 //             bridging_fee: Uint128::zero(),
 //         },
-//         OraiToken {
+//         CosmosToken {
 //             denom: denom2.clone(),
 //             decimals: 6,
 //             sending_precision: 0,
 //             max_holding_amount: Uint128::new(3990000),
 //             bridging_fee: Uint128::zero(),
 //         },
-//         OraiToken {
+//         CosmosToken {
 //             denom: denom3.clone(),
 //             decimals: 6,
 //             sending_precision: -6,
@@ -3813,7 +3879,7 @@ fn contract_instantiation() {
 //     for token in test_tokens.clone() {
 //         app.execute(
 //             contract_addr.clone(),
-//             &ExecuteMsg::RegisterOraiToken {
+//             &ExecuteMsg::RegisterCosmosToken {
 //                 denom: token.denom,
 //                 decimals: token.decimals,
 //                 sending_precision: token.sending_precision,
@@ -3827,9 +3893,9 @@ fn contract_instantiation() {
 //     }
 
 //     let query_cosmos_tokens = wasm
-//         .query::<QueryMsg, OraiTokensResponse>(
+//         .query::<QueryMsg, CosmosTokensResponse>(
 //             contract_addr.clone(),
-//             &QueryMsg::OraiTokens {
+//             &QueryMsg::CosmosTokens {
 //                 start_after_key: None,
 //                 limit: None,
 //             },
@@ -3879,7 +3945,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(maximum_amount_error.to_string().contains(
+//     assert!(maximum_amount_error.root_cause().to_string().contains(
 //         ContractError::MaximumBridgedAmountReached {}
 //             .to_string()
 //             .as_str()
@@ -3909,7 +3975,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(precision_error.to_string().contains(
+//     assert!(precision_error.root_cause().to_string().contains(
 //         ContractError::AmountSentIsZeroAfterTruncation {}
 //             .to_string()
 //             .as_str()
@@ -3940,7 +4006,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(precision_error.to_string().contains(
+//     assert!(precision_error.root_cause().to_string().contains(
 //         ContractError::AmountSentIsZeroAfterTruncation {}
 //             .to_string()
 //             .as_str()
@@ -3959,7 +4025,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(maximum_amount_error.to_string().contains(
+//     assert!(maximum_amount_error.root_cause().to_string().contains(
 //         ContractError::MaximumBridgedAmountReached {}
 //             .to_string()
 //             .as_str()
@@ -4001,7 +4067,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(precision_error.to_string().contains(
+//     assert!(precision_error.root_cause().to_string().contains(
 //         ContractError::AmountSentIsZeroAfterTruncation {}
 //             .to_string()
 //             .as_str()
@@ -4020,7 +4086,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(maximum_amount_error.to_string().contains(
+//     assert!(maximum_amount_error.root_cause().to_string().contains(
 //         ContractError::MaximumBridgedAmountReached {}
 //             .to_string()
 //             .as_str()
@@ -4069,7 +4135,7 @@ fn contract_instantiation() {
 //     let contract_addr = store_and_instantiate(
 //         &wasm,
 //         Addr::unchecked(signer),
-//         Addr::unchecked("signer"),
+//         Addr::unchecked(signer),
 //         vec![
 //             relayers[0].clone(),
 //             relayers[1].clone(),
@@ -4150,7 +4216,7 @@ fn contract_instantiation() {
 
 //     let oraichain_token_denom = format!("{}-{}", subunit, receiver.address()).to_lowercase();
 
-//     let test_token_cosmos = OraiToken {
+//     let test_token_cosmos = CosmosToken {
 //         denom: oraichain_token_denom.clone(),
 //         decimals,
 //         sending_precision: 4,
@@ -4211,7 +4277,7 @@ fn contract_instantiation() {
 //     // Register Orai originated token
 //     app.execute(
 //         contract_addr.clone(),
-//         &ExecuteMsg::RegisterOraiToken {
+//         &ExecuteMsg::RegisterCosmosToken {
 //             denom: test_token_cosmos.denom,
 //             decimals: test_token_cosmos.decimals,
 //             sending_precision: test_token_cosmos.sending_precision,
@@ -4224,9 +4290,9 @@ fn contract_instantiation() {
 //     .unwrap();
 
 //     let query_cosmos_tokens = wasm
-//         .query::<QueryMsg, OraiTokensResponse>(
+//         .query::<QueryMsg, CosmosTokensResponse>(
 //             contract_addr.clone(),
-//             &QueryMsg::OraiTokens {
+//             &QueryMsg::CosmosTokens {
 //                 start_after_key: None,
 //                 limit: None,
 //             },
@@ -4245,7 +4311,7 @@ fn contract_instantiation() {
 //         app.execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: tx_hash.clone(),
 //                     issuer: test_token_xrpl.issuer.clone(),
 //                     currency: test_token_xrpl.currency.clone(),
@@ -4273,7 +4339,7 @@ fn contract_instantiation() {
 //         .query::<QueryMsg, FeesCollectedResponse>(
 //             contract_addr.clone(),
 //             &QueryMsg::FeesCollected {
-//                 relayer_address: Addr::unchecked("any_address"),
+//                 relayer_address: Addr::unchecked(any_address),
 //             },
 //         )
 //         .unwrap();
@@ -4300,7 +4366,7 @@ fn contract_instantiation() {
 //         app.execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: tx_hash.clone(),
 //                     issuer: test_token_xrpl.issuer.clone(),
 //                     currency: test_token_xrpl.currency.clone(),
@@ -4343,7 +4409,7 @@ fn contract_instantiation() {
 //         app.execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: tx_hash.clone(),
 //                     issuer: test_token_xrpl.issuer.clone(),
 //                     currency: test_token_xrpl.currency.clone(),
@@ -4610,7 +4676,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(bridging_error.to_string().contains(
+//     assert!(bridging_error.root_cause().to_string().contains(
 //         ContractError::CannotCoverBridgingFees {}
 //             .to_string()
 //             .as_str()
@@ -4789,7 +4855,7 @@ fn contract_instantiation() {
 //         app.execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: tx_hash.clone(),
 //                     issuer: bridge_xrpl_address.clone(),
 //                     currency: oraichain_token.xrpl_currency.clone(),
@@ -4855,7 +4921,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(claim_error.to_string().contains(
+//     assert!(claim_error.root_cause().to_string().contains(
 //         ContractError::NotEnoughFeesToClaim {
 //             denom: oraichain_token_denom.clone(),
 //             amount: Uint128::new(300007)
@@ -4880,7 +4946,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(claim_error.to_string().contains(
+//     assert!(claim_error.root_cause().to_string().contains(
 //         ContractError::NotEnoughFeesToClaim {
 //             denom: oraichain_token_denom.clone(),
 //             amount: Uint128::new(1)
@@ -4932,7 +4998,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(claim_error.to_string().contains(
+//     assert!(claim_error.root_cause().to_string().contains(
 //         ContractError::NotEnoughFeesToClaim {
 //             denom: xrpl_token.cosmos_denom.clone(),
 //             amount: Uint128::new(1)
@@ -5043,7 +5109,7 @@ fn contract_instantiation() {
 //     let contract_addr = store_and_instantiate(
 //         &wasm,
 //         Addr::unchecked(signer),
-//         Addr::unchecked("signer"),
+//         Addr::unchecked(signer),
 //         vec![relayers[0].clone(), relayers[1].clone()],
 //         2,
 //         4,
@@ -5085,7 +5151,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(recover_ticket_error.to_string().contains(
+//     assert!(recover_ticket_error.root_cause().to_string().contains(
 //         ContractError::InvalidTicketSequenceToAllocate {}
 //             .to_string()
 //             .as_str()
@@ -5104,7 +5170,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(recover_ticket_error.to_string().contains(
+//     assert!(recover_ticket_error.root_cause().to_string().contains(
 //         ContractError::InvalidTicketSequenceToAllocate {}
 //             .to_string()
 //             .as_str()
@@ -5123,7 +5189,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(recover_ticket_error.to_string().contains(
+//     assert!(recover_ticket_error.root_cause().to_string().contains(
 //         ContractError::InvalidTicketSequenceToAllocate {}
 //             .to_string()
 //             .as_str()
@@ -5208,7 +5274,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(relayer_error.to_string().contains(
+//     assert!(relayer_error.root_cause().to_string().contains(
 //         ContractError::PendingOperationNotFound {}
 //             .to_string()
 //             .as_str()
@@ -5227,7 +5293,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(signature_error.to_string().contains(
+//     assert!(signature_error.root_cause().to_string().contains(
 //         ContractError::InvalidSignatureLength {}
 //             .to_string()
 //             .as_str()
@@ -5260,7 +5326,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(signature_error.to_string().contains(
+//     assert!(signature_error.root_cause().to_string().contains(
 //         ContractError::SignatureAlreadyProvided {}
 //             .to_string()
 //             .as_str()
@@ -5280,7 +5346,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(signature_error.to_string().contains(
+//     assert!(signature_error.root_cause().to_string().contains(
 //         ContractError::PendingOperationNotFound {}
 //             .to_string()
 //             .as_str()
@@ -5300,7 +5366,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(signature_error.to_string().contains(
+//     assert!(signature_error.root_cause().to_string().contains(
 //         ContractError::OperationVersionMismatch {}
 //             .to_string()
 //             .as_str()
@@ -5461,7 +5527,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(relayer_error.to_string().contains(
+//     assert!(relayer_error.root_cause().to_string().contains(
 //         ContractError::OperationAlreadyExecuted {}
 //             .to_string()
 //             .as_str()
@@ -5598,7 +5664,7 @@ fn contract_instantiation() {
 //
 
 //     let relayer = Relayer {
-//         cosmos_address: Addr::unchecked("signer"),
+//         cosmos_address: Addr::unchecked(signer),
 //         xrpl_address: generate_xrpl_address(),
 //         xrpl_pub_key: generate_xrpl_pub_key(),
 //     };
@@ -5617,7 +5683,7 @@ fn contract_instantiation() {
 //     let contract_addr = store_and_instantiate(
 //         &wasm,
 //         Addr::unchecked(signer),
-//         Addr::unchecked("signer"),
+//         Addr::unchecked(signer),
 //         vec![relayer.clone()],
 //         1,
 //         2,
@@ -5807,7 +5873,7 @@ fn contract_instantiation() {
 //
 
 //     let relayer = Relayer {
-//         cosmos_address: Addr::unchecked("signer"),
+//         cosmos_address: Addr::unchecked(signer),
 //         xrpl_address: generate_xrpl_address(),
 //         xrpl_pub_key: generate_xrpl_pub_key(),
 //     };
@@ -5833,7 +5899,7 @@ fn contract_instantiation() {
 //     let contract_addr = store_and_instantiate(
 //         &wasm,
 //         Addr::unchecked(signer),
-//         Addr::unchecked("signer"),
+//         Addr::unchecked(signer),
 //         vec![relayer.clone()],
 //         1,
 //         2,
@@ -5989,7 +6055,7 @@ fn contract_instantiation() {
 //     let sender = accounts.get(1).unwrap();
 //     let relayer_account = accounts.get(2).unwrap();
 //     let relayer = Relayer {
-//         cosmos_address: Addr::unchecked("relayer"),
+//         cosmos_address: Addr::unchecked(relayer),
 //         xrpl_address: generate_xrpl_address(),
 //         xrpl_pub_key: generate_xrpl_pub_key(),
 //     };
@@ -6002,7 +6068,7 @@ fn contract_instantiation() {
 //     let contract_addr = store_and_instantiate(
 //         &wasm,
 //         signer,
-//         Addr::unchecked("signer"),
+//         Addr::unchecked(signer),
 //         vec![relayer.clone()],
 //         1,
 //         5,
@@ -6072,7 +6138,7 @@ fn contract_instantiation() {
 
 //     app.execute(
 //         contract_addr.clone(),
-//         &ExecuteMsg::RegisterOraiToken {
+//         &ExecuteMsg::RegisterCosmosToken {
 //             denom: denom.clone(),
 //             decimals,
 //             sending_precision: 6,
@@ -6188,7 +6254,7 @@ fn contract_instantiation() {
 //     let contract_addr = store_and_instantiate(
 //         &wasm,
 //         Addr::unchecked(signer),
-//         Addr::unchecked("signer"),
+//         Addr::unchecked(signer),
 //         vec![relayers[0].clone(), relayers[1].clone()],
 //         2,
 //         4,
@@ -6262,7 +6328,7 @@ fn contract_instantiation() {
 
 //     let oraichain_token_denom = format!("{}-{}", subunit, "signer").to_lowercase();
 
-//     let oraichain_token = OraiToken {
+//     let oraichain_token = CosmosToken {
 //         denom: oraichain_token_denom.clone(),
 //         decimals: 6,
 //         sending_precision: 6,
@@ -6319,7 +6385,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(update_precision_error.to_string().contains(
+//     assert!(update_precision_error.root_cause().to_string().contains(
 //         ContractError::InvalidSendingPrecision {}
 //             .to_string()
 //             .as_str()
@@ -6387,12 +6453,12 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToOraiTransfer {
+//             evidence: Evidence::XRPLToCosmosTransfer {
 //                 tx_hash: tx_hash.clone(),
 //                 issuer: xrpl_token.issuer.clone(),
 //                 currency: xrpl_token.currency.clone(),
 //                 amount: Uint128::one(),
-//                 recipient: Addr::unchecked("signer"),
+//                 recipient: Addr::unchecked(signer),
 //             },
 //         },
 //         &[],
@@ -6421,12 +6487,12 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: tx_hash.clone(),
 //                     issuer: xrpl_token.issuer.clone(),
 //                     currency: xrpl_token.currency.clone(),
 //                     amount: Uint128::one(),
-//                     recipient: Addr::unchecked("signer"),
+//                     recipient: Addr::unchecked(signer),
 //                 },
 //             },
 //             &[],
@@ -6455,7 +6521,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(update_status_error.to_string().contains(
+//     assert!(update_status_error.root_cause().to_string().contains(
 //         ContractError::InvalidTargetTokenState {}
 //             .to_string()
 //             .as_str()
@@ -6480,12 +6546,12 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToOraiTransfer {
+//             evidence: Evidence::XRPLToCosmosTransfer {
 //                 tx_hash: tx_hash.clone(),
 //                 issuer: xrpl_token.issuer.clone(),
 //                 currency: xrpl_token.currency.clone(),
 //                 amount: Uint128::one(),
-//                 recipient: Addr::unchecked("signer"),
+//                 recipient: Addr::unchecked(signer),
 //             },
 //         },
 //         &[],
@@ -6537,7 +6603,7 @@ fn contract_instantiation() {
 //     // Register the Orai Token
 //     app.execute(
 //         contract_addr.clone(),
-//         &ExecuteMsg::RegisterOraiToken {
+//         &ExecuteMsg::RegisterCosmosToken {
 //             denom: oraichain_token_denom.clone(),
 //             decimals: oraichain_token.decimals,
 //             sending_precision: oraichain_token.sending_precision,
@@ -6553,7 +6619,7 @@ fn contract_instantiation() {
 //     let update_status_error = wasm
 //         .execute(
 //             contract_addr.clone(),
-//             &ExecuteMsg::UpdateOraiToken {
+//             &ExecuteMsg::UpdateCosmosToken {
 //                 denom: oraichain_token_denom.clone(),
 //                 state: Some(TokenState::Processing),
 //                 sending_precision: None,
@@ -6565,7 +6631,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(update_status_error.to_string().contains(
+//     assert!(update_status_error.root_cause().to_string().contains(
 //         ContractError::InvalidTargetTokenState {}
 //             .to_string()
 //             .as_str()
@@ -6574,7 +6640,7 @@ fn contract_instantiation() {
 //     // Disable the Orai Token
 //     app.execute(
 //         contract_addr.clone(),
-//         &ExecuteMsg::UpdateOraiToken {
+//         &ExecuteMsg::UpdateCosmosToken {
 //             denom: oraichain_token_denom.clone(),
 //             state: Some(TokenState::Disabled),
 //             sending_precision: None,
@@ -6606,7 +6672,7 @@ fn contract_instantiation() {
 //     // Enable it again and modify the sending precision
 //     app.execute(
 //         contract_addr.clone(),
-//         &ExecuteMsg::UpdateOraiToken {
+//         &ExecuteMsg::UpdateCosmosToken {
 //             denom: oraichain_token_denom.clone(),
 //             state: Some(TokenState::Enabled),
 //             sending_precision: Some(5),
@@ -6620,9 +6686,9 @@ fn contract_instantiation() {
 
 //     // Get the token information
 //     let query_cosmos_tokens = wasm
-//         .query::<QueryMsg, OraiTokensResponse>(
+//         .query::<QueryMsg, CosmosTokensResponse>(
 //             contract_addr.clone(),
-//             &QueryMsg::OraiTokens {
+//             &QueryMsg::CosmosTokens {
 //                 start_after_key: None,
 //                 limit: None,
 //             },
@@ -6635,7 +6701,7 @@ fn contract_instantiation() {
 //     let update_error = wasm
 //         .execute(
 //             contract_addr.clone(),
-//             &ExecuteMsg::UpdateOraiToken {
+//             &ExecuteMsg::UpdateCosmosToken {
 //                 denom: oraichain_token_denom.clone(),
 //                 state: None,
 //                 sending_precision: Some(7),
@@ -6647,7 +6713,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(update_error.to_string().contains(
+//     assert!(update_error.root_cause().to_string().contains(
 //         ContractError::InvalidSendingPrecision {}
 //             .to_string()
 //             .as_str()
@@ -6676,12 +6742,12 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToOraiTransfer {
+//             evidence: Evidence::XRPLToCosmosTransfer {
 //                 tx_hash: tx_hash.clone(),
 //                 issuer: xrpl_token.issuer.clone(),
 //                 currency: xrpl_token.currency.clone(),
 //                 amount: Uint128::one(),
-//                 recipient: Addr::unchecked("signer"),
+//                 recipient: Addr::unchecked(signer),
 //             },
 //         },
 //         &[],
@@ -6709,12 +6775,12 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: tx_hash.clone(),
 //                     issuer: xrpl_token.issuer.clone(),
 //                     currency: xrpl_token.currency.clone(),
 //                     amount: Uint128::one(),
-//                     recipient: Addr::unchecked("signer"),
+//                     recipient: Addr::unchecked(signer),
 //                 },
 //             },
 //             &[],
@@ -6722,7 +6788,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(evidence_error.to_string().contains(
+//     assert!(evidence_error.root_cause().to_string().contains(
 //         ContractError::AmountSentIsZeroAfterTruncation {}
 //             .to_string()
 //             .as_str()
@@ -6747,12 +6813,12 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToOraiTransfer {
+//             evidence: Evidence::XRPLToCosmosTransfer {
 //                 tx_hash: tx_hash.clone(),
 //                 issuer: xrpl_token.issuer.clone(),
 //                 currency: xrpl_token.currency.clone(),
 //                 amount: Uint128::one(),
-//                 recipient: Addr::unchecked("signer"),
+//                 recipient: Addr::unchecked(signer),
 //             },
 //         },
 //         &[],
@@ -6774,12 +6840,12 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToOraiTransfer {
+//             evidence: Evidence::XRPLToCosmosTransfer {
 //                 tx_hash: tx_hash.clone(),
 //                 issuer: xrpl_token.issuer.clone(),
 //                 currency: xrpl_token.currency.clone(),
 //                 amount: Uint128::new(amount_to_send),
-//                 recipient: Addr::unchecked("signer"),
+//                 recipient: Addr::unchecked(signer),
 //             },
 //         },
 //         &[],
@@ -6806,12 +6872,12 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToOraiTransfer {
+//             evidence: Evidence::XRPLToCosmosTransfer {
 //                 tx_hash: tx_hash.clone(),
 //                 issuer: xrpl_token.issuer.clone(),
 //                 currency: xrpl_token.currency.clone(),
 //                 amount: Uint128::new(amount_to_send),
-//                 recipient: Addr::unchecked("signer"),
+//                 recipient: Addr::unchecked(signer),
 //             },
 //         },
 //         &[],
@@ -6841,7 +6907,7 @@ fn contract_instantiation() {
 //     // Updating bridging fee for Orai Token should work
 //     app.execute(
 //         contract_addr.clone(),
-//         &ExecuteMsg::UpdateOraiToken {
+//         &ExecuteMsg::UpdateCosmosToken {
 //             denom: oraichain_token_denom.clone(),
 //             state: None,
 //             sending_precision: None,
@@ -6855,9 +6921,9 @@ fn contract_instantiation() {
 
 //     // Get the token information
 //     let query_cosmos_tokens = wasm
-//         .query::<QueryMsg, OraiTokensResponse>(
+//         .query::<QueryMsg, CosmosTokensResponse>(
 //             contract_addr.clone(),
-//             &QueryMsg::OraiTokens {
+//             &QueryMsg::CosmosTokens {
 //                 start_after_key: None,
 //                 limit: None,
 //             },
@@ -6877,12 +6943,12 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToOraiTransfer {
+//             evidence: Evidence::XRPLToCosmosTransfer {
 //                 tx_hash: tx_hash.clone(),
 //                 issuer: xrpl_token.issuer.clone(),
 //                 currency: xrpl_token.currency.clone(),
 //                 amount: Uint128::new(amount_to_send),
-//                 recipient: Addr::unchecked("signer"),
+//                 recipient: Addr::unchecked(signer),
 //             },
 //         },
 //         &[],
@@ -6911,12 +6977,12 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: tx_hash.clone(),
 //                     issuer: xrpl_token.issuer.clone(),
 //                     currency: xrpl_token.currency.clone(),
 //                     amount: Uint128::new(amount_to_send),
-//                     recipient: Addr::unchecked("signer"),
+//                     recipient: Addr::unchecked(signer),
 //                 },
 //             },
 //             &[],
@@ -6924,7 +6990,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(bridging_error.to_string().contains(
+//     assert!(bridging_error.root_cause().to_string().contains(
 //         ContractError::CannotCoverBridgingFees {}
 //             .to_string()
 //             .as_str()
@@ -6951,12 +7017,12 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: tx_hash.clone(),
 //                     issuer: xrpl_token.issuer.clone(),
 //                     currency: xrpl_token.currency.clone(),
 //                     amount: Uint128::new(amount_to_send),
-//                     recipient: Addr::unchecked("signer"),
+//                     recipient: Addr::unchecked(signer),
 //                 },
 //             },
 //             &[],
@@ -6964,7 +7030,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(bridging_error.to_string().contains(
+//     assert!(bridging_error.root_cause().to_string().contains(
 //         ContractError::AmountSentIsZeroAfterTruncation {}
 //             .to_string()
 //             .as_str()
@@ -6990,12 +7056,12 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToOraiTransfer {
+//             evidence: Evidence::XRPLToCosmosTransfer {
 //                 tx_hash: tx_hash.clone(),
 //                 issuer: xrpl_token.issuer.clone(),
 //                 currency: xrpl_token.currency.clone(),
 //                 amount: Uint128::new(amount_to_send),
-//                 recipient: Addr::unchecked("signer"),
+//                 recipient: Addr::unchecked(signer),
 //             },
 //         },
 //         &[],
@@ -7086,7 +7152,7 @@ fn contract_instantiation() {
 //     let error_update = wasm
 //         .execute(
 //             contract_addr.clone(),
-//             &ExecuteMsg::UpdateOraiToken {
+//             &ExecuteMsg::UpdateCosmosToken {
 //                 denom: oraichain_token_denom.clone(),
 //                 state: None,
 //                 sending_precision: None,
@@ -7107,7 +7173,7 @@ fn contract_instantiation() {
 //     // Updating max holding amount with more than current holding amount should work
 //     app.execute(
 //         contract_addr.clone(),
-//         &ExecuteMsg::UpdateOraiToken {
+//         &ExecuteMsg::UpdateCosmosToken {
 //             denom: oraichain_token_denom.clone(),
 //             state: None,
 //             sending_precision: None,
@@ -7120,9 +7186,9 @@ fn contract_instantiation() {
 //     .unwrap();
 
 //     let query_cosmos_tokens = wasm
-//         .query::<QueryMsg, OraiTokensResponse>(
+//         .query::<QueryMsg, CosmosTokensResponse>(
 //             contract_addr.clone(),
-//             &QueryMsg::OraiTokens {
+//             &QueryMsg::CosmosTokens {
 //                 start_after_key: None,
 //                 limit: None,
 //             },
@@ -7168,7 +7234,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(update_error.to_string().contains(
+//     assert!(update_error.root_cause().to_string().contains(
 //         ContractError::InvalidTargetMaxHoldingAmount {}
 //             .to_string()
 //             .as_str()
@@ -7182,12 +7248,12 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToOraiTransfer {
+//             evidence: Evidence::XRPLToCosmosTransfer {
 //                 tx_hash: tx_hash.clone(),
 //                 issuer: xrpl_token.issuer.clone(),
 //                 currency: xrpl_token.currency.clone(),
 //                 amount: Uint128::new(amount_to_send),
-//                 recipient: Addr::unchecked("signer"),
+//                 recipient: Addr::unchecked(signer),
 //             },
 //         },
 //         &[],
@@ -7216,12 +7282,12 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: tx_hash.clone(),
 //                     issuer: xrpl_token.issuer.clone(),
 //                     currency: xrpl_token.currency.clone(),
 //                     amount: Uint128::new(amount_to_send),
-//                     recipient: Addr::unchecked("signer"),
+//                     recipient: Addr::unchecked(signer),
 //                 },
 //             },
 //             &[],
@@ -7229,7 +7295,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(bridging_error.to_string().contains(
+//     assert!(bridging_error.root_cause().to_string().contains(
 //         ContractError::MaximumBridgedAmountReached {}
 //             .to_string()
 //             .as_str()
@@ -7262,12 +7328,12 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToOraiTransfer {
+//             evidence: Evidence::XRPLToCosmosTransfer {
 //                 tx_hash: tx_hash.clone(),
 //                 issuer: xrpl_token.issuer.clone(),
 //                 currency: xrpl_token.currency.clone(),
 //                 amount: Uint128::new(amount_to_send),
-//                 recipient: Addr::unchecked("signer"),
+//                 recipient: Addr::unchecked(signer),
 //             },
 //         },
 //         &[],
@@ -7308,7 +7374,7 @@ fn contract_instantiation() {
 //     let relayer_account = accounts.get(1).unwrap();
 //     let sender = accounts.get(2).unwrap();
 //     let relayer = Relayer {
-//         cosmos_address: Addr::unchecked("relayer"),
+//         cosmos_address: Addr::unchecked(relayer),
 //         xrpl_address: generate_xrpl_address(),
 //         xrpl_pub_key: generate_xrpl_pub_key(),
 //     };
@@ -7321,7 +7387,7 @@ fn contract_instantiation() {
 //     let contract_addr = store_and_instantiate(
 //         &wasm,
 //         signer,
-//         Addr::unchecked("signer"),
+//         Addr::unchecked(signer),
 //         vec![relayer.clone()],
 //         1,
 //         9,
@@ -7417,7 +7483,7 @@ fn contract_instantiation() {
 //     // Let's try to bridge some tokens and back and check that everything works correctly
 //     app.execute(
 //         contract_addr.clone(),
-//         &ExecuteMsg::RegisterOraiToken {
+//         &ExecuteMsg::RegisterCosmosToken {
 //             denom: denom.clone(),
 //             decimals,
 //             sending_precision: 6,
@@ -7490,9 +7556,9 @@ fn contract_instantiation() {
 
 //     // Get the token information
 //     let query_cosmos_tokens = wasm
-//         .query::<QueryMsg, OraiTokensResponse>(
+//         .query::<QueryMsg, CosmosTokensResponse>(
 //             contract_addr.clone(),
-//             &QueryMsg::OraiTokens {
+//             &QueryMsg::CosmosTokens {
 //                 start_after_key: None,
 //                 limit: None,
 //             },
@@ -7509,7 +7575,7 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToOraiTransfer {
+//             evidence: Evidence::XRPLToCosmosTransfer {
 //                 tx_hash: generate_hash(),
 //                 issuer: bridge_xrpl_address.clone(),
 //                 currency: oraichain_originated_token.xrpl_currency.clone(),
@@ -7574,7 +7640,7 @@ fn contract_instantiation() {
 //     let contract_addr = store_and_instantiate(
 //         &wasm,
 //         Addr::unchecked(signer),
-//         Addr::unchecked("signer"),
+//         Addr::unchecked(signer),
 //         vec![
 //             relayers[0].clone(),
 //             relayers[1].clone(),
@@ -7626,12 +7692,12 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToOraiTransfer {
+//             evidence: Evidence::XRPLToCosmosTransfer {
 //                 tx_hash: tx_hash_old_evidence.clone(),
 //                 issuer: XRP_ISSUER.to_string(),
 //                 currency: XRP_CURRENCY.to_string(),
 //                 amount: Uint128::one(),
-//                 recipient: Addr::unchecked("signer"),
+//                 recipient: Addr::unchecked(signer),
 //             },
 //         },
 //         &[],
@@ -7644,12 +7710,12 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: tx_hash_old_evidence.clone(),
 //                     issuer: XRP_ISSUER.to_string(),
 //                     currency: XRP_CURRENCY.to_string(),
 //                     amount: Uint128::one(),
-//                     recipient: Addr::unchecked("signer"),
+//                     recipient: Addr::unchecked(signer),
 //                 },
 //             },
 //             &[],
@@ -7725,12 +7791,12 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: tx_hash_old_evidence.clone(),
 //                     issuer: XRP_ISSUER.to_string(),
 //                     currency: XRP_CURRENCY.to_string(),
 //                     amount: Uint128::one(),
-//                     recipient: Addr::unchecked("signer"),
+//                     recipient: Addr::unchecked(signer),
 //                 },
 //             },
 //             &[],
@@ -7869,12 +7935,12 @@ fn contract_instantiation() {
 //     app.execute(
 //         contract_addr.clone(),
 //         &ExecuteMsg::SaveEvidence {
-//             evidence: Evidence::XRPLToOraiTransfer {
+//             evidence: Evidence::XRPLToCosmosTransfer {
 //                 tx_hash: tx_hash_old_evidence.clone(),
 //                 issuer: XRP_ISSUER.to_string(),
 //                 currency: XRP_CURRENCY.to_string(),
 //                 amount: Uint128::one(),
-//                 recipient: Addr::unchecked("signer"),
+//                 recipient: Addr::unchecked(signer),
 //             },
 //         },
 //         &[],
@@ -7887,12 +7953,12 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: tx_hash_old_evidence.clone(),
 //                     issuer: XRP_ISSUER.to_string(),
 //                     currency: XRP_CURRENCY.to_string(),
 //                     amount: Uint128::one(),
-//                     recipient: Addr::unchecked("signer"),
+//                     recipient: Addr::unchecked(signer),
 //                 },
 //             },
 //             &[],
@@ -7917,7 +7983,7 @@ fn contract_instantiation() {
 //     let relayer_account = accounts.get(1).unwrap();
 //     let new_relayer_account = accounts.get(2).unwrap();
 //     let relayer = Relayer {
-//         cosmos_address: Addr::unchecked("relayer"),
+//         cosmos_address: Addr::unchecked(relayer),
 //         xrpl_address: generate_xrpl_address(),
 //         xrpl_pub_key: generate_xrpl_pub_key(),
 //     };
@@ -7931,7 +7997,7 @@ fn contract_instantiation() {
 //     let contract_addr = store_and_instantiate(
 //         &wasm,
 //         signer,
-//         Addr::unchecked("signer"),
+//         Addr::unchecked(signer),
 //         vec![relayer.clone()],
 //         1,
 //         9,
@@ -7986,7 +8052,7 @@ fn contract_instantiation() {
 //     let bridge_halted_error = wasm
 //         .execute(
 //             contract_addr.clone(),
-//             &ExecuteMsg::RegisterOraiToken {
+//             &ExecuteMsg::RegisterCosmosToken {
 //                 denom: "any_denom".to_string(),
 //                 decimals: 6,
 //                 sending_precision: 1,
@@ -8062,7 +8128,7 @@ fn contract_instantiation() {
 //     let bridge_halted_error = wasm
 //         .execute(
 //             contract_addr.clone(),
-//             &ExecuteMsg::UpdateOraiToken {
+//             &ExecuteMsg::UpdateCosmosToken {
 //                 denom: "any_denom".to_string(),
 //                 state: Some(TokenState::Disabled),
 //                 sending_precision: None,
@@ -8208,12 +8274,12 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: generate_xrpl_address(),
 //                     currency: "USD".to_string(),
 //                     amount: Uint128::new(100),
-//                     recipient: Addr::unchecked("signer"),
+//                     recipient: Addr::unchecked(signer),
 //                 },
 //             },
 //             &[],
@@ -8341,7 +8407,7 @@ fn contract_instantiation() {
 //     let contract_addr = store_and_instantiate(
 //         &wasm,
 //         Addr::unchecked(signer),
-//         Addr::unchecked("signer"),
+//         Addr::unchecked(signer),
 //         relayers.clone(),
 //         3,
 //         9,
@@ -8399,10 +8465,10 @@ fn contract_instantiation() {
 //     )
 //     .unwrap();
 
-//     // Register COREUM to send some
+//     // Register COSMOS to send some
 //     app.execute(
 //         contract_addr.clone(),
-//         &ExecuteMsg::RegisterOraiToken {
+//         &ExecuteMsg::RegisterCosmosToken {
 //             denom: FEE_DENOM.to_string(),
 //             decimals: 6,
 //             sending_precision: 6,
@@ -8640,7 +8706,7 @@ fn contract_instantiation() {
 //
 
 //     let relayer = Relayer {
-//         cosmos_address: Addr::unchecked("signer"),
+//         cosmos_address: Addr::unchecked(signer),
 //         xrpl_address: generate_xrpl_address(),
 //         xrpl_pub_key: generate_xrpl_pub_key(),
 //     };
@@ -8654,7 +8720,7 @@ fn contract_instantiation() {
 //     let contract_addr = store_and_instantiate(
 //         &wasm,
 //         Addr::unchecked(signer),
-//         Addr::unchecked("signer"),
+//         Addr::unchecked(signer),
 //         vec![relayer.clone()],
 //         1,
 //         3,
@@ -8664,10 +8730,10 @@ fn contract_instantiation() {
 //         10,
 //     );
 
-//     // Register COREUM Token
+//     // Register COSMOS Token
 //     app.execute(
 //         contract_addr.clone(),
-//         &ExecuteMsg::RegisterOraiToken {
+//         &ExecuteMsg::RegisterCosmosToken {
 //             denom: FEE_DENOM.to_string(),
 //             decimals: 6,
 //             sending_precision: 6,
@@ -8855,7 +8921,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(cancel_error.to_string().contains(
+//     assert!(cancel_error.root_cause().to_string().contains(
 //         ContractError::PendingOperationNotFound {}
 //             .to_string()
 //             .as_str()
@@ -8929,7 +8995,7 @@ fn contract_instantiation() {
 //         .query::<QueryMsg, PendingRefundsResponse>(
 //             contract_addr.clone(),
 //             &QueryMsg::PendingRefunds {
-//                 address: Addr::unchecked("signer"),
+//                 address: Addr::unchecked(signer),
 //                 start_after_key: None,
 //                 limit: None,
 //             },
@@ -9014,7 +9080,7 @@ fn contract_instantiation() {
 //
 
 //     let relayer = Relayer {
-//         cosmos_address: Addr::unchecked("signer"),
+//         cosmos_address: Addr::unchecked(signer),
 //         xrpl_address: generate_xrpl_address(),
 //         xrpl_pub_key: generate_xrpl_pub_key(),
 //     };
@@ -9022,7 +9088,7 @@ fn contract_instantiation() {
 //     let contract_addr = store_and_instantiate(
 //         &wasm,
 //         Addr::unchecked(signer),
-//         Addr::unchecked("signer"),
+//         Addr::unchecked(signer),
 //         vec![relayer],
 //         1,
 //         4,
@@ -9143,7 +9209,7 @@ fn contract_instantiation() {
 //
 
 //     let relayer = Relayer {
-//         cosmos_address: Addr::unchecked("signer"),
+//         cosmos_address: Addr::unchecked(signer),
 //         xrpl_address: generate_xrpl_address(),
 //         xrpl_pub_key: generate_xrpl_pub_key(),
 //     };
@@ -9151,7 +9217,7 @@ fn contract_instantiation() {
 //     let contract_addr = store_and_instantiate(
 //         &wasm,
 //         Addr::unchecked(signer),
-//         Addr::unchecked("signer"),
+//         Addr::unchecked(signer),
 //         vec![relayer],
 //         1,
 //         50,
@@ -9174,7 +9240,7 @@ fn contract_instantiation() {
 //         )
 //         .unwrap_err();
 
-//     assert!(transfer_error.to_string().contains(
+//     assert!(transfer_error.root_cause().to_string().contains(
 //         ContractError::Ownership(cw_ownable::OwnershipError::NotOwner)
 //             .to_string()
 //             .as_str()
@@ -9184,7 +9250,7 @@ fn contract_instantiation() {
 //     let register_cosmos_error = wasm
 //         .execute(
 //             contract_addr.clone(),
-//             &ExecuteMsg::RegisterOraiToken {
+//             &ExecuteMsg::RegisterCosmosToken {
 //                 denom: "any_denom".to_string(),
 //                 decimals: 6,
 //                 sending_precision: 1,
@@ -9225,12 +9291,12 @@ fn contract_instantiation() {
 //         .execute(
 //             contract_addr.clone(),
 //             &ExecuteMsg::SaveEvidence {
-//                 evidence: Evidence::XRPLToOraiTransfer {
+//                 evidence: Evidence::XRPLToCosmosTransfer {
 //                     tx_hash: generate_hash(),
 //                     issuer: generate_xrpl_address(),
 //                     currency: "USD".to_string(),
 //                     amount: Uint128::new(100),
-//                     recipient: Addr::unchecked("signer"),
+//                     recipient: Addr::unchecked(signer),
 //                 },
 //             },
 //             &[],
@@ -9266,51 +9332,51 @@ fn contract_instantiation() {
 //     let issuer = "issuer".to_string();
 //     let currency = "currency".to_string();
 //     let amount = Uint128::new(100);
-//     let recipient = Addr::unchecked("signer");
+//     let recipient = Addr::unchecked(signer);
 
 //     // Create multiple evidences changing only 1 field to verify that all of them have different hashes
 //     let xrpl_to_cosmos_transfer_evidences = vec![
-//         Evidence::XRPLToOraiTransfer {
+//         Evidence::XRPLToCosmosTransfer {
 //             tx_hash: hash.clone(),
 //             issuer: issuer.clone(),
 //             currency: currency.clone(),
 //             amount: amount.clone(),
 //             recipient: recipient.clone(),
 //         },
-//         Evidence::XRPLToOraiTransfer {
+//         Evidence::XRPLToCosmosTransfer {
 //             tx_hash: generate_hash(),
 //             issuer: issuer.clone(),
 //             currency: currency.clone(),
 //             amount: amount.clone(),
 //             recipient: recipient.clone(),
 //         },
-//         Evidence::XRPLToOraiTransfer {
+//         Evidence::XRPLToCosmosTransfer {
 //             tx_hash: hash.clone(),
 //             issuer: "new_issuer".to_string(),
 //             currency: currency.clone(),
 //             amount: amount.clone(),
 //             recipient: recipient.clone(),
 //         },
-//         Evidence::XRPLToOraiTransfer {
+//         Evidence::XRPLToCosmosTransfer {
 //             tx_hash: hash.clone(),
 //             issuer: issuer.clone(),
 //             currency: "new_currency".to_string(),
 //             amount: amount.clone(),
 //             recipient: recipient.clone(),
 //         },
-//         Evidence::XRPLToOraiTransfer {
+//         Evidence::XRPLToCosmosTransfer {
 //             tx_hash: hash.clone(),
 //             issuer: issuer.clone(),
 //             currency: currency.clone(),
 //             amount: Uint128::one(),
 //             recipient: recipient.clone(),
 //         },
-//         Evidence::XRPLToOraiTransfer {
+//         Evidence::XRPLToCosmosTransfer {
 //             tx_hash: hash.clone(),
 //             issuer: issuer.clone(),
 //             currency: currency.clone(),
 //             amount: amount.clone(),
-//             recipient: Addr::unchecked("new_recipient"),
+//             recipient: Addr::unchecked(new_recipient),
 //         },
 //     ];
 
@@ -9396,5 +9462,3 @@ fn contract_instantiation() {
 
 //     assert_eq!(evidence_map.len(), xrpl_transaction_result_evidences.len());
 // }
-
-

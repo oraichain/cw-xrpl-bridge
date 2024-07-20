@@ -2,7 +2,7 @@ use crate::contract::{INITIAL_PROHIBITED_XRPL_ADDRESSES, XRPL_DENOM_PREFIX, XRP_
 use crate::error::ContractError;
 use crate::evidence::{Evidence, OperationResult, TransactionResult};
 use crate::msg::{
-    ExecuteMsg, OraiTokensResponse, PendingOperationsResponse, PendingRefundsResponse,
+    CosmosTokensResponse, ExecuteMsg, PendingOperationsResponse, PendingRefundsResponse,
     ProcessedTxsResponse, QueryMsg, XRPLTokensResponse,
 };
 use crate::operation::{Operation, OperationType};
@@ -156,7 +156,7 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
             Addr::unchecked(&relayer_accounts[0]),
             contract_addr.clone(),
             &ExecuteMsg::SaveEvidence {
-                evidence: Evidence::XRPLToOraiTransfer {
+                evidence: Evidence::XRPLToCosmosTransfer {
                     tx_hash: hash.clone(),
                     issuer: test_token.issuer.clone(),
                     currency: test_token.currency.clone(),
@@ -207,7 +207,7 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
         Addr::unchecked(&relayer_accounts[0]),
         contract_addr.clone(),
         &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLToOraiTransfer {
+            evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: hash.clone(),
                 issuer: test_token.issuer.clone(),
                 currency: test_token.currency.clone(),
@@ -230,7 +230,7 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
         Addr::unchecked(&relayer_accounts[0]),
         contract_addr.clone(),
         &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLToOraiTransfer {
+            evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: generate_hash(),
                 issuer: test_token.issuer.clone(),
                 currency: test_token.currency.clone(),
@@ -392,7 +392,7 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
         Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLToOraiTransfer {
+            evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: hash.clone(),
                 issuer: test_token.issuer.clone(),
                 currency: test_token.currency.clone(),
@@ -409,7 +409,7 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
         Addr::unchecked(&relayer_accounts[0]),
         contract_addr.clone(),
         &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLToOraiTransfer {
+            evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: hash.clone(),
                 issuer: "not_registered".to_string(),
                 currency: "not_registered".to_string(),
@@ -426,7 +426,7 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
         Addr::unchecked(&relayer_accounts[0]),
         contract_addr.clone(),
         &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLToOraiTransfer {
+            evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: hash.clone(),
                 issuer: test_token.issuer.clone(),
                 currency: test_token.currency.clone(),
@@ -443,7 +443,7 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
         Addr::unchecked(&relayer_accounts[0]),
         contract_addr.clone(),
         &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLToOraiTransfer {
+            evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: hash.clone(),
                 issuer: test_token.issuer.clone(),
                 currency: test_token.currency.clone(),
@@ -467,7 +467,7 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
         Addr::unchecked(&relayer_accounts[0]),
         contract_addr.clone(),
         &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLToOraiTransfer {
+            evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: hash.clone(),
                 issuer: test_token.issuer.clone(),
                 currency: test_token.currency.clone(),
@@ -484,7 +484,7 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
         Addr::unchecked(&relayer_accounts[1]),
         contract_addr.clone(),
         &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLToOraiTransfer {
+            evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: hash.clone(),
                 issuer: test_token.issuer.clone(),
                 currency: test_token.currency.clone(),
@@ -508,7 +508,7 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
         Addr::unchecked(&relayer_accounts[1]),
         contract_addr.clone(),
         &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLToOraiTransfer {
+            evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: hash.clone(),
                 issuer: test_token.issuer.clone(),
                 currency: test_token.currency.clone(),
@@ -526,7 +526,7 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
         Addr::unchecked(&relayer_accounts[0]),
         contract_addr.clone(),
         &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLToOraiTransfer {
+            evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: hash.clone(),
                 issuer: test_token.issuer.clone(),
                 currency: test_token.currency.clone(),
@@ -675,7 +675,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     app.execute(
         Addr::unchecked(signer),
         contract_addr.clone(),
-        &ExecuteMsg::RegisterOraiToken {
+        &ExecuteMsg::RegisterCosmosToken {
             denom: denom.clone(),
             decimals,
             sending_precision: 5,
@@ -752,10 +752,10 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     assert_eq!(request_balance, amount_to_send);
 
     // Get the token information
-    let query_cosmos_tokens: OraiTokensResponse = app
+    let query_cosmos_tokens: CosmosTokensResponse = app
         .query(
             contract_addr.clone(),
-            &QueryMsg::OraiTokens {
+            &QueryMsg::CosmosTokens {
                 start_after_key: None,
                 limit: None,
             },
@@ -1016,7 +1016,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
             Addr::unchecked(relayer_account),
             contract_addr.clone(),
             &ExecuteMsg::SaveEvidence {
-                evidence: Evidence::XRPLToOraiTransfer {
+                evidence: Evidence::XRPLToCosmosTransfer {
                     tx_hash: generate_hash(),
                     issuer: generate_xrpl_address(),
                     currency: oraichain_originated_token.xrpl_currency.clone(),
@@ -1039,7 +1039,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
             Addr::unchecked(relayer_account),
             contract_addr.clone(),
             &ExecuteMsg::SaveEvidence {
-                evidence: Evidence::XRPLToOraiTransfer {
+                evidence: Evidence::XRPLToCosmosTransfer {
                     tx_hash: generate_hash(),
                     issuer: bridge_xrpl_address.clone(),
                     currency: "invalid_currency".to_string(),
@@ -1062,7 +1062,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
             Addr::unchecked(relayer_account),
             contract_addr.clone(),
             &ExecuteMsg::SaveEvidence {
-                evidence: Evidence::XRPLToOraiTransfer {
+                evidence: Evidence::XRPLToCosmosTransfer {
                     tx_hash: generate_hash(),
                     issuer: bridge_xrpl_address.clone(),
                     currency: oraichain_originated_token.xrpl_currency.clone(),
@@ -1085,7 +1085,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
         Addr::unchecked(relayer_account),
         contract_addr.clone(),
         &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLToOraiTransfer {
+            evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: generate_hash(),
                 issuer: bridge_xrpl_address.clone(),
                 currency: oraichain_originated_token.xrpl_currency.clone(),
@@ -1171,7 +1171,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     app.execute(
         Addr::unchecked(signer),
         contract_addr.clone(),
-        &ExecuteMsg::RegisterOraiToken {
+        &ExecuteMsg::RegisterCosmosToken {
             denom: denom.clone(),
             decimals,
             sending_precision: 10,
@@ -1214,10 +1214,10 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     assert_eq!(request_balance, amount_to_send);
 
     // Get the token information
-    let query_cosmos_tokens: OraiTokensResponse = app
+    let query_cosmos_tokens: CosmosTokensResponse = app
         .query(
             contract_addr.clone(),
-            &QueryMsg::OraiTokens {
+            &QueryMsg::CosmosTokens {
                 start_after_key: None,
                 limit: None,
             },
@@ -1400,7 +1400,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
             Addr::unchecked(relayer_account),
             contract_addr.clone(),
             &ExecuteMsg::SaveEvidence {
-                evidence: Evidence::XRPLToOraiTransfer {
+                evidence: Evidence::XRPLToCosmosTransfer {
                     tx_hash: generate_hash(),
                     issuer: generate_xrpl_address(),
                     currency: oraichain_originated_token.xrpl_currency.clone(),
@@ -1423,7 +1423,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
             Addr::unchecked(relayer_account),
             contract_addr.clone(),
             &ExecuteMsg::SaveEvidence {
-                evidence: Evidence::XRPLToOraiTransfer {
+                evidence: Evidence::XRPLToCosmosTransfer {
                     tx_hash: generate_hash(),
                     issuer: bridge_xrpl_address.clone(),
                     currency: "invalid_currency".to_string(),
@@ -1446,7 +1446,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
             Addr::unchecked(relayer_account),
             contract_addr.clone(),
             &ExecuteMsg::SaveEvidence {
-                evidence: Evidence::XRPLToOraiTransfer {
+                evidence: Evidence::XRPLToCosmosTransfer {
                     tx_hash: generate_hash(),
                     issuer: bridge_xrpl_address.clone(),
                     currency: oraichain_originated_token.xrpl_currency.clone(),
@@ -1469,7 +1469,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
         Addr::unchecked(relayer_account),
         contract_addr.clone(),
         &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLToOraiTransfer {
+            evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: generate_hash(),
                 issuer: bridge_xrpl_address.clone(),
                 currency: oraichain_originated_token.xrpl_currency.clone(),
@@ -1641,7 +1641,7 @@ fn send_from_cosmos_to_xrpl() {
         Addr::unchecked(relayer_account),
         contract_addr.clone(),
         &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLToOraiTransfer {
+            evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: generate_hash(),
                 issuer: XRP_ISSUER.to_string(),
                 currency: XRP_CURRENCY.to_string(),
@@ -1942,7 +1942,7 @@ fn send_from_cosmos_to_xrpl() {
         Addr::unchecked(relayer_account),
         contract_addr.clone(),
         &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLToOraiTransfer {
+            evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: generate_hash(),
                 issuer: test_token.issuer.to_string(),
                 currency: test_token.currency.to_string(),
@@ -2440,7 +2440,7 @@ fn send_from_cosmos_to_xrpl() {
     app.execute(
         Addr::unchecked(signer),
         contract_addr.clone(),
-        &ExecuteMsg::RegisterOraiToken {
+        &ExecuteMsg::RegisterCosmosToken {
             denom: denom.clone(),
             decimals,
             sending_precision: 5,
@@ -2478,10 +2478,10 @@ fn send_from_cosmos_to_xrpl() {
 
     let multisig_address = config.bridge_xrpl_address;
 
-    let query_cosmos_tokens: OraiTokensResponse = app
+    let query_cosmos_tokens: CosmosTokensResponse = app
         .query(
             contract_addr.clone(),
-            &QueryMsg::OraiTokens {
+            &QueryMsg::CosmosTokens {
                 start_after_key: None,
                 limit: None,
             },

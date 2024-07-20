@@ -11,7 +11,7 @@ use crate::{
 pub enum Evidence {
     // This evidence is only used for token transfers from XRPL to Orai
     #[serde(rename = "xrpl_to_cosmos_transfer")]
-    XRPLToOraiTransfer {
+    XRPLToCosmosTransfer {
         tx_hash: String,
         issuer: String,
         currency: String,
@@ -64,7 +64,7 @@ impl Evidence {
 
     pub fn get_tx_hash(&self) -> String {
         match self {
-            Self::XRPLToOraiTransfer { tx_hash, .. } => tx_hash.clone(),
+            Self::XRPLToCosmosTransfer { tx_hash, .. } => tx_hash.clone(),
             Self::XRPLTransactionResult { tx_hash, .. } => tx_hash.clone().unwrap(),
         }
         .to_uppercase()
@@ -72,7 +72,7 @@ impl Evidence {
     pub fn is_operation_valid(&self) -> bool {
         match self {
             // All transfers are valid operations
-            Self::XRPLToOraiTransfer { .. } => true,
+            Self::XRPLToCosmosTransfer { .. } => true,
             // All rejected/confirmed transactions are valid operations
             Self::XRPLTransactionResult {
                 transaction_result, ..
@@ -82,7 +82,7 @@ impl Evidence {
     // Function for basic validation of evidences in case relayers send something that is not valid
     pub fn validate_basic(&self) -> Result<(), ContractError> {
         match self {
-            Self::XRPLToOraiTransfer { amount, .. } => {
+            Self::XRPLToCosmosTransfer { amount, .. } => {
                 if amount.is_zero() {
                     return Err(ContractError::InvalidAmount {});
                 }

@@ -8,7 +8,7 @@ use crate::{
     relayer::{handle_rotate_keys_confirmation, Relayer},
     signatures::Signature,
     state::{
-        BridgeState, Config, PendingRefund, TokenState, CONFIG, COREUM_TOKENS, PENDING_OPERATIONS,
+        BridgeState, Config, PendingRefund, TokenState, CONFIG, COSMOS_TOKENS, PENDING_OPERATIONS,
         PENDING_REFUNDS, PENDING_ROTATE_KEYS, XRPL_TOKENS,
     },
     tickets::{handle_ticket_allocation_confirmation, return_ticket},
@@ -258,7 +258,7 @@ pub fn handle_cosmos_to_xrpl_transfer_confirmation(
                 None => {
                     // If the token sent was a Orai originated token we only need to store refundable amount in case of rejection.
                     if transaction_result.ne(&TransactionResult::Accepted) {
-                        match COREUM_TOKENS
+                        match COSMOS_TOKENS
                             .idx
                             .xrpl_currency
                             .item(storage, currency)?

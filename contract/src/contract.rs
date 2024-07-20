@@ -9,8 +9,8 @@ use crate::{
     },
     fees::{amount_after_bridge_fees, handle_fee_collection, substract_relayer_fees},
     msg::{
-        AvailableTicketsResponse, BridgeStateResponse, ExecuteMsg, FeesCollectedResponse,
-        InstantiateMsg, OraiTokensResponse, PendingOperationsResponse, PendingRefund,
+        AvailableTicketsResponse, BridgeStateResponse, CosmosTokensResponse, ExecuteMsg,
+        FeesCollectedResponse, InstantiateMsg, PendingOperationsResponse, PendingRefund,
         PendingRefundsResponse, ProcessedTxsResponse, ProhibitedXRPLAddressesResponse, QueryMsg,
         TransactionEvidence, TransactionEvidencesResponse, XRPLTokensResponse,
     },
@@ -21,8 +21,8 @@ use crate::{
     relayer::{is_relayer, validate_relayers, Relayer},
     signatures::add_signature,
     state::{
-        BridgeState, Config, ContractActions, OraiToken, TokenState, UserType, XRPLToken,
-        AVAILABLE_TICKETS, CONFIG, COREUM_TOKENS, FEES_COLLECTED, PENDING_OPERATIONS,
+        BridgeState, Config, ContractActions, CosmosToken, TokenState, UserType, XRPLToken,
+        AVAILABLE_TICKETS, CONFIG, COSMOS_TOKENS, FEES_COLLECTED, PENDING_OPERATIONS,
         PENDING_REFUNDS, PENDING_ROTATE_KEYS, PENDING_TICKET_UPDATE, PROCESSED_TXS,
         PROHIBITED_XRPL_ADDRESSES, TX_EVIDENCES, USED_TICKETS_COUNTER, XRPL_TOKENS,
     },
@@ -55,7 +55,7 @@ const MIN_SENDING_PRECISION: i32 = -15;
 const MAX_SENDING_PRECISION: i32 = 15;
 
 // Maximum amount of decimals a Orai token can be registered with
-pub const MAX_COREUM_TOKEN_DECIMALS: u32 = 100;
+pub const MAX_COSMOS_TOKEN_DECIMALS: u32 = 100;
 
 pub const MAX_TICKETS: u32 = 250;
 pub const MAX_RELAYERS: usize = 32;
@@ -71,7 +71,7 @@ pub const XRP_DEFAULT_MAX_HOLDING_AMOUNT: u128 =
     10u128.pow(16 - XRP_DEFAULT_SENDING_PRECISION as u32 + XRP_DECIMALS);
 const XRP_DEFAULT_FEE: Uint128 = Uint128::zero();
 
-const COREUM_CURRENCY_PREFIX: &str = "coreum";
+const COSMOS_CURRENCY_PREFIX: &str = "coreum";
 pub const XRPL_DENOM_PREFIX: &str = "xrpl";
 
 const ALLOWED_CURRENCY_SYMBOLS: [char; 18] = [
@@ -204,7 +204,7 @@ pub fn execute(
 ) -> ContractResult<Response> {
     match msg {
         ExecuteMsg::UpdateOwnership(action) => update_ownership(deps, env, info, action),
-        ExecuteMsg::RegisterOraiToken {
+        ExecuteMsg::RegisterCosmosToken {
             denom,
             decimals,
             sending_precision,
@@ -288,7 +288,7 @@ pub fn execute(
             bridging_fee,
             max_holding_amount,
         ),
-        ExecuteMsg::UpdateOraiToken {
+        ExecuteMsg::UpdateCosmosToken {
             denom,
             state,
             sending_precision,
@@ -349,14 +349,14 @@ fn register_cosmos_token(
     max_holding_amount: Uint128,
     bridging_fee: Uint128,
 ) -> ContractResult<Response> {
-    check_authorization(deps.storage, &sender, &ContractActions::RegisterOraiToken)?;
+    check_authorization(deps.storage, &sender, &ContractActions::RegisterCosmosToken)?;
     assert_bridge_active(deps.as_ref())?;
 
     validate_cosmos_token_decimals(decimals)?;
     validate_sending_precision(sending_precision, decimals)?;
 
-    if COREUM_TOKENS.has(deps.storage, denom.clone()) {
-        return Err(ContractError::OraiTokenAlreadyRegistered { denom });
+    if COSMOS_TOKENS.has(deps.storage, denom.clone()) {
+        return Err(ContractError::CosmosTokenAlreadyRegistered { denom });
     }
 
     validate_cosmos_denom(&denom)?;
@@ -367,13 +367,13 @@ fn register_cosmos_token(
 
     // Format will be the hex representation in XRPL of the string coreum<hash> in uppercase
     let xrpl_currency =
-        convert_currency_to_xrpl_hexadecimal(format!("{COREUM_CURRENCY_PREFIX}{hex_string}"));
+        convert_currency_to_xrpl_hexadecimal(format!("{COSMOS_CURRENCY_PREFIX}{hex_string}"));
 
     // Validate XRPL currency just in case we got an invalid XRPL currency (starting with 0x00)
     validate_xrpl_currency(&xrpl_currency)?;
 
     // We check that the this currency is not used already (we got the same hash)
-    if COREUM_TOKENS
+    if COSMOS_TOKENS
         .idx
         .xrpl_currency
         .item(deps.storage, xrpl_currency.clone())?
@@ -382,7 +382,7 @@ fn register_cosmos_token(
         return Err(ContractError::RegistrationFailure {});
     }
 
-    let token = OraiToken {
+    let token = CosmosToken {
         denom: denom.clone(),
         decimals,
         xrpl_currency: xrpl_currency.clone(),
@@ -392,10 +392,10 @@ fn register_cosmos_token(
         state: TokenState::Enabled,
         bridging_fee,
     };
-    COREUM_TOKENS.save(deps.storage, denom.clone(), &token)?;
+    COSMOS_TOKENS.save(deps.storage, denom.clone(), &token)?;
 
     Ok(Response::new()
-        .add_attribute("action", ContractActions::RegisterOraiToken.as_str())
+        .add_attribute("action", ContractActions::RegisterCosmosToken.as_str())
         .add_attribute("sender", sender)
         .add_attribute("denom", denom)
         .add_attribute("decimals", decimals.to_string())
@@ -466,7 +466,7 @@ fn register_xrpl_token(
     let denom = config.build_denom(&subdenom);
 
     // This in theory is not necessary because issue_msg would fail if the denom already exists but it's a double check and a way to return a more readable error.
-    if COREUM_TOKENS.has(deps.storage, denom.clone()) {
+    if COSMOS_TOKENS.has(deps.storage, denom.clone()) {
         return Err(ContractError::RegistrationFailure {});
     };
 
@@ -534,7 +534,7 @@ fn save_evidence(
         .add_attribute("sender", sender.as_str());
 
     match evidence {
-        Evidence::XRPLToOraiTransfer {
+        Evidence::XRPLToCosmosTransfer {
             tx_hash,
             issuer,
             currency,
@@ -608,7 +608,7 @@ fn save_evidence(
                             &tokenfactory::msg::ExecuteMsg::MintTokens {
                                 denom: token.cosmos_denom.clone(),
                                 amount: fee_collected,
-                                mint_to_address: sender.to_string(),
+                                mint_to_address: env.contract.address.to_string(),
                             },
                             vec![],
                         )?;
@@ -630,7 +630,7 @@ fn save_evidence(
                 }
             } else {
                 // We check that the token is registered and enabled
-                let token = match COREUM_TOKENS
+                let token = match COSMOS_TOKENS
                     .idx
                     .xrpl_currency
                     .item(deps.storage, currency.clone())?
@@ -981,7 +981,7 @@ fn send_to_xrpl(
         )?;
     } else {
         // If it's not an XRPL originated token we need to check that it's registered as a Orai originated token and that it's enabled
-        let cosmos_token = COREUM_TOKENS
+        let cosmos_token = COSMOS_TOKENS
             .load(deps.storage, funds.denom.clone())
             .map_err(|_| ContractError::TokenNotRegistered {})?;
         if cosmos_token.state.ne(&TokenState::Enabled) {
@@ -1132,11 +1132,11 @@ fn update_cosmos_token(
     check_authorization(
         deps.as_ref().storage,
         &sender,
-        &ContractActions::UpdateOraiToken,
+        &ContractActions::UpdateCosmosToken,
     )?;
     assert_bridge_active(deps.as_ref())?;
 
-    let mut token = COREUM_TOKENS
+    let mut token = COSMOS_TOKENS
         .load(deps.storage, denom.clone())
         .map_err(|_| ContractError::TokenNotRegistered {})?;
 
@@ -1159,10 +1159,10 @@ fn update_cosmos_token(
         max_holding_amount,
     )?;
 
-    COREUM_TOKENS.save(deps.storage, denom.clone(), &token)?;
+    COSMOS_TOKENS.save(deps.storage, denom.clone(), &token)?;
 
     Ok(Response::new()
-        .add_attribute("action", ContractActions::UpdateOraiToken.as_str())
+        .add_attribute("action", ContractActions::UpdateCosmosToken.as_str())
         .add_attribute("sender", sender)
         .add_attribute("denom", denom))
 }
@@ -1408,7 +1408,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             start_after_key,
             limit,
         } => to_json_binary(&query_xrpl_tokens(deps, start_after_key, limit)),
-        QueryMsg::OraiTokens {
+        QueryMsg::CosmosTokens {
             start_after_key,
             limit,
         } => to_json_binary(&query_cosmos_tokens(deps, start_after_key, limit)),
@@ -1487,11 +1487,11 @@ fn query_cosmos_tokens(
     deps: Deps,
     start_after_key: Option<String>,
     limit: Option<u32>,
-) -> OraiTokensResponse {
+) -> CosmosTokensResponse {
     let limit = limit.unwrap_or(MAX_PAGE_LIMIT).min(MAX_PAGE_LIMIT);
     let start = start_after_key.map(Bound::exclusive);
     let mut last_key = None;
-    let tokens: Vec<OraiToken> = COREUM_TOKENS
+    let tokens: Vec<CosmosToken> = COSMOS_TOKENS
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit as usize)
         .filter_map(Result::ok)
@@ -1501,7 +1501,7 @@ fn query_cosmos_tokens(
         })
         .collect();
 
-    OraiTokensResponse { last_key, tokens }
+    CosmosTokensResponse { last_key, tokens }
 }
 
 fn query_pending_operations(
@@ -1705,7 +1705,7 @@ pub fn validate_xrpl_currency(currency: &str) -> Result<(), ContractError> {
 }
 
 pub fn validate_cosmos_token_decimals(decimals: u32) -> Result<(), ContractError> {
-    if decimals > MAX_COREUM_TOKEN_DECIMALS {
+    if decimals > MAX_COSMOS_TOKEN_DECIMALS {
         return Err(ContractError::InvalidDecimals {});
     }
 
