@@ -320,8 +320,6 @@ fn contract_instantiation() {
         )
         .unwrap();
 
-    println!("{:?}", token_response);
-
     assert_eq!(
         token_response,
         MetadataResponse {

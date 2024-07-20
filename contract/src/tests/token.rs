@@ -1143,9 +1143,9 @@
 //         .init_accounts(&coins(100_000_000_000, FEE_DENOM), accounts_number)
 //         .unwrap();
 
-//     let signer = accounts.get(0).unwrap();
-//     let relayer_account = accounts.get(1).unwrap();
-//     let sender = accounts.get(2).unwrap();
+//     let signer = &accounts[0];
+//     let relayer_account = &accounts[1];
+//     let sender = &accounts[2];
 //     let relayer = Relayer {
 //         cosmos_address: Addr::unchecked(relayer),
 //         xrpl_address: generate_xrpl_address(),
@@ -1197,7 +1197,7 @@
 //             },
 //         },
 //         &[],
-//         relayer_account,
+//         Addr::unchecked(relayer_account),
 //     )
 //     .unwrap();
 
@@ -1275,7 +1275,7 @@
 //             deliver_amount: None,
 //         },
 //         &coins(100, denom.clone()),
-//         &sender,
+//         Addr::unchecked(sender),
 //     )
 //     .unwrap();
 
@@ -1323,7 +1323,7 @@
 //             },
 //         },
 //         &[],
-//         relayer_account,
+//         Addr::unchecked(relayer_account),
 //     )
 //     .unwrap();
 
@@ -1357,7 +1357,7 @@
 //             },
 //         },
 //         &[],
-//         relayer_account,
+//         Addr::unchecked(relayer_account),
 //     )
 //     .unwrap();
 
