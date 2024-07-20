@@ -44,8 +44,8 @@ use cw_utils::one_coin;
 use token_bindings::{DenomUnit, Metadata};
 
 // version info for migration info
-const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
-const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
+pub const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 // pagination info for queries
 const MAX_PAGE_LIMIT: u32 = 250;
