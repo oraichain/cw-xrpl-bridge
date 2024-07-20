@@ -37,7 +37,7 @@ fn transfer_ownership() {
     let contract_addr = app
         .create_bridge(
             Addr::unchecked(signer),
-            &&InstantiateMsg {
+            &InstantiateMsg {
                 owner: Addr::unchecked(signer),
                 relayers: vec![relayer],
                 evidence_threshold: 1,
@@ -46,6 +46,7 @@ fn transfer_ownership() {
                 bridge_xrpl_address: generate_xrpl_address(),
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
+                issue_token: true,
             },
         )
         .unwrap();
@@ -62,7 +63,7 @@ fn transfer_ownership() {
         Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::UpdateOwnership(cw_ownable::Action::TransferOwnership {
-            new_owner: "new_owner".to_string(),
+            new_owner: new_owner.to_string(),
             expiry: None,
         }),
         &[],

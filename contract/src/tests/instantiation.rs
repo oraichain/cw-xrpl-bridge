@@ -76,6 +76,7 @@ fn contract_instantiation() {
             bridge_xrpl_address: generate_xrpl_address(),
             xrpl_base_fee: 10,
             token_factory_addr: token_factory_addr.clone(),
+            issue_token: true,
         },
     )
     .unwrap();
@@ -93,6 +94,7 @@ fn contract_instantiation() {
                 bridge_xrpl_address: generate_xrpl_address(),
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
+                issue_token: false,
             },
         )
         .unwrap_err();
@@ -115,6 +117,7 @@ fn contract_instantiation() {
                 bridge_xrpl_address: generate_xrpl_address(),
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
+                issue_token: false,
             },
         )
         .unwrap_err();
@@ -124,7 +127,7 @@ fn contract_instantiation() {
         .to_string()
         .contains(ContractError::DuplicatedRelayer {}.to_string().as_str()));
 
-    // We check that trying to instantiate with relayers with the same oraichain address fails
+    // We check that trying to instantiate with relayers with the same cosmos address fails
     let error = app
         .create_bridge(
             Addr::unchecked(signer),
@@ -137,10 +140,12 @@ fn contract_instantiation() {
                 bridge_xrpl_address: generate_xrpl_address(),
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
+                issue_token: false,
             },
         )
         .unwrap_err();
     assert!(error
+        .root_cause()
         .to_string()
         .contains(ContractError::DuplicatedRelayer {}.to_string().as_str()));
 
@@ -157,6 +162,7 @@ fn contract_instantiation() {
                 bridge_xrpl_address: generate_xrpl_address(),
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
+                issue_token: false,
             },
         )
         .unwrap_err();
@@ -180,6 +186,7 @@ fn contract_instantiation() {
                 bridge_xrpl_address: invalid_address.clone(),
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
+                issue_token: false,
             },
         )
         .unwrap_err();
@@ -191,26 +198,6 @@ fn contract_instantiation() {
         .to_string()
         .as_str()
     ));
-
-    // We check that trying to instantiate with invalid issue fee fails.
-    let error = app
-        .create_bridge(
-            Addr::unchecked(signer),
-            &InstantiateMsg {
-                owner: Addr::unchecked(signer),
-                relayers: vec![relayer.clone()],
-                evidence_threshold: 1,
-                used_ticket_sequence_threshold: 50,
-                trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
-                bridge_xrpl_address: generate_xrpl_address(),
-                xrpl_base_fee: 10,
-                token_factory_addr: token_factory_addr.clone(),
-            },
-        )
-        .unwrap_err();
-    assert!(error
-        .to_string()
-        .contains(ContractError::InvalidFundsAmount {}.to_string().as_str()));
 
     // We check that trying to instantiate with invalid max allowed ticket fails.
     let error = app
@@ -225,6 +212,7 @@ fn contract_instantiation() {
                 bridge_xrpl_address: generate_xrpl_address(),
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
+                issue_token: false,
             },
         )
         .unwrap_err();
@@ -247,6 +235,7 @@ fn contract_instantiation() {
                 bridge_xrpl_address: generate_xrpl_address(),
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
+                issue_token: false,
             },
         )
         .unwrap_err();
@@ -278,6 +267,7 @@ fn contract_instantiation() {
                 bridge_xrpl_address: generate_xrpl_address(),
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
+                issue_token: false,
             },
         )
         .unwrap_err();
@@ -300,6 +290,7 @@ fn contract_instantiation() {
                 bridge_xrpl_address: generate_xrpl_address(),
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
+                issue_token: false,
             },
         )
         .unwrap_err();

@@ -67,6 +67,7 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
                 bridge_xrpl_address,
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
+                issue_token: true,
             },
         )
         .unwrap();
@@ -243,8 +244,6 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
     .unwrap_err();
 
     // Test with more than 1 relayer
-    // each token_factory will create a seperated namespace following its address
-    let token_factory_addr = app.create_tokenfactory(Addr::unchecked(signer)).unwrap();
     let contract_addr = app
         .create_bridge(
             Addr::unchecked(signer),
@@ -257,6 +256,7 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
                 bridge_xrpl_address: generate_xrpl_address(),
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
+                issue_token: false,
             },
         )
         .unwrap();
@@ -579,6 +579,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
                 bridge_xrpl_address: bridge_xrpl_address.clone(),
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
+                issue_token: true,
             },
         )
         .unwrap();
@@ -1551,6 +1552,7 @@ fn send_from_cosmos_to_xrpl() {
                 bridge_xrpl_address: multisig_address.clone(),
                 xrpl_base_fee,
                 token_factory_addr: token_factory_addr.clone(),
+                issue_token: true,
             },
         )
         .unwrap();

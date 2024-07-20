@@ -41,9 +41,6 @@ pub enum ContractError {
     )]
     XRPLTokenAlreadyRegistered { issuer: String, currency: String },
 
-    #[error("InvalidFundsAmount: Need to send exactly the issue fee amount")]
-    InvalidFundsAmount {},
-
     #[error("RegistrationFailure: Currency/denom generated already exists, please try again")]
     RegistrationFailure {},
 

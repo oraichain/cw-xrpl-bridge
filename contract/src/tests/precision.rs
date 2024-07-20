@@ -54,6 +54,7 @@ fn precisions() {
                 bridge_xrpl_address: generate_xrpl_address(),
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
+                issue_token: true,
             },
         )
         .unwrap();

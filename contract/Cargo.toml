@@ -58,7 +58,7 @@ tokenfactory = { git = "https://github.com/oraichain/token-bindings.git", rev = 
 token-bindings = { git = "https://github.com/oraichain/token-bindings.git", rev = "7861576" }
 
 [dev-dependencies]
-cosmwasm-testing-util = { git = "https://github.com/oraichain/cosmwasm-testing-util.git", rev = "4cccb84" }
+cosmwasm-testing-util = { git = "https://github.com/oraichain/cosmwasm-testing-util.git", rev = "ed58567" }
 ripple-keypairs = "0.1.0"
 rand = "0.8.5"
 

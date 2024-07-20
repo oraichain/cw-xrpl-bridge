@@ -120,8 +120,7 @@ pub fn instantiate(
     // The multisig address on XRPL must be valid
     validate_xrpl_address_format(&msg.bridge_xrpl_address)?;
 
-    // We want to check that exactly the issue fee was sent
-    check_issue_fee(&deps, &info)?;
+    // tokenfactory module will check for exactly the issue fee was sent
 
     // We need to allow at least 2 tickets and less or equal than 250 (XRPL limit) to be used before triggering a ticket allocation action
     if msg.used_ticket_sequence_threshold <= 1 || msg.used_ticket_sequence_threshold > MAX_TICKETS {
@@ -150,26 +149,32 @@ pub fn instantiate(
 
     CONFIG.save(deps.storage, &config)?;
 
-    // We will issue the XRP token during instantiation. We don't need to register it
-    let xrp_issue_msg = wasm_execute(
-        config.token_factory_addr.to_string(),
-        &tokenfactory::msg::ExecuteMsg::CreateDenom {
-            subdenom: XRP_SYMBOL.to_string(),
-            metadata: Some(Metadata {
-                symbol: Some(XRP_SYMBOL.to_string()),
-                denom_units: vec![DenomUnit {
-                    exponent: XRP_DECIMALS,
-                    denom: XRP_SYMBOL.to_string(),
-                    aliases: vec![],
-                }],
-                description: None,
-                base: None,
-                display: None,
-                name: Some(XRP_CURRENCY.to_string()),
-            }),
-        },
-        vec![],
-    )?;
+    let mut response =
+        Response::new().add_attribute("action", ContractActions::Instantiation.as_str());
+
+    if msg.issue_token {
+        // We will issue the XRP token during instantiation. We don't need to register it
+        let xrp_issue_msg = wasm_execute(
+            config.token_factory_addr.to_string(),
+            &tokenfactory::msg::ExecuteMsg::CreateDenom {
+                subdenom: XRP_SYMBOL.to_string(),
+                metadata: Some(Metadata {
+                    symbol: Some(XRP_SYMBOL.to_string()),
+                    denom_units: vec![DenomUnit {
+                        exponent: XRP_DECIMALS,
+                        denom: XRP_SYMBOL.to_string(),
+                        aliases: vec![],
+                    }],
+                    description: None,
+                    base: None,
+                    display: None,
+                    name: Some(XRP_CURRENCY.to_string()),
+                }),
+            },
+            vec![],
+        )?;
+        response = response.add_message(xrp_issue_msg);
+    }
 
     // We store the representation of XRP in our XRPLTokens list using the issuer+currency as key
     let token = XRPLToken {
@@ -186,13 +191,11 @@ pub fn instantiate(
     let key = build_xrpl_token_key(XRP_ISSUER, XRP_CURRENCY);
     XRPL_TOKENS.save(deps.storage, key, &token)?;
 
-    Ok(Response::new()
-        .add_attribute("action", ContractActions::Instantiation.as_str())
+    Ok(response
         .add_attribute("contract_name", CONTRACT_NAME)
         .add_attribute("contract_version", CONTRACT_VERSION)
         .add_attribute("owner", msg.owner)
-        .add_attribute("sender", info.sender)
-        .add_message(xrp_issue_msg))
+        .add_attribute("sender", info.sender))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -424,8 +427,7 @@ fn register_xrpl_token(
 
     validate_sending_precision(sending_precision, XRPL_TOKENS_DECIMALS)?;
 
-    // We want to check that exactly the issue fee was sent, not more.
-    check_issue_fee(&deps, &info)?;
+    // tokenfactory module will check for exactly the issue fee was sent
     let key = build_xrpl_token_key(&issuer, &currency);
 
     if XRPL_TOKENS.has(deps.storage, key.clone()) {
@@ -1656,18 +1658,6 @@ fn query_prohibited_xrpl_addresses(deps: Deps) -> ProhibitedXRPLAddressesRespons
 }
 
 // ********** Helpers **********
-
-fn check_issue_fee(_deps: &DepsMut, _info: &MessageInfo) -> Result<(), ContractError> {
-    // let query_params_res: ParamsResponse = deps
-    //     .querier
-    //     .query(&OraiQueries::AssetFT(Query::Params {}).into())?;
-
-    // if query_params_res.params.issue_fee != one_coin(info)? {
-    //     return Err(ContractError::InvalidFundsAmount {});
-    // }
-
-    Ok(())
-}
 
 pub fn validate_xrpl_currency(currency: &str) -> Result<(), ContractError> {
     // We check that currency is either a standard 3 character currency or it's a 40 character hex string currency, any other scenario is invalid

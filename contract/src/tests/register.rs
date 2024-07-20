@@ -41,6 +41,7 @@ fn register_cosmos_token() {
                 bridge_xrpl_address: generate_xrpl_address(),
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
+                issue_token: true,
             },
         )
         .unwrap();
@@ -271,6 +272,7 @@ fn register_xrpl_token() {
                 bridge_xrpl_address: xrpl_bridge_address.clone(),
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
+                issue_token: true,
             },
         )
         .unwrap();

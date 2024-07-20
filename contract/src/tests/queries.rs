@@ -70,6 +70,7 @@ fn queries() {
                 bridge_xrpl_address: bridge_xrpl_address.clone(),
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
+                issue_token: true,
             },
         )
         .unwrap();
