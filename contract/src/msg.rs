@@ -111,7 +111,7 @@ pub enum ExecuteMsg {
     // Update the configuration of a Orai originated token
     UpdateCosmosToken {
         denom: String,
-        // All fields that can be updatable for Orai tokens will be updated with this message.
+        // All fields that can be updatable for Cosmos tokens will be updated with this message.
         // They are all optional, so any fields that have to be updated can be included in the message.
         state: Option<TokenState>,
         sending_precision: Option<i32>,

@@ -577,11 +577,9 @@ fn save_evidence(
                 let amount_after_bridge_fees =
                     amount_after_bridge_fees(amount, token.bridging_fee)?;
 
-                // Here we simply truncate because the Orai tokens corresponding to XRPL originated tokens have the same decimals as their corresponding Orai tokens
+                // Here we simply truncate because the Cosmos tokens corresponding to XRPL originated tokens have the same decimals as their corresponding Cosmos tokens
                 let (amount_to_send, remainder) =
                     truncate_amount(token.sending_precision, decimals, amount_after_bridge_fees)?;
-
-                println!("token: {:?} {}", currency, token.cosmos_denom);
 
                 // The amount the bridge can mint cannot exceed the max_holding_amount
                 if amount

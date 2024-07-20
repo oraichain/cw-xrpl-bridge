@@ -39,9 +39,11 @@ fn bridge_fee_collection_and_claiming() {
     let xrpl_addresses: Vec<String> = (0..3).map(|_| generate_xrpl_address()).collect();
     let xrpl_pub_keys: Vec<String> = (0..3).map(|_| generate_xrpl_pub_key()).collect();
 
+    let mut relayer_accounts = vec![];
     let mut relayers = vec![];
 
     for i in 0..accounts_number - 2 {
+        relayer_accounts.push(accounts[i].to_string());
         relayers.push(Relayer {
             cosmos_address: Addr::unchecked(&accounts[i]),
             xrpl_address: xrpl_addresses[i as usize].to_string(),
@@ -55,7 +57,6 @@ fn bridge_fee_collection_and_claiming() {
 
     let token_factory_addr = app.create_tokenfactory(Addr::unchecked(signer)).unwrap();
 
-    // We check that we can store and instantiate
     let contract_addr = app
         .create_bridge(
             Addr::unchecked(signer),
@@ -94,7 +95,7 @@ fn bridge_fee_collection_and_claiming() {
     .unwrap();
 
     let tx_hash = generate_hash();
-    for relayer in &accounts {
+    for relayer in &relayer_accounts {
         app.execute(
             Addr::unchecked(relayer),
             contract_addr.clone(),
@@ -192,7 +193,7 @@ fn bridge_fee_collection_and_claiming() {
     .unwrap();
 
     let tx_hash = generate_hash();
-    for relayer in &accounts {
+    for relayer in &relayer_accounts {
         app.execute(
             Addr::unchecked(relayer),
             contract_addr.clone(),
@@ -259,7 +260,7 @@ fn bridge_fee_collection_and_claiming() {
 
     // Let's bridge some tokens from XRPL to Orai multiple times and verify that the fees are collected correctly in each step
     let tx_hash = generate_hash();
-    for relayer in &accounts {
+    for relayer in &relayer_accounts {
         app.execute(
             Addr::unchecked(relayer),
             contract_addr.clone(),
@@ -299,7 +300,7 @@ fn bridge_fee_collection_and_claiming() {
         .query(
             contract_addr.clone(),
             &QueryMsg::FeesCollected {
-                relayer_address: Addr::unchecked(&accounts[0]),
+                relayer_address: Addr::unchecked(&relayer_accounts[0]),
             },
         )
         .unwrap();
@@ -311,7 +312,7 @@ fn bridge_fee_collection_and_claiming() {
     );
 
     let tx_hash = generate_hash();
-    for relayer in &accounts {
+    for relayer in &relayer_accounts {
         app.execute(
             Addr::unchecked(relayer),
             contract_addr.clone(),
@@ -339,7 +340,7 @@ fn bridge_fee_collection_and_claiming() {
         .query(
             contract_addr.clone(),
             &QueryMsg::FeesCollected {
-                relayer_address: Addr::unchecked(&accounts[0]),
+                relayer_address: Addr::unchecked(&relayer_accounts[0]),
             },
         )
         .unwrap();
@@ -351,7 +352,7 @@ fn bridge_fee_collection_and_claiming() {
     );
 
     let tx_hash = generate_hash();
-    for relayer in &accounts {
+    for relayer in &relayer_accounts {
         app.execute(
             Addr::unchecked(relayer),
             contract_addr.clone(),
@@ -379,7 +380,7 @@ fn bridge_fee_collection_and_claiming() {
         .query(
             contract_addr.clone(),
             &QueryMsg::FeesCollected {
-                relayer_address: Addr::unchecked(&accounts[0]),
+                relayer_address: Addr::unchecked(&relayer_accounts[0]),
             },
         )
         .unwrap();
@@ -442,7 +443,7 @@ fn bridge_fee_collection_and_claiming() {
 
     // Confirm operation to clear tokens from contract
     let tx_hash = generate_hash();
-    for relayer in &accounts {
+    for relayer in &relayer_accounts {
         app.execute(
             Addr::unchecked(relayer),
             contract_addr.clone(),
@@ -464,7 +465,7 @@ fn bridge_fee_collection_and_claiming() {
         .query(
             contract_addr.clone(),
             &QueryMsg::FeesCollected {
-                relayer_address: Addr::unchecked(&accounts[0]),
+                relayer_address: Addr::unchecked(&relayer_accounts[0]),
             },
         )
         .unwrap();
@@ -493,6 +494,7 @@ fn bridge_fee_collection_and_claiming() {
         .unwrap_err();
 
     assert!(max_amount_error
+        .root_cause()
         .to_string()
         .contains(ContractError::InvalidDeliverAmount {}.to_string().as_str()));
 
@@ -542,7 +544,7 @@ fn bridge_fee_collection_and_claiming() {
         .query(
             contract_addr.clone(),
             &QueryMsg::FeesCollected {
-                relayer_address: Addr::unchecked(&accounts[0]),
+                relayer_address: Addr::unchecked(&relayer_accounts[0]),
             },
         )
         .unwrap();
@@ -555,7 +557,7 @@ fn bridge_fee_collection_and_claiming() {
 
     // If we reject the operation, 999999999900000 (max_amount after bridge fees and truncation) should be able to be claimed back by the user
     let tx_hash = generate_hash();
-    for relayer in &accounts {
+    for relayer in &relayer_accounts {
         app.execute(
             Addr::unchecked(relayer),
             contract_addr.clone(),
@@ -668,7 +670,7 @@ fn bridge_fee_collection_and_claiming() {
         .query(
             contract_addr.clone(),
             &QueryMsg::FeesCollected {
-                relayer_address: Addr::unchecked(&accounts[0]),
+                relayer_address: Addr::unchecked(&relayer_accounts[0]),
             },
         )
         .unwrap();
@@ -684,7 +686,7 @@ fn bridge_fee_collection_and_claiming() {
 
     // Confirm operation
     let tx_hash = generate_hash();
-    for relayer in &accounts {
+    for relayer in &relayer_accounts {
         app.execute(
             Addr::unchecked(relayer),
             contract_addr.clone(),
@@ -748,7 +750,7 @@ fn bridge_fee_collection_and_claiming() {
         .query(
             contract_addr.clone(),
             &QueryMsg::FeesCollected {
-                relayer_address: Addr::unchecked(&accounts[0]),
+                relayer_address: Addr::unchecked(&relayer_accounts[0]),
             },
         )
         .unwrap();
@@ -764,7 +766,7 @@ fn bridge_fee_collection_and_claiming() {
 
     // Confirm operation
     let tx_hash = generate_hash();
-    for relayer in &accounts {
+    for relayer in &relayer_accounts {
         app.execute(
             Addr::unchecked(relayer),
             contract_addr.clone(),
@@ -788,7 +790,7 @@ fn bridge_fee_collection_and_claiming() {
         .unwrap();
 
     let tx_hash = generate_hash();
-    for relayer in &accounts {
+    for relayer in &relayer_accounts {
         app.execute(
             Addr::unchecked(relayer),
             contract_addr.clone(),
@@ -819,7 +821,7 @@ fn bridge_fee_collection_and_claiming() {
         .query(
             contract_addr.clone(),
             &QueryMsg::FeesCollected {
-                relayer_address: Addr::unchecked(&accounts[0]),
+                relayer_address: Addr::unchecked(&relayer_accounts[0]),
             },
         )
         .unwrap();
@@ -838,7 +840,7 @@ fn bridge_fee_collection_and_claiming() {
     // If we claim more than available, it should fail
     let claim_error = app
         .execute(
-            Addr::unchecked(&accounts[0]),
+            Addr::unchecked(&relayer_accounts[0]),
             contract_addr.clone(),
             &ExecuteMsg::ClaimRelayerFees {
                 amounts: vec![
@@ -862,7 +864,7 @@ fn bridge_fee_collection_and_claiming() {
     // If we separate token claim into two coins but ask for too much it should also fail
     let claim_error = app
         .execute(
-            Addr::unchecked(&accounts[0]),
+            Addr::unchecked(&relayer_accounts[0]),
             contract_addr.clone(),
             &ExecuteMsg::ClaimRelayerFees {
                 amounts: vec![
@@ -885,7 +887,7 @@ fn bridge_fee_collection_and_claiming() {
     ));
 
     // If we claim everything except 1 token, it should work
-    for relayer in &accounts {
+    for relayer in &relayer_accounts {
         app.execute(
             Addr::unchecked(relayer),
             contract_addr.clone(),
@@ -904,7 +906,7 @@ fn bridge_fee_collection_and_claiming() {
         .query(
             contract_addr.clone(),
             &QueryMsg::FeesCollected {
-                relayer_address: Addr::unchecked(&accounts[0]),
+                relayer_address: Addr::unchecked(&relayer_accounts[0]),
             },
         )
         .unwrap();
@@ -918,7 +920,7 @@ fn bridge_fee_collection_and_claiming() {
     // If we try to claim a token that is not in the claimable array, it should fail
     let claim_error = app
         .execute(
-            Addr::unchecked(&accounts[0]),
+            Addr::unchecked(&relayer_accounts[0]),
             contract_addr.clone(),
             &ExecuteMsg::ClaimRelayerFees {
                 amounts: vec![coin(1, xrpl_token.cosmos_denom.clone())],
@@ -937,7 +939,7 @@ fn bridge_fee_collection_and_claiming() {
     ));
 
     // Claim the token that is left to claim
-    for relayer in &accounts {
+    for relayer in &relayer_accounts {
         app.execute(
             Addr::unchecked(relayer),
             contract_addr.clone(),
@@ -950,7 +952,7 @@ fn bridge_fee_collection_and_claiming() {
     }
 
     // Let's check the balances of the relayers
-    for relayer in &accounts {
+    for relayer in &relayer_accounts {
         let request_balance_token1 = app
             .query_balance(Addr::unchecked(relayer), xrpl_token.cosmos_denom.clone())
             .unwrap();
@@ -963,7 +965,7 @@ fn bridge_fee_collection_and_claiming() {
     }
 
     // We check that everything has been claimed
-    for relayer in &accounts {
+    for relayer in &relayer_accounts {
         let query_fees_collected: FeesCollectedResponse = app
             .query(
                 contract_addr.clone(),
