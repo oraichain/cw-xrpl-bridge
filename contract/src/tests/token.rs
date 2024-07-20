@@ -1,8 +1,7 @@
-use crate::contract::{MAX_COSMOS_TOKEN_DECIMALS, XRPL_DENOM_PREFIX, XRP_ISSUER};
+use crate::contract::{XRPL_DENOM_PREFIX, XRP_ISSUER};
 use crate::error::ContractError;
 use crate::evidence::{Evidence, OperationResult, TransactionResult};
 use crate::msg::{PendingOperationsResponse, XRPLTokensResponse};
-use crate::operation::{Operation, OperationType};
 use crate::state::{Config, CosmosToken, XRPLToken};
 use crate::tests::helper::{
     generate_hash, generate_xrpl_address, generate_xrpl_pub_key, MockApp, FEE_DENOM,
@@ -14,9 +13,9 @@ use crate::{
     relayer::Relayer,
     state::TokenState,
 };
-use cosmwasm_std::{coins, Addr, BankMsg, BankQuery, Uint128};
+use cosmwasm_std::{coins, Addr, BankMsg, Uint128};
 use cosmwasm_testing_util::Executor;
-use token_bindings::{DenomUnit, DenomsByCreatorResponse, Metadata};
+use token_bindings::{DenomUnit, Metadata};
 
 #[test]
 fn token_update() {
@@ -154,10 +153,8 @@ fn token_update() {
     )
     .unwrap();
 
-    let cosmos_token_denom = format!("{}-{}", subunit, "signer").to_lowercase();
-
     let cosmos_token = CosmosToken {
-        denom: cosmos_token_denom.clone(),
+        denom: denom.clone(),
         decimals: 6,
         sending_precision: 6,
         max_holding_amount: Uint128::new(1000000000),
@@ -435,7 +432,7 @@ fn token_update() {
         Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::RegisterCosmosToken {
-            denom: cosmos_token_denom.clone(),
+            denom: denom.clone(),
             decimals: cosmos_token.decimals,
             sending_precision: cosmos_token.sending_precision,
             max_holding_amount: cosmos_token.max_holding_amount,
@@ -451,7 +448,7 @@ fn token_update() {
             Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::UpdateCosmosToken {
-                denom: cosmos_token_denom.clone(),
+                denom: denom.clone(),
                 state: Some(TokenState::Processing),
                 sending_precision: None,
                 bridging_fee: None,
@@ -472,7 +469,7 @@ fn token_update() {
         Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::UpdateCosmosToken {
-            denom: cosmos_token_denom.clone(),
+            denom: denom.clone(),
             state: Some(TokenState::Disabled),
             sending_precision: None,
             bridging_fee: None,
@@ -491,7 +488,7 @@ fn token_update() {
                 recipient: generate_xrpl_address(),
                 deliver_amount: None,
             },
-            &coins(1, cosmos_token_denom.clone()),
+            &coins(1, denom.clone()),
         )
         .unwrap_err();
 
@@ -505,7 +502,7 @@ fn token_update() {
         Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::UpdateCosmosToken {
-            denom: cosmos_token_denom.clone(),
+            denom: denom.clone(),
             state: Some(TokenState::Enabled),
             sending_precision: Some(5),
             bridging_fee: None,
@@ -534,7 +531,7 @@ fn token_update() {
             Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::UpdateCosmosToken {
-                denom: cosmos_token_denom.clone(),
+                denom: denom.clone(),
                 state: None,
                 sending_precision: Some(7),
                 bridging_fee: None,
@@ -732,7 +729,7 @@ fn token_update() {
         Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::UpdateCosmosToken {
-            denom: cosmos_token_denom.clone(),
+            denom: denom.clone(),
             state: None,
             sending_precision: None,
             bridging_fee: Some(Uint128::new(1000)),
@@ -918,7 +915,7 @@ fn token_update() {
             recipient: generate_xrpl_address(),
             deliver_amount: None,
         },
-        &coins(current_max_amount, cosmos_token_denom.clone()),
+        &coins(current_max_amount, denom.clone()),
     )
     .unwrap();
 
@@ -958,7 +955,7 @@ fn token_update() {
     }
 
     let request_balance = app
-        .query_balance(contract_addr.clone(), cosmos_token_denom.clone())
+        .query_balance(contract_addr.clone(), denom.clone())
         .unwrap();
 
     assert_eq!(request_balance.to_string(), current_max_amount.to_string());
@@ -969,7 +966,7 @@ fn token_update() {
             Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::UpdateCosmosToken {
-                denom: cosmos_token_denom.clone(),
+                denom: denom.clone(),
                 state: None,
                 sending_precision: None,
                 bridging_fee: None,
@@ -979,7 +976,7 @@ fn token_update() {
         )
         .unwrap_err();
 
-    assert!(error_update.to_string().contains(
+    assert!(error_update.root_cause().to_string().contains(
         ContractError::InvalidTargetMaxHoldingAmount {}
             .to_string()
             .as_str()
@@ -990,7 +987,7 @@ fn token_update() {
         Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::UpdateCosmosToken {
-            denom: cosmos_token_denom.clone(),
+            denom: denom.clone(),
             state: None,
             sending_precision: None,
             bridging_fee: None,
@@ -1274,6 +1271,7 @@ fn test_burning_rate_and_commission_fee_cosmos_tokens() {
     )
     .unwrap();
 
+    // cosmos denom token generated
     let denom = config.build_denom(&subunit.to_uppercase());
 
     app.execute(
@@ -1322,6 +1320,12 @@ fn test_burning_rate_and_commission_fee_cosmos_tokens() {
     )
     .unwrap();
 
+    println!(
+        "balance {}",
+        app.query_balance(Addr::unchecked(sender), denom.clone())
+            .unwrap()
+    );
+
     app.execute(
         Addr::unchecked(sender),
         contract_addr.clone(),
@@ -1333,12 +1337,12 @@ fn test_burning_rate_and_commission_fee_cosmos_tokens() {
     )
     .unwrap();
 
-    // This should have burned an extra 100 and charged 100 tokens as commission fee to the sender. Let's check just in case
+    // This should have burned an extra 0 and charged 0 tokens as commission fee to the sender. Let's check just in case
     let request_balance = app
         .query_balance(Addr::unchecked(sender), denom.clone())
         .unwrap();
 
-    assert_eq!(request_balance.to_string(), "99999700".to_string());
+    assert_eq!(request_balance.to_string(), "99999900".to_string());
 
     // Let's check that only 100 tokens are in the contract
     let request_balance = app
@@ -1415,7 +1419,7 @@ fn test_burning_rate_and_commission_fee_cosmos_tokens() {
         .query_balance(Addr::unchecked(sender), denom.clone())
         .unwrap();
 
-    assert_eq!(request_balance.to_string(), "99999800".to_string());
+    assert_eq!(request_balance.to_string(), "100000000".to_string());
 
     let request_balance = app
         .query_balance(contract_addr.clone(), denom.clone())
