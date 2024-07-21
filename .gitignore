@@ -4,3 +4,17 @@ vendor
 *.iml
 /coverage
 /bin
+
+
+# Build results
+target
+artifacts
+
+# IDEs
+.vscode/
+.idea/
+*.iml
+\#*\#
+.\#*
+
+/schema
