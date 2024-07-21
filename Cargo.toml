@@ -1,0 +1,46 @@
+[workspace]
+resolver = '2'
+
+members = ["contracts/*"]
+
+[workspace.package]
+version = "0.1.0"
+authors = ["Coreum", "Oraichain Labs"]
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/oraichain/bitcoin-bridge-cw.git"
+homepage = "https://orai.io"
+documentation = "https://github.com/oraichain/bitcoin-bridge-cw.git"
+exclude = [
+    # Those files are rust-optimizer artifacts. You might want to commit them for convenience but they should not be part of the source code publication.
+    "contract.wasm",
+    "hash.txt",
+]
+
+[profile.release]
+opt-level = 3
+debug = false
+debug-assertions = false
+codegen-units = 1
+incremental = false
+rpath = false
+lto = true
+overflow-checks = true
+panic = 'abort'
+
+[workspace.dependencies]
+cosmwasm-schema = "1.5"
+cosmwasm-std = { version = "1.5" }
+cw-ownable = "0.5.1"
+cw-storage-plus = "1.0"
+cw-utils = "1.0"
+cw2 = "1.0"
+thiserror = "1.0.56"
+derive_more = "0.99.17"
+tokenfactory = { git = "https://github.com/oraichain/token-bindings.git", rev = "7861576" }
+token-bindings = { git = "https://github.com/oraichain/token-bindings.git", rev = "7861576" }
+cosmwasm-testing-util = { git = "https://github.com/oraichain/cosmwasm-testing-util.git", rev = "ed58567" }
+ripple-keypairs = "0.1.0"
+
+[patch.crates-io]
+ripple-keypairs = { git = 'https://github.com/CoreumFoundation/ripple-keypairs-rust.git' }
