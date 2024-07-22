@@ -1,4 +1,3 @@
-use crate::contract::XRPL_DENOM_PREFIX;
 use crate::error::ContractError;
 use crate::evidence::{Evidence, OperationResult, TransactionResult};
 use crate::msg::{
@@ -6,14 +5,15 @@ use crate::msg::{
     PendingOperationsResponse, PendingRefundsResponse, QueryMsg, XRPLTokensResponse,
 };
 use crate::operation::{Operation, OperationType};
-use crate::state::{BridgeState, Config, CosmosToken, TokenState, XRPLToken};
+use crate::state::{BridgeState, Config, CosmosToken, TokenState};
 use crate::tests::helper::{
     generate_hash, generate_xrpl_address, generate_xrpl_pub_key, MockApp, FEE_DENOM,
     TRUST_SET_LIMIT_AMOUNT,
 };
+use crate::token::full_denom;
 use crate::{contract::XRP_CURRENCY, msg::InstantiateMsg, relayer::Relayer};
 use cosmwasm_std::{coin, coins, Addr, Uint128};
-use token_bindings::{DenomUnit, Metadata};
+use cw20::Cw20Coin;
 
 #[test]
 fn bridge_fee_collection_and_claiming() {
@@ -75,10 +75,6 @@ fn bridge_fee_collection_and_claiming() {
         )
         .unwrap();
 
-    let config: Config = app
-        .query(contract_addr.clone(), &QueryMsg::Config {})
-        .unwrap();
-
     // Recover enough tickets
     app.execute(
         Addr::unchecked(signer),
@@ -113,15 +109,12 @@ fn bridge_fee_collection_and_claiming() {
     }
 
     // We are going to issue 2 tokens, one XRPL originated and one Cosmos originated, with different fees.
-    let test_token_xrpl = XRPLToken {
-        issuer: generate_xrpl_address(), // Valid issuer
-        currency: "USD".to_string(),     // Valid standard currency code
-        sending_precision: 10,
-        max_holding_amount: Uint128::new(5000000000000000), // 5e15
-        bridging_fee: Uint128::new(50000),                  // 5e4
-        cosmos_denom: config.build_denom(&XRPL_DENOM_PREFIX.to_uppercase()),
-        state: TokenState::Enabled,
-    };
+
+    let issuer = generate_xrpl_address(); // Valid issuer
+    let currency = "USD".to_string(); // Valid standard currency code
+    let sending_precision = 10;
+    let max_holding_amount = Uint128::new(5000000000000000); // 5e15
+    let bridging_fee = Uint128::new(50000); // 5e4
 
     let symbol = "TEST".to_string();
     let subunit = "utest".to_string();
@@ -130,39 +123,23 @@ fn bridge_fee_collection_and_claiming() {
 
     app.execute(
         Addr::unchecked(signer),
-        token_factory_addr.clone(),
-        &tokenfactory::msg::ExecuteMsg::CreateDenom {
+        contract_addr.clone(),
+        &ExecuteMsg::CreateCosmosToken {
             subdenom: subunit.to_uppercase(),
-            metadata: Some(Metadata {
-                symbol: Some(symbol),
-                denom_units: vec![DenomUnit {
-                    denom: subunit.clone(),
-                    exponent: 6,
-                    aliases: vec![],
-                }],
-                description: Some("description".to_string()),
-                base: None,
-                display: None,
-                name: None,
-            }),
+            decimals,
+            initial_balances: vec![Cw20Coin {
+                address: receiver.to_string(),
+                amount: initial_amount,
+            }],
+            name: None,
+            symbol: Some(symbol),
+            description: Some("description".to_string()),
         },
         &[],
     )
     .unwrap();
 
-    let denom = config.build_denom(&subunit.to_uppercase());
-
-    app.execute(
-        Addr::unchecked(signer),
-        token_factory_addr.clone(),
-        &tokenfactory::msg::ExecuteMsg::MintTokens {
-            denom: denom.to_string(),
-            amount: initial_amount,
-            mint_to_address: receiver.to_string(),
-        },
-        &[],
-    )
-    .unwrap();
+    let denom = full_denom(&token_factory_addr, &subunit.to_uppercase());
 
     let test_token_cosmos = CosmosToken {
         denom: denom.clone(),
@@ -179,11 +156,11 @@ fn bridge_fee_collection_and_claiming() {
         Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::RegisterXRPLToken {
-            issuer: test_token_xrpl.issuer.clone(),
-            currency: test_token_xrpl.currency.clone(),
-            sending_precision: test_token_xrpl.sending_precision,
-            max_holding_amount: test_token_xrpl.max_holding_amount,
-            bridging_fee: test_token_xrpl.bridging_fee,
+            issuer: issuer.clone(),
+            currency: currency.clone(),
+            sending_precision: sending_precision,
+            max_holding_amount: max_holding_amount,
+            bridging_fee: bridging_fee,
         },
         &[],
     )
@@ -221,7 +198,7 @@ fn bridge_fee_collection_and_claiming() {
     let xrpl_token = query_xrpl_tokens
         .tokens
         .iter()
-        .find(|t| t.issuer == test_token_xrpl.issuer && t.currency == test_token_xrpl.currency)
+        .find(|t| t.issuer == issuer && t.currency == currency)
         .unwrap();
 
     // Register Cosmos originated token
@@ -264,8 +241,8 @@ fn bridge_fee_collection_and_claiming() {
             &ExecuteMsg::SaveEvidence {
                 evidence: Evidence::XRPLToCosmosTransfer {
                     tx_hash: tx_hash.clone(),
-                    issuer: test_token_xrpl.issuer.clone(),
-                    currency: test_token_xrpl.currency.clone(),
+                    issuer: issuer.clone(),
+                    currency: currency.clone(),
                     amount: Uint128::new(1000000000050000), // 1e15 + 5e4 --> This should take the bridging fee (5e4) and truncate nothing
                     recipient: Addr::unchecked(receiver),
                 },
@@ -316,8 +293,8 @@ fn bridge_fee_collection_and_claiming() {
             &ExecuteMsg::SaveEvidence {
                 evidence: Evidence::XRPLToCosmosTransfer {
                     tx_hash: tx_hash.clone(),
-                    issuer: test_token_xrpl.issuer.clone(),
-                    currency: test_token_xrpl.currency.clone(),
+                    issuer: issuer.clone(),
+                    currency: currency.clone(),
                     amount: Uint128::new(1000000000040000), // 1e15 + 4e4 --> This should take the bridging fee -> 1999999999990000 and truncate -> 1999999999900000
                     recipient: Addr::unchecked(receiver),
                 },
@@ -356,8 +333,8 @@ fn bridge_fee_collection_and_claiming() {
             &ExecuteMsg::SaveEvidence {
                 evidence: Evidence::XRPLToCosmosTransfer {
                     tx_hash: tx_hash.clone(),
-                    issuer: test_token_xrpl.issuer.clone(),
-                    currency: test_token_xrpl.currency.clone(),
+                    issuer: issuer.clone(),
+                    currency: currency.clone(),
                     amount: Uint128::new(1000000000000000), // 1e15 --> This should charge bridging fee -> 1999999999950000 and truncate -> 1999999999900000
                     recipient: Addr::unchecked(receiver),
                 },
@@ -427,8 +404,8 @@ fn bridge_fee_collection_and_claiming() {
             account_sequence: None,
             signatures: vec![],
             operation_type: OperationType::CosmosToXRPLTransfer {
-                issuer: test_token_xrpl.issuer.clone(),
-                currency: test_token_xrpl.currency.clone(),
+                issuer: issuer.clone(),
+                currency: currency.clone(),
                 amount: Uint128::new(999999999900000),
                 max_amount: Some(Uint128::new(999999999900000)),
                 sender: Addr::unchecked(receiver),
@@ -526,8 +503,8 @@ fn bridge_fee_collection_and_claiming() {
             account_sequence: None,
             signatures: vec![],
             operation_type: OperationType::CosmosToXRPLTransfer {
-                issuer: test_token_xrpl.issuer.clone(),
-                currency: test_token_xrpl.currency.clone(),
+                issuer: issuer.clone(),
+                currency: currency.clone(),
                 amount: Uint128::new(700000000000000),
                 max_amount: Some(Uint128::new(999999999900000)),
                 sender: Addr::unchecked(receiver),

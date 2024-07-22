@@ -678,6 +678,7 @@ dependencies = [
  "cw-storage-plus",
  "cw-utils",
  "cw2",
+ "cw20",
  "derive_more",
  "rand",
  "ripple-keypairs",

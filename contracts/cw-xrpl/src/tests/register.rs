@@ -5,10 +5,11 @@ use crate::error::ContractError;
 use crate::evidence::{Evidence, OperationResult, TransactionResult};
 use crate::msg::{PendingOperationsResponse, XRPLTokensResponse};
 use crate::operation::{Operation, OperationType};
-use crate::state::{ Config, CosmosToken, XRPLToken};
+use crate::state::{  CosmosToken, XRPLToken};
 use crate::tests::helper::{
     generate_hash, generate_xrpl_address, generate_xrpl_pub_key, MockApp, FEE_DENOM, TRUST_SET_LIMIT_AMOUNT
 };
+use crate::token::full_denom;
 use crate::{
     contract::XRP_CURRENCY,
     msg::{
@@ -278,10 +279,7 @@ fn register_xrpl_token() {
             },
         )
         .unwrap();
-
-        let config: Config = app
-        .query(contract_addr.clone(), &QueryMsg::Config {})
-        .unwrap();
+        
 
     let test_tokens = vec![
         XRPLToken {
@@ -593,7 +591,7 @@ fn register_xrpl_token() {
         .unwrap();    
 
     assert_eq!(denoms.len(), 3);
-    let denom_prefix = config.build_denom(XRP_CURRENCY);    
+    let denom_prefix = full_denom(&token_factory_addr, XRP_CURRENCY);    
     assert!(denoms[1]        
         .starts_with(&denom_prefix),);
     assert!(denoms[2]        
@@ -689,22 +687,16 @@ fn xrpl_token_registration_recovery() {
                 issue_token: true,
             },
         )
-        .unwrap();
-
-    let config: Config = app
-        .query(contract_addr.clone(), &QueryMsg::Config {})
-        .unwrap();
+        .unwrap();    
 
     
-    let token = XRPLToken {
-        issuer: token_issuer.clone(),
-        currency: token_currency.clone(),
-        sending_precision: -15,
-        max_holding_amount: Uint128::new(100),
-        bridging_fee: Uint128::zero(),
-        cosmos_denom: config.build_denom(&XRPL_DENOM_PREFIX.to_uppercase()),
-        state: TokenState::Enabled,
-    };    
+    let  issuer= token_issuer.clone();
+    let  currency= token_currency.clone();
+    let  sending_precision= -15;
+    let  max_holding_amount= Uint128::new(100);
+    let  bridging_fee= Uint128::zero();
+        
+    
 
     // We successfully recover 3 tickets to perform operations
     app.execute(
@@ -743,11 +735,11 @@ fn xrpl_token_registration_recovery() {
         Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::RegisterXRPLToken {
-            issuer: token.issuer.clone(),
-            currency: token.currency.clone(),
-            sending_precision: token.sending_precision,
-            max_holding_amount: token.max_holding_amount,
-            bridging_fee: token.bridging_fee,
+            issuer: issuer.clone(),
+            currency: currency.clone(),
+            sending_precision: sending_precision,
+            max_holding_amount: max_holding_amount,
+            bridging_fee: bridging_fee,
         },
         &[],
         
@@ -760,8 +752,8 @@ fn xrpl_token_registration_recovery() {
             Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::RecoverXRPLTokenRegistration {
-                issuer: token.issuer.clone(),
-                currency: token.currency.clone(),
+                issuer: issuer.clone(),
+                currency: currency.clone(),
             },
             &[],
             
@@ -778,7 +770,7 @@ fn xrpl_token_registration_recovery() {
             Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::RecoverXRPLTokenRegistration {
-                issuer: token.issuer.clone(),
+                issuer: issuer.clone(),
                 currency: "NOT".to_string(),
             },
             &[],
@@ -840,8 +832,8 @@ fn xrpl_token_registration_recovery() {
         Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::RecoverXRPLTokenRegistration {
-            issuer: token.issuer.clone(),
-            currency: token.currency.clone(),
+            issuer: issuer.clone(),
+            currency: currency.clone(),
         },
         &[],
         

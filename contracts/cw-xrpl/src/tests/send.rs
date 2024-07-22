@@ -1,4 +1,4 @@
-use crate::contract::{INITIAL_PROHIBITED_XRPL_ADDRESSES, XRPL_DENOM_PREFIX, XRP_ISSUER};
+use crate::contract::{INITIAL_PROHIBITED_XRPL_ADDRESSES, XRP_ISSUER};
 use crate::error::ContractError;
 use crate::evidence::{Evidence, OperationResult, TransactionResult};
 use crate::msg::{
@@ -6,15 +6,16 @@ use crate::msg::{
     ProcessedTxsResponse, QueryMsg, XRPLTokensResponse,
 };
 use crate::operation::{Operation, OperationType};
-use crate::state::{Config, TokenState, XRPLToken};
+use crate::state::Config;
 use crate::tests::helper::{
     generate_hash, generate_xrpl_address, generate_xrpl_pub_key, MockApp, FEE_DENOM,
     TRUST_SET_LIMIT_AMOUNT,
 };
+use crate::token::full_denom;
 use crate::{contract::XRP_CURRENCY, msg::InstantiateMsg, relayer::Relayer};
 use cosmwasm_std::{coin, coins, Addr, BankMsg, Uint128};
 use cosmwasm_testing_util::Executor;
-use token_bindings::{DenomUnit, Metadata};
+use cw20::Cw20Coin;
 
 #[test]
 fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
@@ -72,19 +73,11 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
         )
         .unwrap();
 
-    let config: Config = app
-        .query(contract_addr.clone(), &QueryMsg::Config {})
-        .unwrap();
-
-    let test_token = XRPLToken {
-        issuer: generate_xrpl_address(),
-        currency: "USD".to_string(),
-        sending_precision: 15,
-        max_holding_amount: Uint128::new(50000),
-        bridging_fee: Uint128::zero(),
-        cosmos_denom: config.build_denom(&XRPL_DENOM_PREFIX.to_uppercase()),
-        state: TokenState::Enabled,
-    };
+    let issuer = generate_xrpl_address();
+    let currency = "USD".to_string();
+    let sending_precision = 15;
+    let max_holding_amount = Uint128::new(50000);
+    let bridging_fee = Uint128::zero();
 
     // Set up enough tickets first to allow registering tokens.
     app.execute(
@@ -120,11 +113,11 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
         Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::RegisterXRPLToken {
-            issuer: test_token.issuer.clone(),
-            currency: test_token.currency.clone(),
-            sending_precision: test_token.sending_precision.clone(),
-            max_holding_amount: test_token.max_holding_amount.clone(),
-            bridging_fee: test_token.bridging_fee,
+            issuer: issuer.clone(),
+            currency: currency.clone(),
+            sending_precision: sending_precision.clone(),
+            max_holding_amount: max_holding_amount.clone(),
+            bridging_fee: bridging_fee,
         },
         &[],
     )
@@ -143,7 +136,7 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
     let denom = query_xrpl_tokens
         .tokens
         .iter()
-        .find(|t| t.issuer == test_token.issuer && t.currency == test_token.currency)
+        .find(|t| t.issuer == issuer && t.currency == currency)
         .unwrap()
         .cosmos_denom
         .clone();
@@ -159,8 +152,8 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
             &ExecuteMsg::SaveEvidence {
                 evidence: Evidence::XRPLToCosmosTransfer {
                     tx_hash: hash.clone(),
-                    issuer: test_token.issuer.clone(),
-                    currency: test_token.currency.clone(),
+                    issuer: issuer.clone(),
+                    currency: currency.clone(),
                     amount: amount.clone(),
                     recipient: Addr::unchecked(receiver),
                 },
@@ -210,8 +203,8 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
         &ExecuteMsg::SaveEvidence {
             evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: hash.clone(),
-                issuer: test_token.issuer.clone(),
-                currency: test_token.currency.clone(),
+                issuer: issuer.clone(),
+                currency: currency.clone(),
                 amount: amount.clone(),
                 recipient: Addr::unchecked(receiver),
             },
@@ -233,8 +226,8 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
         &ExecuteMsg::SaveEvidence {
             evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: generate_hash(),
-                issuer: test_token.issuer.clone(),
-                currency: test_token.currency.clone(),
+                issuer: issuer.clone(),
+                currency: currency.clone(),
                 amount: amount.clone(),
                 recipient: Addr::unchecked(contract_addr.clone()),
             },
@@ -315,11 +308,11 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
         Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::RegisterXRPLToken {
-            issuer: test_token.issuer.clone(),
-            currency: test_token.currency.clone(),
-            sending_precision: test_token.sending_precision,
-            max_holding_amount: test_token.max_holding_amount,
-            bridging_fee: test_token.bridging_fee,
+            issuer: issuer.clone(),
+            currency: currency.clone(),
+            sending_precision: sending_precision,
+            max_holding_amount: max_holding_amount,
+            bridging_fee: bridging_fee,
         },
         &[],
     )
@@ -382,7 +375,7 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
     let denom = query_xrpl_tokens
         .tokens
         .iter()
-        .find(|t| t.issuer == test_token.issuer && t.currency == test_token.currency)
+        .find(|t| t.issuer == issuer && t.currency == currency)
         .unwrap()
         .cosmos_denom
         .clone();
@@ -394,8 +387,8 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
         &ExecuteMsg::SaveEvidence {
             evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: hash.clone(),
-                issuer: test_token.issuer.clone(),
-                currency: test_token.currency.clone(),
+                issuer: issuer.clone(),
+                currency: currency.clone(),
                 amount: amount.clone(),
                 recipient: Addr::unchecked(receiver),
             },
@@ -428,8 +421,8 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
         &ExecuteMsg::SaveEvidence {
             evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: hash.clone(),
-                issuer: test_token.issuer.clone(),
-                currency: test_token.currency.clone(),
+                issuer: issuer.clone(),
+                currency: currency.clone(),
                 amount: Uint128::new(0),
                 recipient: Addr::unchecked(receiver),
             },
@@ -445,8 +438,8 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
         &ExecuteMsg::SaveEvidence {
             evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: hash.clone(),
-                issuer: test_token.issuer.clone(),
-                currency: test_token.currency.clone(),
+                issuer: issuer.clone(),
+                currency: currency.clone(),
                 amount: amount.clone(),
                 recipient: Addr::unchecked(receiver),
             },
@@ -469,8 +462,8 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
         &ExecuteMsg::SaveEvidence {
             evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: hash.clone(),
-                issuer: test_token.issuer.clone(),
-                currency: test_token.currency.clone(),
+                issuer: issuer.clone(),
+                currency: currency.clone(),
                 amount: amount.clone(),
                 recipient: Addr::unchecked(receiver),
             },
@@ -486,8 +479,8 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
         &ExecuteMsg::SaveEvidence {
             evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: hash.clone(),
-                issuer: test_token.issuer.clone(),
-                currency: test_token.currency.clone(),
+                issuer: issuer.clone(),
+                currency: currency.clone(),
                 amount: amount.clone(),
                 recipient: Addr::unchecked(receiver),
             },
@@ -510,8 +503,8 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
         &ExecuteMsg::SaveEvidence {
             evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: hash.clone(),
-                issuer: test_token.issuer.clone(),
-                currency: test_token.currency.clone(),
+                issuer: issuer.clone(),
+                currency: currency.clone(),
                 amount: amount.clone(),
                 recipient: Addr::unchecked(receiver),
             },
@@ -528,8 +521,8 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
         &ExecuteMsg::SaveEvidence {
             evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: hash.clone(),
-                issuer: test_token.issuer.clone(),
-                currency: test_token.currency.clone(),
+                issuer: issuer.clone(),
+                currency: currency.clone(),
                 amount: new_amount.clone(),
                 recipient: Addr::unchecked(receiver),
             },
@@ -584,10 +577,6 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
         )
         .unwrap();
 
-    let config: Config = app
-        .query(contract_addr.clone(), &QueryMsg::Config {})
-        .unwrap();
-
     // Add enough tickets for all our test operations
     app.execute(
         Addr::unchecked(signer),
@@ -626,39 +615,23 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
 
     app.execute(
         Addr::unchecked(signer),
-        token_factory_addr.clone(),
-        &tokenfactory::msg::ExecuteMsg::CreateDenom {
+        contract_addr.clone(),
+        &ExecuteMsg::CreateCosmosToken {
             subdenom: subunit.to_uppercase(),
-            metadata: Some(Metadata {
-                symbol: Some(symbol),
-                denom_units: vec![DenomUnit {
-                    denom: subunit.clone(),
-                    exponent: decimals,
-                    aliases: vec![],
-                }],
-                description: Some("description".to_string()),
-                base: None,
-                display: None,
-                name: None,
-            }),
+            decimals,
+            initial_balances: vec![Cw20Coin {
+                address: signer.to_string(),
+                amount: initial_amount,
+            }],
+            name: None,
+            symbol: Some(symbol),
+            description: Some("description".to_string()),
         },
         &[],
     )
     .unwrap();
 
-    let denom = config.build_denom(&subunit.to_uppercase());
-
-    app.execute(
-        Addr::unchecked(sender),
-        token_factory_addr.clone(),
-        &tokenfactory::msg::ExecuteMsg::MintTokens {
-            denom: denom.to_string(),
-            amount: initial_amount,
-            mint_to_address: signer.to_string(),
-        },
-        &[],
-    )
-    .unwrap();
+    let denom = full_denom(&token_factory_addr, &subunit.to_uppercase());
 
     // Send all initial amount tokens to the sender so that we can correctly test freezing without sending to the issuer
 
@@ -1135,39 +1108,23 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
 
     app.execute(
         Addr::unchecked(signer),
-        token_factory_addr.clone(),
-        &tokenfactory::msg::ExecuteMsg::CreateDenom {
+        contract_addr.clone(),
+        &ExecuteMsg::CreateCosmosToken {
             subdenom: subunit.to_uppercase(),
-            metadata: Some(Metadata {
-                symbol: Some(symbol),
-                denom_units: vec![DenomUnit {
-                    denom: subunit.clone(),
-                    exponent: decimals,
-                    aliases: vec![],
-                }],
-                description: Some("description".to_string()),
-                base: None,
-                display: None,
-                name: None,
-            }),
+            decimals,
+            initial_balances: vec![Cw20Coin {
+                address: sender.to_string(),
+                amount: initial_amount,
+            }],
+            name: None,
+            symbol: Some(symbol),
+            description: Some("description".to_string()),
         },
         &[],
     )
     .unwrap();
 
-    let denom = config.build_denom(&subunit.to_uppercase());
-
-    app.execute(
-        Addr::unchecked(signer),
-        token_factory_addr.clone(),
-        &tokenfactory::msg::ExecuteMsg::MintTokens {
-            denom: denom.to_string(),
-            amount: initial_amount,
-            mint_to_address: sender.to_string(),
-        },
-        &[],
-    )
-    .unwrap();
+    let denom = full_denom(&token_factory_addr, &subunit.to_uppercase());
 
     app.execute(
         Addr::unchecked(signer),
@@ -1884,26 +1841,22 @@ fn send_from_cosmos_to_xrpl() {
 
     // *** Test sending an XRPL originated token back to XRPL ***
 
-    let test_token = XRPLToken {
-        issuer: generate_xrpl_address(),
-        currency: "TST".to_string(),
-        sending_precision: 15,
-        max_holding_amount: Uint128::new(50000000000000000000), // 5e20
-        bridging_fee: Uint128::zero(),
-        cosmos_denom: config.build_denom(&XRPL_DENOM_PREFIX.to_uppercase()),
-        state: TokenState::Enabled,
-    };
+    let issuer = generate_xrpl_address();
+    let currency = "TST".to_string();
+    let sending_precision = 15;
+    let max_holding_amount = Uint128::new(50000000000000000000); // 5e20
+    let bridging_fee = Uint128::zero();
 
     // First we need to register and activate it
     app.execute(
         Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::RegisterXRPLToken {
-            issuer: test_token.issuer.clone(),
-            currency: test_token.currency.clone(),
-            sending_precision: test_token.sending_precision,
-            max_holding_amount: test_token.max_holding_amount,
-            bridging_fee: test_token.bridging_fee,
+            issuer: issuer.clone(),
+            currency: currency.clone(),
+            sending_precision: sending_precision,
+            max_holding_amount: max_holding_amount,
+            bridging_fee: bridging_fee,
         },
         &[],
     )
@@ -1946,8 +1899,8 @@ fn send_from_cosmos_to_xrpl() {
         &ExecuteMsg::SaveEvidence {
             evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: generate_hash(),
-                issuer: test_token.issuer.to_string(),
-                currency: test_token.currency.to_string(),
+                issuer: issuer.to_string(),
+                currency: currency.to_string(),
                 amount: amount_to_send.clone(),
                 recipient: Addr::unchecked(sender),
             },
@@ -1969,7 +1922,7 @@ fn send_from_cosmos_to_xrpl() {
     let xrpl_originated_token = query_xrpl_tokens
         .tokens
         .iter()
-        .find(|t| t.issuer == test_token.issuer && t.currency == test_token.currency)
+        .find(|t| t.issuer == issuer && t.currency == currency)
         .unwrap();
     let denom_xrpl_origin_token = xrpl_originated_token.cosmos_denom.clone();
 
@@ -2405,39 +2358,23 @@ fn send_from_cosmos_to_xrpl() {
 
     app.execute(
         Addr::unchecked(signer),
-        token_factory_addr.clone(),
-        &tokenfactory::msg::ExecuteMsg::CreateDenom {
+        contract_addr.clone(),
+        &ExecuteMsg::CreateCosmosToken {
             subdenom: subunit.to_uppercase(),
-            metadata: Some(Metadata {
-                symbol: Some(symbol),
-                denom_units: vec![DenomUnit {
-                    denom: subunit.clone(),
-                    exponent: decimals,
-                    aliases: vec![],
-                }],
-                description: Some("description".to_string()),
-                base: None,
-                display: None,
-                name: None,
-            }),
+            decimals,
+            initial_balances: vec![Cw20Coin {
+                address: sender.to_string(),
+                amount: initial_amount,
+            }],
+            name: None,
+            symbol: Some(symbol),
+            description: Some("description".to_string()),
         },
         &[],
     )
     .unwrap();
 
-    let denom = config.build_denom(&subunit.to_uppercase());
-
-    app.execute(
-        Addr::unchecked(signer),
-        token_factory_addr.clone(),
-        &tokenfactory::msg::ExecuteMsg::MintTokens {
-            denom: denom.to_string(),
-            amount: initial_amount,
-            mint_to_address: sender.to_string(),
-        },
-        &[],
-    )
-    .unwrap();
+    let denom = full_denom(&token_factory_addr, &subunit.to_uppercase());
 
     app.execute(
         Addr::unchecked(signer),

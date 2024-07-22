@@ -4,14 +4,16 @@ use crate::evidence::{Evidence, OperationResult, TransactionResult};
 use crate::msg::{AvailableTicketsResponse, ExecuteMsg, PendingOperationsResponse, QueryMsg};
 use crate::operation::{Operation, OperationType};
 use crate::signatures::Signature;
-use crate::state::{Config, TokenState, XRPLToken};
+use crate::state::{ TokenState, XRPLToken};
 use crate::tests::helper::{
     generate_hash, generate_xrpl_address, generate_xrpl_pub_key, MockApp, FEE_DENOM,
     TRUST_SET_LIMIT_AMOUNT,
 };
+use crate::token::full_denom;
 use crate::{msg::InstantiateMsg, relayer::Relayer};
 use cosmwasm_std::{coins, Addr, Uint128};
-use token_bindings::{DenomUnit, Metadata};
+use cw20::Cw20Coin;
+
 
 #[test]
 fn ticket_recovery() {
@@ -899,11 +901,7 @@ fn ticket_return_invalid_transactions() {
         &[],
         
     )
-    .unwrap();
-
-    let config: Config = app
-        .query(contract_addr.clone(), &QueryMsg::Config {})
-        .unwrap();
+    .unwrap();    
     
     // Let's issue a token and register it
 
@@ -914,41 +912,23 @@ fn ticket_return_invalid_transactions() {
 
     app.execute(
         Addr::unchecked(signer),
-        token_factory_addr.clone(),
-        &tokenfactory::msg::ExecuteMsg::CreateDenom {
+        contract_addr.clone(),
+        &ExecuteMsg::CreateCosmosToken {
             subdenom: subunit.to_uppercase(),
-            metadata: Some(Metadata {
-                symbol: Some(symbol),
-                denom_units: vec![DenomUnit {
-                    denom: subunit.clone(),
-                    exponent: decimals,
-                    aliases: vec![],
-                }],
-                description: Some("description".to_string()),
-                base: None,
-                display: None,
-                name: None,
-            }),
+            decimals,            
+            initial_balances: vec![Cw20Coin {
+                address: sender.to_string(),
+                amount: initial_amount,
+            }],
+            name: None,
+            symbol: Some(symbol),
+            description: Some("description".to_string()),
         },
         &[],
     )
     .unwrap();
 
-    let denom = config.build_denom(&subunit.to_uppercase());
-
-    app.execute(
-        Addr::unchecked(signer),
-        token_factory_addr.clone(),
-        &tokenfactory::msg::ExecuteMsg::MintTokens {
-            denom: denom.to_string(),
-            amount: initial_amount,
-            mint_to_address: sender.to_string(),
-        },
-        &[],
-    )
-    .unwrap();
-
-    
+    let denom = full_denom(&token_factory_addr, &subunit.to_uppercase());
 
     app.execute(
         Addr::unchecked(signer),

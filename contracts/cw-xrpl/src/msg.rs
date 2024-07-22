@@ -1,5 +1,6 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Coin, Uint128};
+use cw20::Cw20Coin;
 use cw_ownable::{cw_ownable_execute, cw_ownable_query};
 
 #[allow(unused_imports)]
@@ -38,6 +39,19 @@ pub struct MigrateMsg {}
 #[cw_ownable_execute]
 #[cw_serde]
 pub enum ExecuteMsg {
+    // Creates a Cosmos token so that it can be registered later
+    CreateCosmosToken {
+        subdenom: String,
+        decimals: u32,
+        initial_balances: Vec<Cw20Coin>,
+        name: Option<String>,
+        symbol: Option<String>,
+        description: Option<String>,
+    },
+    MintCosmosToken {
+        denom: String,
+        initial_balances: Vec<Cw20Coin>,
+    },
     // Registers a Cosmos token so that it can be bridged to XRPL
     // Only the owner can do this
     RegisterCosmosToken {

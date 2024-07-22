@@ -1,18 +1,19 @@
-use crate::contract::{XRPL_DENOM_PREFIX, XRP_ISSUER};
+use crate::contract::XRP_ISSUER;
 use crate::error::ContractError;
 use crate::evidence::{Evidence, OperationResult, TransactionResult};
 use crate::msg::{
     CosmosTokensResponse, ExecuteMsg, PendingOperationsResponse, QueryMsg, XRPLTokensResponse,
 };
 
-use crate::state::{Config, CosmosToken, TokenState, XRPLToken};
+use crate::state::{CosmosToken, TokenState, XRPLToken};
 use crate::tests::helper::{
     generate_hash, generate_xrpl_address, generate_xrpl_pub_key, MockApp, FEE_DENOM,
     TRUST_SET_LIMIT_AMOUNT,
 };
+use crate::token::full_denom;
 use crate::{contract::XRP_CURRENCY, msg::InstantiateMsg, relayer::Relayer};
 use cosmwasm_std::{coins, Addr, Uint128};
-use token_bindings::{DenomUnit, Metadata};
+use cw20::Cw20Coin;
 
 #[test]
 fn precisions() {
@@ -55,10 +56,6 @@ fn precisions() {
         )
         .unwrap();
 
-    let config: Config = app
-        .query(contract_addr.clone(), &QueryMsg::Config {})
-        .unwrap();
-
     // *** Test with XRPL originated tokens ***
 
     let test_token1 = XRPLToken {
@@ -67,7 +64,7 @@ fn precisions() {
         sending_precision: -2,
         max_holding_amount: Uint128::new(200000000000000000),
         bridging_fee: Uint128::zero(),
-        cosmos_denom: config.build_denom(&XRPL_DENOM_PREFIX.to_uppercase()),
+        cosmos_denom: String::new(),
         state: TokenState::Enabled,
     };
     let test_token2 = XRPLToken {
@@ -76,7 +73,7 @@ fn precisions() {
         sending_precision: 13,
         max_holding_amount: Uint128::new(499),
         bridging_fee: Uint128::zero(),
-        cosmos_denom: config.build_denom(&XRPL_DENOM_PREFIX.to_uppercase()),
+        cosmos_denom: String::new(),
         state: TokenState::Enabled,
     };
 
@@ -86,7 +83,7 @@ fn precisions() {
         sending_precision: 0,
         max_holding_amount: Uint128::new(5000000000000000),
         bridging_fee: Uint128::zero(),
-        cosmos_denom: config.build_denom(&XRPL_DENOM_PREFIX.to_uppercase()),
+        cosmos_denom: String::new(),
         state: TokenState::Enabled,
     };
 
@@ -742,47 +739,30 @@ fn precisions() {
     for i in 1..=3 {
         let symbol = "TEST".to_string() + &i.to_string();
         let subunit = "utest".to_string() + &i.to_string();
+        let initial_amount = Uint128::from(100000000000000u128);
 
         app.execute(
             Addr::unchecked(signer),
-            token_factory_addr.clone(),
-            &tokenfactory::msg::ExecuteMsg::CreateDenom {
+            contract_addr.clone(),
+            &ExecuteMsg::CreateCosmosToken {
                 subdenom: subunit.to_uppercase(),
-                metadata: Some(Metadata {
-                    symbol: Some(symbol),
-                    denom_units: vec![DenomUnit {
-                        denom: subunit.clone(),
-                        exponent: 6,
-                        aliases: vec![],
-                    }],
-                    description: Some("description".to_string()),
-                    base: None,
-                    display: None,
-                    name: None,
-                }),
-            },
-            &[],
-        )
-        .unwrap();
-
-        let denom = config.build_denom(&subunit.to_uppercase());
-
-        app.execute(
-            Addr::unchecked(signer),
-            token_factory_addr.clone(),
-            &tokenfactory::msg::ExecuteMsg::MintTokens {
-                denom: denom.to_string(),
-                amount: Uint128::from(100000000000000u128),
-                mint_to_address: signer.to_string(),
+                decimals: 6,
+                initial_balances: vec![Cw20Coin {
+                    address: signer.to_string(),
+                    amount: initial_amount,
+                }],
+                name: None,
+                symbol: Some(symbol),
+                description: Some("description".to_string()),
             },
             &[],
         )
         .unwrap();
     }
 
-    let denom1 = config.build_denom("UTEST1");
-    let denom2 = config.build_denom("UTEST2");
-    let denom3 = config.build_denom("UTEST3");
+    let denom1 = full_denom(&token_factory_addr, "UTEST1");
+    let denom2 = full_denom(&token_factory_addr, "UTEST2");
+    let denom3 = full_denom(&token_factory_addr, "UTEST3");
 
     let test_tokens = vec![
         CosmosToken {

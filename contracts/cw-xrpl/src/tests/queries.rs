@@ -14,6 +14,7 @@ use crate::tests::helper::{
     generate_hash, generate_xrpl_address, generate_xrpl_pub_key, MockApp, FEE_DENOM,
     TRUST_SET_LIMIT_AMOUNT,
 };
+use crate::token::full_denom;
 use crate::{
     msg::{InstantiateMsg, QueryMsg},
     relayer::Relayer,
@@ -114,7 +115,7 @@ fn queries() {
         XRPLToken {
             issuer: XRP_ISSUER.to_string(),
             currency: XRP_CURRENCY.to_string(),
-            cosmos_denom: config.build_denom(XRP_SYMBOL),
+            cosmos_denom: full_denom(&token_factory_addr, XRP_SYMBOL),
             sending_precision: XRP_DEFAULT_SENDING_PRECISION,
             max_holding_amount: Uint128::new(XRP_DEFAULT_MAX_HOLDING_AMOUNT),
             state: TokenState::Enabled,

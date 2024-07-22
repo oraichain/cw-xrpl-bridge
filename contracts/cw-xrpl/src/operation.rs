@@ -265,7 +265,7 @@ pub fn handle_cosmos_to_xrpl_transfer_confirmation(
                             .map(|(_, ct)| ct)
                         {
                             Some(token) => {
-                                // We need to convert the decimals to coreum decimals
+                                // We need to convert the decimals to cosmos decimals
                                 let amount_to_send_back = convert_amount_decimals(
                                     XRPL_TOKENS_DECIMALS,
                                     token.decimals,

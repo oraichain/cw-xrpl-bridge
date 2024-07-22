@@ -35,6 +35,7 @@ cw-ownable = "0.5.1"
 cw-storage-plus = "1.0"
 cw-utils = "1.0"
 cw2 = "1.0"
+cw20 = "1.0"
 thiserror = "1.0.56"
 derive_more = "0.99.17"
 tokenfactory = { git = "https://github.com/oraichain/token-bindings.git", rev = "7861576" }

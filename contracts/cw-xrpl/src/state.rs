@@ -4,7 +4,7 @@ use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Coin, Empty, Uint128};
 use cw_storage_plus::{Index, IndexList, IndexedMap, Item, Map, MultiIndex, UniqueIndex};
 
-use crate::{contract::XRP_SUBUNIT, evidence::Evidences, operation::Operation, relayer::Relayer};
+use crate::{evidence::Evidences, operation::Operation, relayer::Relayer};
 
 /// Top level storage key. Values must not conflict.
 /// Each key is only one byte long to ensure we use the smallest possible storage keys.
@@ -47,18 +47,6 @@ pub struct Config {
     pub bridge_state: BridgeState,
     pub xrpl_base_fee: u64,
     pub token_factory_addr: Addr,
-}
-
-impl Config {
-    pub fn build_denom(&self, subdenom: &str) -> String {
-        // this is full denom when query the tokenfactory contract
-        format!(
-            "{}/{}/{}",
-            XRP_SUBUNIT,
-            self.token_factory_addr.as_str(),
-            subdenom
-        )
-    }
 }
 
 #[cw_serde]
@@ -137,7 +125,7 @@ pub const XRPL_TOKENS: IndexedMap<String, XRPLToken, XRPLTokensIndexes> = Indexe
         ),
     },
 );
-// Tokens registered from Cosmos side. These tokens are coreum originated tokens that are registered to be bridged - key is denom on Cosmos chain
+// Tokens registered from Cosmos side. These tokens are cosmos originated tokens that are registered to be bridged - key is denom on Cosmos chain
 // CosmosTokens will have xrpl_currency as a secondary index so that we can get the CosmosToken corresponding to a xrpl_currency
 pub struct CosmosTokensIndexes<'a> {
     pub xrpl_currency: UniqueIndex<'a, String, CosmosToken, String>,
@@ -214,6 +202,8 @@ pub const PROHIBITED_XRPL_ADDRESSES: Map<String, Empty> =
 
 pub enum ContractActions {
     Instantiation,
+    CreateCosmosToken,
+    MintCosmosToken,
     RegisterCosmosToken,
     RegisterXRPLToken,
     RecoverTickets,
@@ -246,6 +236,8 @@ impl UserType {
             ContractActions::RegisterXRPLToken => matches!(self, Self::Owner),
             ContractActions::SaveEvidence => matches!(self, Self::Relayer),
             ContractActions::RecoverTickets => matches!(self, Self::Owner),
+            ContractActions::CreateCosmosToken => matches!(self, Self::Owner),
+            ContractActions::MintCosmosToken => matches!(self, Self::Owner),
             ContractActions::RecoverXRPLTokenRegistration => matches!(self, Self::Owner),
             ContractActions::SaveSignature => matches!(self, Self::Relayer),
             ContractActions::SendToXRPL => true,
@@ -267,6 +259,8 @@ impl ContractActions {
     pub const fn as_str(&self) -> &'static str {
         match self {
             Self::Instantiation => "bridge_instantiation",
+            Self::CreateCosmosToken => "create_cosmos_token",
+            Self::MintCosmosToken => "mint_cosmos_token",
             Self::RegisterCosmosToken => "register_cosmos_token",
             Self::RegisterXRPLToken => "register_xrpl_token",
             Self::RecoverTickets => "recover_tickets",

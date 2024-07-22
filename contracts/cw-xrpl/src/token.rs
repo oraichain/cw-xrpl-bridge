@@ -1,10 +1,14 @@
-use cosmwasm_std::Uint128;
+use cosmwasm_std::{Addr, Uint128};
 
 use crate::{
-    contract::{validate_sending_precision, XRP_CURRENCY, XRP_ISSUER},
+    contract::{validate_sending_precision, XRP_CURRENCY, XRP_ISSUER, XRP_SUBUNIT},
     error::ContractError,
     state::TokenState,
 };
+
+pub fn full_denom(addr: &Addr, subdenom: &str) -> String {
+    format!("{}/{}/{}", XRP_SUBUNIT, addr.as_str(), subdenom)
+}
 
 // Build the key to access the Tokens saved in state
 pub fn build_xrpl_token_key(issuer: &str, currency: &str) -> String {

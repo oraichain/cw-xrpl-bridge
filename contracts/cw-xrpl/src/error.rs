@@ -28,7 +28,7 @@ pub enum ContractError {
     #[error("InvalidXRPLAddress: XRPL address {} is not valid", address)]
     InvalidXRPLAddress { address: String },
 
-    #[error("DuplicatedRelayer: All relayers must have different XRPL addresses, public keys and coreum addresses")]
+    #[error("DuplicatedRelayer: All relayers must have different XRPL addresses, public keys and cosmos addresses")]
     DuplicatedRelayer {},
 
     #[error("CosmosTokenAlreadyRegistered: Token {} already registered", denom)]

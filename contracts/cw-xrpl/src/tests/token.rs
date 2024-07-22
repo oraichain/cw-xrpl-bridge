@@ -1,12 +1,12 @@
-use crate::contract::{XRPL_DENOM_PREFIX, XRP_ISSUER};
+use crate::contract::XRP_ISSUER;
 use crate::error::ContractError;
 use crate::evidence::{Evidence, OperationResult, TransactionResult};
 use crate::msg::{PendingOperationsResponse, XRPLTokensResponse};
-use crate::state::{Config, CosmosToken, XRPLToken};
 use crate::tests::helper::{
     generate_hash, generate_xrpl_address, generate_xrpl_pub_key, MockApp, FEE_DENOM,
     TRUST_SET_LIMIT_AMOUNT,
 };
+use crate::token::full_denom;
 use crate::{
     contract::XRP_CURRENCY,
     msg::{CosmosTokensResponse, ExecuteMsg, InstantiateMsg, QueryMsg},
@@ -15,7 +15,7 @@ use crate::{
 };
 use cosmwasm_std::{coins, Addr, BankMsg, Uint128};
 use cosmwasm_testing_util::Executor;
-use token_bindings::{DenomUnit, Metadata};
+use cw20::Cw20Coin;
 
 #[test]
 fn token_update() {
@@ -67,10 +67,6 @@ fn token_update() {
         )
         .unwrap();
 
-    let config: Config = app
-        .query(contract_addr.clone(), &QueryMsg::Config {})
-        .unwrap();
-
     // Recover enough tickets for testing
     app.execute(
         Addr::unchecked(signer),
@@ -105,73 +101,45 @@ fn token_update() {
     }
 
     // Register one XRPL token and one Cosmos token
-    let xrpl_token = XRPLToken {
-        issuer: generate_xrpl_address(),
-        currency: "USD".to_string(),
-        sending_precision: 15,
-        max_holding_amount: Uint128::new(1000000000),
-        bridging_fee: Uint128::zero(),
-        cosmos_denom: config.build_denom(&XRPL_DENOM_PREFIX.to_uppercase()),
-        state: TokenState::Enabled,
-    };
+    let issuer = generate_xrpl_address();
+    let currency = "USD".to_string();
 
     let subunit = "utest".to_string();
-
+    let initial_amount = Uint128::from(100000000u128);
+    let decimals = 6;
     app.execute(
         Addr::unchecked(signer),
-        token_factory_addr.clone(),
-        &tokenfactory::msg::ExecuteMsg::CreateDenom {
+        contract_addr.clone(),
+        &ExecuteMsg::CreateCosmosToken {
             subdenom: subunit.to_uppercase(),
-            metadata: Some(Metadata {
-                symbol: Some("TEST".to_string()),
-                denom_units: vec![DenomUnit {
-                    denom: subunit.clone(),
-                    exponent: 6,
-                    aliases: vec![],
-                }],
-                description: Some("description".to_string()),
-                base: None,
-                display: None,
-                name: None,
-            }),
+            decimals,
+            initial_balances: vec![Cw20Coin {
+                address: signer.to_string(),
+                amount: initial_amount,
+            }],
+            name: None,
+            symbol: Some("TEST".to_string()),
+            description: Some("description".to_string()),
         },
         &[],
     )
     .unwrap();
 
-    let denom = config.build_denom(&subunit.to_uppercase());
+    let denom = full_denom(&token_factory_addr, &subunit.to_uppercase());
 
-    app.execute(
-        Addr::unchecked(signer),
-        token_factory_addr.clone(),
-        &tokenfactory::msg::ExecuteMsg::MintTokens {
-            denom: denom.to_string(),
-            amount: Uint128::from(100000000u128),
-            mint_to_address: signer.to_string(),
-        },
-        &[],
-    )
-    .unwrap();
-
-    let cosmos_token = CosmosToken {
-        denom: denom.clone(),
-        decimals: 6,
-        sending_precision: 6,
-        max_holding_amount: Uint128::new(1000000000),
-        bridging_fee: Uint128::zero(),
-        xrpl_currency: XRP_CURRENCY.to_string(),
-        state: TokenState::Enabled,
-    };
+    let sending_precision = 15;
+    let max_holding_amount = Uint128::new(1000000000);
+    let bridging_fee = Uint128::zero();
 
     app.execute(
         Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::RegisterXRPLToken {
-            issuer: xrpl_token.issuer.clone(),
-            currency: xrpl_token.currency.clone(),
-            sending_precision: xrpl_token.sending_precision,
-            max_holding_amount: xrpl_token.max_holding_amount,
-            bridging_fee: xrpl_token.bridging_fee,
+            issuer: issuer.clone(),
+            currency: currency.clone(),
+            sending_precision,
+            max_holding_amount,
+            bridging_fee,
         },
         &[],
     )
@@ -190,7 +158,7 @@ fn token_update() {
     let xrpl_token_denom = query_xrpl_tokens
         .tokens
         .iter()
-        .find(|t| t.issuer == xrpl_token.issuer && t.currency == xrpl_token.currency)
+        .find(|t| t.issuer == issuer && t.currency == currency)
         .unwrap()
         .cosmos_denom
         .clone();
@@ -240,8 +208,8 @@ fn token_update() {
             Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::UpdateXRPLToken {
-                issuer: xrpl_token.issuer.clone(),
-                currency: xrpl_token.currency.clone(),
+                issuer: issuer.clone(),
+                currency: currency.clone(),
                 state: Some(TokenState::Disabled),
                 sending_precision: None,
                 bridging_fee: None,
@@ -284,8 +252,8 @@ fn token_update() {
         &ExecuteMsg::SaveEvidence {
             evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: tx_hash.clone(),
-                issuer: xrpl_token.issuer.clone(),
-                currency: xrpl_token.currency.clone(),
+                issuer: issuer.clone(),
+                currency: currency.clone(),
                 amount: Uint128::one(),
                 recipient: Addr::unchecked(signer),
             },
@@ -299,8 +267,8 @@ fn token_update() {
         Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::UpdateXRPLToken {
-            issuer: xrpl_token.issuer.clone(),
-            currency: xrpl_token.currency.clone(),
+            issuer: issuer.clone(),
+            currency: currency.clone(),
             state: Some(TokenState::Disabled),
             sending_precision: None,
             bridging_fee: None,
@@ -318,8 +286,8 @@ fn token_update() {
             &ExecuteMsg::SaveEvidence {
                 evidence: Evidence::XRPLToCosmosTransfer {
                     tx_hash: tx_hash.clone(),
-                    issuer: xrpl_token.issuer.clone(),
-                    currency: xrpl_token.currency.clone(),
+                    issuer: issuer.clone(),
+                    currency: currency.clone(),
                     amount: Uint128::one(),
                     recipient: Addr::unchecked(signer),
                 },
@@ -339,8 +307,8 @@ fn token_update() {
             Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::UpdateXRPLToken {
-                issuer: xrpl_token.issuer.clone(),
-                currency: xrpl_token.currency.clone(),
+                issuer: issuer.clone(),
+                currency: currency.clone(),
                 state: Some(TokenState::Inactive),
                 sending_precision: None,
                 bridging_fee: None,
@@ -361,8 +329,8 @@ fn token_update() {
         Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::UpdateXRPLToken {
-            issuer: xrpl_token.issuer.clone(),
-            currency: xrpl_token.currency.clone(),
+            issuer: issuer.clone(),
+            currency: currency.clone(),
             state: Some(TokenState::Enabled),
             sending_precision: None,
             bridging_fee: None,
@@ -378,8 +346,8 @@ fn token_update() {
         &ExecuteMsg::SaveEvidence {
             evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: tx_hash.clone(),
-                issuer: xrpl_token.issuer.clone(),
-                currency: xrpl_token.currency.clone(),
+                issuer: issuer.clone(),
+                currency: currency.clone(),
                 amount: Uint128::one(),
                 recipient: Addr::unchecked(signer),
             },
@@ -399,8 +367,8 @@ fn token_update() {
         Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::UpdateXRPLToken {
-            issuer: xrpl_token.issuer.clone(),
-            currency: xrpl_token.currency.clone(),
+            issuer: issuer.clone(),
+            currency: currency.clone(),
             state: Some(TokenState::Disabled),
             sending_precision: None,
             bridging_fee: None,
@@ -427,16 +395,17 @@ fn token_update() {
         .to_string()
         .contains(ContractError::TokenNotEnabled {}.to_string().as_str()));
 
+    let sending_precision = 6;
     // Register the Cosmos Token
     app.execute(
         Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::RegisterCosmosToken {
             denom: denom.clone(),
-            decimals: cosmos_token.decimals,
-            sending_precision: cosmos_token.sending_precision,
-            max_holding_amount: cosmos_token.max_holding_amount,
-            bridging_fee: cosmos_token.bridging_fee,
+            decimals,
+            sending_precision,
+            max_holding_amount,
+            bridging_fee,
         },
         &[],
     )
@@ -554,8 +523,8 @@ fn token_update() {
         Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::UpdateXRPLToken {
-            issuer: xrpl_token.issuer.clone(),
-            currency: xrpl_token.currency.clone(),
+            issuer: issuer.clone(),
+            currency: currency.clone(),
             state: Some(TokenState::Enabled),
             sending_precision: None,
             bridging_fee: None,
@@ -573,8 +542,8 @@ fn token_update() {
         &ExecuteMsg::SaveEvidence {
             evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: tx_hash.clone(),
-                issuer: xrpl_token.issuer.clone(),
-                currency: xrpl_token.currency.clone(),
+                issuer: issuer.clone(),
+                currency: currency.clone(),
                 amount: Uint128::one(),
                 recipient: Addr::unchecked(signer),
             },
@@ -588,8 +557,8 @@ fn token_update() {
         Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::UpdateXRPLToken {
-            issuer: xrpl_token.issuer.clone(),
-            currency: xrpl_token.currency.clone(),
+            issuer: issuer.clone(),
+            currency: currency.clone(),
             state: None,
             sending_precision: Some(14),
             bridging_fee: None,
@@ -606,8 +575,8 @@ fn token_update() {
             &ExecuteMsg::SaveEvidence {
                 evidence: Evidence::XRPLToCosmosTransfer {
                     tx_hash: tx_hash.clone(),
-                    issuer: xrpl_token.issuer.clone(),
-                    currency: xrpl_token.currency.clone(),
+                    issuer: issuer.clone(),
+                    currency: currency.clone(),
                     amount: Uint128::one(),
                     recipient: Addr::unchecked(signer),
                 },
@@ -627,8 +596,8 @@ fn token_update() {
         Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::UpdateXRPLToken {
-            issuer: xrpl_token.issuer.clone(),
-            currency: xrpl_token.currency.clone(),
+            issuer: issuer.clone(),
+            currency: currency.clone(),
             state: None,
             sending_precision: Some(15),
             bridging_fee: None,
@@ -644,8 +613,8 @@ fn token_update() {
         &ExecuteMsg::SaveEvidence {
             evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: tx_hash.clone(),
-                issuer: xrpl_token.issuer.clone(),
-                currency: xrpl_token.currency.clone(),
+                issuer: issuer.clone(),
+                currency: currency.clone(),
                 amount: Uint128::one(),
                 recipient: Addr::unchecked(signer),
             },
@@ -668,8 +637,8 @@ fn token_update() {
         &ExecuteMsg::SaveEvidence {
             evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: tx_hash.clone(),
-                issuer: xrpl_token.issuer.clone(),
-                currency: xrpl_token.currency.clone(),
+                issuer: issuer.clone(),
+                currency: currency.clone(),
                 amount: Uint128::new(amount_to_send),
                 recipient: Addr::unchecked(signer),
             },
@@ -683,8 +652,8 @@ fn token_update() {
         Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::UpdateXRPLToken {
-            issuer: xrpl_token.issuer.clone(),
-            currency: xrpl_token.currency.clone(),
+            issuer: issuer.clone(),
+            currency: currency.clone(),
             state: None,
             sending_precision: Some(10),
             bridging_fee: None,
@@ -700,8 +669,8 @@ fn token_update() {
         &ExecuteMsg::SaveEvidence {
             evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: tx_hash.clone(),
-                issuer: xrpl_token.issuer.clone(),
-                currency: xrpl_token.currency.clone(),
+                issuer: issuer.clone(),
+                currency: currency.clone(),
                 amount: Uint128::new(amount_to_send),
                 recipient: Addr::unchecked(signer),
             },
@@ -766,8 +735,8 @@ fn token_update() {
         &ExecuteMsg::SaveEvidence {
             evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: tx_hash.clone(),
-                issuer: xrpl_token.issuer.clone(),
-                currency: xrpl_token.currency.clone(),
+                issuer: issuer.clone(),
+                currency: currency.clone(),
                 amount: Uint128::new(amount_to_send),
                 recipient: Addr::unchecked(signer),
             },
@@ -781,8 +750,8 @@ fn token_update() {
         Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::UpdateXRPLToken {
-            issuer: xrpl_token.issuer.clone(),
-            currency: xrpl_token.currency.clone(),
+            issuer: issuer.clone(),
+            currency: currency.clone(),
             state: None,
             sending_precision: None,
             bridging_fee: Some(Uint128::new(10000000)),
@@ -800,8 +769,8 @@ fn token_update() {
             &ExecuteMsg::SaveEvidence {
                 evidence: Evidence::XRPLToCosmosTransfer {
                     tx_hash: tx_hash.clone(),
-                    issuer: xrpl_token.issuer.clone(),
-                    currency: xrpl_token.currency.clone(),
+                    issuer: issuer.clone(),
+                    currency: currency.clone(),
                     amount: Uint128::new(amount_to_send),
                     recipient: Addr::unchecked(signer),
                 },
@@ -821,8 +790,8 @@ fn token_update() {
         Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::UpdateXRPLToken {
-            issuer: xrpl_token.issuer.clone(),
-            currency: xrpl_token.currency.clone(),
+            issuer: issuer.clone(),
+            currency: currency.clone(),
             state: None,
             sending_precision: None,
             bridging_fee: Some(Uint128::new(1000000)),
@@ -840,8 +809,8 @@ fn token_update() {
             &ExecuteMsg::SaveEvidence {
                 evidence: Evidence::XRPLToCosmosTransfer {
                     tx_hash: tx_hash.clone(),
-                    issuer: xrpl_token.issuer.clone(),
-                    currency: xrpl_token.currency.clone(),
+                    issuer: issuer.clone(),
+                    currency: currency.clone(),
                     amount: Uint128::new(amount_to_send),
                     recipient: Addr::unchecked(signer),
                 },
@@ -861,8 +830,8 @@ fn token_update() {
         Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::UpdateXRPLToken {
-            issuer: xrpl_token.issuer.clone(),
-            currency: xrpl_token.currency.clone(),
+            issuer: issuer.clone(),
+            currency: currency.clone(),
             state: None,
             sending_precision: None,
             bridging_fee: Some(Uint128::new(1000)),
@@ -879,8 +848,8 @@ fn token_update() {
         &ExecuteMsg::SaveEvidence {
             evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: tx_hash.clone(),
-                issuer: xrpl_token.issuer.clone(),
-                currency: xrpl_token.currency.clone(),
+                issuer: issuer.clone(),
+                currency: currency.clone(),
                 amount: Uint128::new(amount_to_send),
                 recipient: Addr::unchecked(signer),
             },
@@ -1028,8 +997,8 @@ fn token_update() {
             Addr::unchecked(signer),
             contract_addr.clone(),
             &ExecuteMsg::UpdateXRPLToken {
-                issuer: xrpl_token.issuer.clone(),
-                currency: xrpl_token.currency.clone(),
+                issuer: issuer.clone(),
+                currency: currency.clone(),
                 state: None,
                 sending_precision: None,
                 bridging_fee: None,
@@ -1056,8 +1025,8 @@ fn token_update() {
         &ExecuteMsg::SaveEvidence {
             evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: tx_hash.clone(),
-                issuer: xrpl_token.issuer.clone(),
-                currency: xrpl_token.currency.clone(),
+                issuer: issuer.clone(),
+                currency: currency.clone(),
                 amount: Uint128::new(amount_to_send),
                 recipient: Addr::unchecked(signer),
             },
@@ -1071,8 +1040,8 @@ fn token_update() {
         Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::UpdateXRPLToken {
-            issuer: xrpl_token.issuer.clone(),
-            currency: xrpl_token.currency.clone(),
+            issuer: issuer.clone(),
+            currency: currency.clone(),
             state: None,
             sending_precision: None,
             bridging_fee: None,
@@ -1092,8 +1061,8 @@ fn token_update() {
             &ExecuteMsg::SaveEvidence {
                 evidence: Evidence::XRPLToCosmosTransfer {
                     tx_hash: tx_hash.clone(),
-                    issuer: xrpl_token.issuer.clone(),
-                    currency: xrpl_token.currency.clone(),
+                    issuer: issuer.clone(),
+                    currency: currency.clone(),
                     amount: Uint128::new(amount_to_send),
                     recipient: Addr::unchecked(signer),
                 },
@@ -1118,8 +1087,8 @@ fn token_update() {
         Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::UpdateXRPLToken {
-            issuer: xrpl_token.issuer.clone(),
-            currency: xrpl_token.currency.clone(),
+            issuer: issuer.clone(),
+            currency: currency.clone(),
             state: None,
             sending_precision: None,
             bridging_fee: None,
@@ -1135,8 +1104,8 @@ fn token_update() {
         &ExecuteMsg::SaveEvidence {
             evidence: Evidence::XRPLToCosmosTransfer {
                 tx_hash: tx_hash.clone(),
-                issuer: xrpl_token.issuer.clone(),
-                currency: xrpl_token.currency.clone(),
+                issuer: issuer.clone(),
+                currency: currency.clone(),
                 amount: Uint128::new(amount_to_send),
                 recipient: Addr::unchecked(signer),
             },
@@ -1207,10 +1176,6 @@ fn test_burning_rate_and_commission_fee_cosmos_tokens() {
         )
         .unwrap();
 
-    let config: Config = app
-        .query(contract_addr.clone(), &QueryMsg::Config {})
-        .unwrap();
-
     // Add enough tickets for all our test operations
 
     app.execute(
@@ -1251,40 +1216,23 @@ fn test_burning_rate_and_commission_fee_cosmos_tokens() {
 
     app.execute(
         Addr::unchecked(signer),
-        token_factory_addr.clone(),
-        &tokenfactory::msg::ExecuteMsg::CreateDenom {
+        contract_addr.clone(),
+        &ExecuteMsg::CreateCosmosToken {
             subdenom: subunit.to_uppercase(),
-            metadata: Some(Metadata {
-                symbol: Some(symbol),
-                denom_units: vec![DenomUnit {
-                    denom: subunit.clone(),
-                    exponent: decimals,
-                    aliases: vec![],
-                }],
-                description: Some("description".to_string()),
-                base: None,
-                display: None,
-                name: None,
-            }),
+            decimals,
+            initial_balances: vec![Cw20Coin {
+                address: signer.to_string(),
+                amount: initial_amount,
+            }],
+            name: None,
+            symbol: Some(symbol),
+            description: Some("description".to_string()),
         },
         &[],
     )
     .unwrap();
 
-    // cosmos denom token generated
-    let denom = config.build_denom(&subunit.to_uppercase());
-
-    app.execute(
-        Addr::unchecked(sender),
-        token_factory_addr.clone(),
-        &tokenfactory::msg::ExecuteMsg::MintTokens {
-            denom: denom.to_string(),
-            amount: initial_amount,
-            mint_to_address: signer.to_string(),
-        },
-        &[],
-    )
-    .unwrap();
+    let denom = full_denom(&token_factory_addr, &subunit.to_uppercase());
 
     // Let's transfer some tokens to a sender from the issuer so that we can check both rates being applied
     app.app

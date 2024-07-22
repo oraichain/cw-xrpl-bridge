@@ -28,8 +28,8 @@ use crate::{
     },
     tickets::{allocate_ticket, register_used_ticket},
     token::{
-        build_xrpl_token_key, is_token_xrp, set_token_bridging_fee, set_token_max_holding_amount,
-        set_token_sending_precision, set_token_state,
+        build_xrpl_token_key, full_denom, is_token_xrp, set_token_bridging_fee,
+        set_token_max_holding_amount, set_token_sending_precision, set_token_state,
     },
 };
 
@@ -38,6 +38,7 @@ use cosmwasm_std::{
     Empty, Env, HexBinary, MessageInfo, Order, Response, StdResult, Storage, Uint128,
 };
 use cw2::set_contract_version;
+use cw20::Cw20Coin;
 use cw_ownable::{get_ownership, initialize_owner, is_owner, Action};
 use cw_storage_plus::Bound;
 use cw_utils::one_coin;
@@ -71,7 +72,7 @@ pub const XRP_DEFAULT_MAX_HOLDING_AMOUNT: u128 =
     10u128.pow(16 - XRP_DEFAULT_SENDING_PRECISION as u32 + XRP_DECIMALS);
 const XRP_DEFAULT_FEE: Uint128 = Uint128::zero();
 
-const COSMOS_CURRENCY_PREFIX: &str = "coreum";
+const COSMOS_CURRENCY_PREFIX: &str = "cosmos";
 pub const XRPL_DENOM_PREFIX: &str = "xrpl";
 
 const ALLOWED_CURRENCY_SYMBOLS: [char; 18] = [
@@ -176,11 +177,13 @@ pub fn instantiate(
         response = response.add_message(xrp_issue_msg);
     }
 
+    let xrp_cosmos_denom = full_denom(&config.token_factory_addr, XRP_SYMBOL);
+
     // We store the representation of XRP in our XRPLTokens list using the issuer+currency as key
     let token = XRPLToken {
         issuer: XRP_ISSUER.to_string(),
         currency: XRP_CURRENCY.to_string(),
-        cosmos_denom: config.build_denom(XRP_SYMBOL),
+        cosmos_denom: xrp_cosmos_denom,
         sending_precision: XRP_DEFAULT_SENDING_PRECISION,
         max_holding_amount: Uint128::new(XRP_DEFAULT_MAX_HOLDING_AMOUNT),
         // The XRP token is enabled from the start because it doesn't need approval to be received on the XRPL side
@@ -206,6 +209,27 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> ContractResult<Response> {
     match msg {
+        ExecuteMsg::CreateCosmosToken {
+            subdenom,
+            decimals,
+            initial_balances,
+            name,
+            symbol,
+            description,
+        } => create_cosmos_token(
+            deps,
+            info.sender,
+            subdenom,
+            decimals,
+            initial_balances,
+            name,
+            symbol,
+            description,
+        ),
+        ExecuteMsg::MintCosmosToken {
+            denom,
+            initial_balances,
+        } => mint_cosmos_token(deps, info.sender, denom, initial_balances),
         ExecuteMsg::UpdateOwnership(action) => update_ownership(deps, env, info, action),
         ExecuteMsg::RegisterCosmosToken {
             denom,
@@ -341,6 +365,96 @@ fn update_ownership(
         .add_attributes(ownership.into_attributes()))
 }
 
+fn create_cosmos_token(
+    deps: DepsMut,
+    sender: Addr,
+    subdenom: String,
+    decimals: u32,
+    initial_balances: Vec<Cw20Coin>,
+    name: Option<String>,
+    symbol: Option<String>,
+    description: Option<String>,
+) -> ContractResult<Response> {
+    check_authorization(deps.storage, &sender, &ContractActions::CreateCosmosToken)?;
+
+    let config = CONFIG.load(deps.storage)?;
+    let denom = full_denom(&config.token_factory_addr, &subdenom.to_uppercase());
+
+    let mut msgs = vec![wasm_execute(
+        config.token_factory_addr.to_string(),
+        &tokenfactory::msg::ExecuteMsg::CreateDenom {
+            subdenom: subdenom.to_uppercase(),
+            metadata: Some(Metadata {
+                symbol,
+                denom_units: vec![DenomUnit {
+                    denom: subdenom.clone(),
+                    exponent: decimals,
+                    aliases: vec![],
+                }],
+                name,
+                description,
+                base: None,
+                display: None,
+            }),
+        },
+        vec![],
+    )?];
+
+    if !initial_balances.is_empty() {
+        // mint some amount
+        for initial_balance in initial_balances {
+            msgs.push(wasm_execute(
+                config.token_factory_addr.to_string(),
+                &tokenfactory::msg::ExecuteMsg::MintTokens {
+                    denom: denom.to_string(),
+                    amount: initial_balance.amount,
+                    mint_to_address: initial_balance.address,
+                },
+                vec![],
+            )?);
+        }
+    }
+
+    Ok(Response::new()
+        .add_messages(msgs)
+        .add_attribute("action", ContractActions::CreateCosmosToken.as_str())
+        .add_attribute("sender", sender)
+        .add_attribute("denom", denom)
+        .add_attribute("decimals", decimals.to_string()))
+}
+
+pub fn mint_cosmos_token(
+    deps: DepsMut,
+    sender: Addr,
+    denom: String,
+    initial_balances: Vec<Cw20Coin>,
+) -> ContractResult<Response> {
+    check_authorization(deps.storage, &sender, &ContractActions::MintCosmosToken)?;
+
+    let mut msgs = vec![];
+    if !initial_balances.is_empty() {
+        let config = CONFIG.load(deps.storage)?;
+        // mint some amount
+        for initial_balance in initial_balances {
+            msgs.push(wasm_execute(
+                config.token_factory_addr.to_string(),
+                &tokenfactory::msg::ExecuteMsg::MintTokens {
+                    denom: denom.to_string(),
+                    amount: initial_balance.amount,
+                    mint_to_address: initial_balance.address,
+                },
+                vec![],
+            )?);
+        }
+    }
+
+    Ok(Response::new()
+        .add_messages(msgs)
+        .add_attribute("action", ContractActions::MintCosmosToken.as_str())
+        .add_attribute("sender", sender)
+        .add_attribute("denom", denom))
+}
+
 #[allow(clippy::too_many_arguments)]
 fn register_cosmos_token(
     deps: DepsMut,
@@ -366,9 +480,9 @@ fn register_cosmos_token(
 
     // We generate a currency creating a Sha256 hash of the denom, the decimals and the current time so that if it fails we can try again
     let to_hash = format!("{}{}{}", denom, decimals, env.block.time.seconds()).into_bytes();
-    let hex_string = hash_bytes(&to_hash).get(0..10).unwrap().to_string();
+    let hex_string = hash_bytes(&to_hash)[0..10].to_string();
 
-    // Format will be the hex representation in XRPL of the string coreum<hash> in uppercase
+    // Format will be the hex representation in XRPL of the string cosmos<hash> in uppercase
     let xrpl_currency =
         convert_currency_to_xrpl_hexadecimal(format!("{COSMOS_CURRENCY_PREFIX}{hex_string}"));
 
@@ -438,7 +552,7 @@ fn register_xrpl_token(
     let to_hash = format!("{}{}{}", issuer, currency, env.block.time.seconds()).into_bytes();
 
     // We encode the hash in hexadecimal and take the first 10 characters
-    let hex_string = hash_bytes(&to_hash).get(0..10).unwrap().to_string();
+    let hex_string = hash_bytes(&to_hash)[0..10].to_string();
 
     // Symbol and subunit we will use for the issued token in Cosmos
     let subunit = format!("{XRPL_DENOM_PREFIX}{hex_string}");
@@ -465,7 +579,7 @@ fn register_xrpl_token(
     )?;
 
     // Denom that token will have in Cosmos
-    let denom = config.build_denom(&subdenom);
+    let denom = full_denom(&config.token_factory_addr, &subdenom);
 
     // This in theory is not necessary because issue_msg would fail if the denom already exists but it's a double check and a way to return a more readable error.
     if COSMOS_TOKENS.has(deps.storage, denom.clone()) {
@@ -555,7 +669,7 @@ fn save_evidence(
 
             // This means the token is not a Cosmos originated token (the issuer is not the XRPL multisig address)
             if issuer.ne(&config.bridge_xrpl_address) {
-                // Create issuer+currency key to find denom on coreum.
+                // Create issuer+currency key to find denom on cosmos.
                 let key = build_xrpl_token_key(&issuer, &currency);
 
                 // To transfer a token it must be registered and activated
