@@ -4,6 +4,7 @@ vendor
 *.iml
 /coverage
 /bin
+node_modules
 
 
 # Build results
