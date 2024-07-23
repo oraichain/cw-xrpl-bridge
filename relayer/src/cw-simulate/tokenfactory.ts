@@ -1,12 +1,12 @@
-import { coins } from '@cosmjs/amino';
+import { Coin, coins } from '@cosmjs/amino';
 import { toBinary } from '@cosmjs/cosmwasm-stargate';
-import { Ok, Err, TokenFactoryMsg, Metadata, SimulateCosmWasmClient, CosmosMsg, Result, AppResponse, BankMsg } from '@oraichain/cw-simulate';
+import { Ok, Err, TokenFactoryMsg, Metadata, SimulateCosmWasmClient, CosmosMsg, Result, AppResponse, BankMsg, QueryMessage, TokenFactoryQuery } from '@oraichain/cw-simulate';
 
 const ADMIN: { [key: string]: string } = {};
 const DENOMS_BY_CREATOR: { [key: string]: string[] } = {};
 const METADATA: { [key: string]: Metadata } = {};
 
-const handleTokenFactory = async (client: SimulateCosmWasmClient, sender: string, msg: CosmosMsg): Promise<Result<AppResponse, string>> => {
+export const handleTokenFactory = async (client: SimulateCosmWasmClient, sender: string, msg: CosmosMsg): Promise<Result<AppResponse, string>> => {
   if ('custom' in msg && 'token' in msg.custom) {
     const tokenfactoryMsgOptions = (msg.custom as TokenFactoryMsg).token;
 
@@ -36,6 +36,7 @@ const handleTokenFactory = async (client: SimulateCosmWasmClient, sender: string
 
     if ('mint_tokens' in tokenfactoryMsgOptions) {
       const { denom, amount, mint_to_address } = tokenfactoryMsgOptions.mint_tokens;
+
       // ensure we are admin of this denom (and it exists)
       const admin = ADMIN[denom];
       if (!admin) {
@@ -63,4 +64,39 @@ const handleTokenFactory = async (client: SimulateCosmWasmClient, sender: string
   }
 };
 
-export default handleTokenFactory;
+export const queryTokenFactory = (fee: Coin[], request: QueryMessage) => {
+  if ('custom' in request && 'token' in request.custom) {
+    const tokenfactoryQueryEnum = (request.custom as TokenFactoryQuery).token;
+
+    if ('full_denom' in tokenfactoryQueryEnum) {
+      const { creator_addr, subdenom } = tokenfactoryQueryEnum.full_denom;
+      const denom = `factory/${creator_addr}/${subdenom}`;
+      return { denom };
+    }
+
+    if ('metadata' in tokenfactoryQueryEnum) {
+      const { denom } = tokenfactoryQueryEnum.metadata;
+      const metadata = METADATA[denom];
+      return { metadata };
+    }
+
+    if ('admin' in tokenfactoryQueryEnum) {
+      const { denom } = tokenfactoryQueryEnum.admin;
+      const admin = ADMIN[denom];
+      return { admin };
+    }
+
+    if ('denoms_by_creator' in tokenfactoryQueryEnum) {
+      const { creator } = tokenfactoryQueryEnum.denoms_by_creator;
+      const denoms = DENOMS_BY_CREATOR[creator] ?? [];
+      return { denoms };
+    }
+
+    if ('params' in tokenfactoryQueryEnum) {
+      const params = {
+        denom_creation_fee: fee
+      };
+      return { params };
+    }
+  }
+};
