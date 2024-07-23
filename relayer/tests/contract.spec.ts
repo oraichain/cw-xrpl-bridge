@@ -1,5 +1,4 @@
-import { toBinary } from '@cosmjs/cosmwasm-stargate';
-import { AppResponse, CosmosMsg, SimulateCosmWasmClient, Result, Ok, Err, TokenFactoryMsg, HandleCustomMsgFunction, Metadata, QueryCustomMsgFunction } from '@oraichain/cw-simulate';
+import { SimulateCosmWasmClient, HandleCustomMsgFunction, QueryCustomMsgFunction } from '@oraichain/cw-simulate';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { CwXrplClient, CwXrplTypes } from '../lib';
@@ -9,7 +8,6 @@ import { generateXrplAddress, generateXrplPubkey } from '../src/utils';
 const handleCustomMsg: HandleCustomMsgFunction = async (sender, msg) => {
   let response = handleTokenFactory(client, sender, msg);
   if (response) return response;
-  return Ok({ events: [], data: null });
 };
 
 const queryCustomMsg: QueryCustomMsgFunction = (request) => {

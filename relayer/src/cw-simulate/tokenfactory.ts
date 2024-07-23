@@ -1,6 +1,6 @@
 import { Coin, coins } from '@cosmjs/amino';
 import { toBinary } from '@cosmjs/cosmwasm-stargate';
-import { Ok, Err, TokenFactoryMsg, Metadata, SimulateCosmWasmClient, CosmosMsg, Result, AppResponse, BankMsg, QueryMessage, TokenFactoryQuery } from '@oraichain/cw-simulate';
+import { Ok, Err, TokenFactoryMsg, Metadata, SimulateCosmWasmClient, CosmosMsg, Result, AppResponse, QueryMessage, TokenFactoryQuery } from '@oraichain/cw-simulate';
 
 const ADMIN: { [key: string]: string } = {};
 const DENOMS_BY_CREATOR: { [key: string]: string[] } = {};
