@@ -19,7 +19,7 @@
     "xrpl": "^4.0.0"
   },
   "devDependencies": {
-    "@oraichain/cw-simulate": "^2.8.87",
+    "@oraichain/cw-simulate": "^2.8.93",
     "@types/node": "^18.15.8",
     "patch-package": "^7.0.0",
     "typedoc": "^0.24.7",

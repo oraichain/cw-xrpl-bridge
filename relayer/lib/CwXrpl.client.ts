@@ -6,7 +6,7 @@
 
 import { CosmWasmClient, SigningCosmWasmClient, ExecuteResult } from "@cosmjs/cosmwasm-stargate";
 import { StdFee } from "@cosmjs/amino";
-import {Addr, Uint128, InstantiateMsg, Relayer, ExecuteMsg, Evidence, OperationResult, TransactionResult, TokenState, Action, Expiration, Timestamp, Uint64, Cw20Coin, Coin, QueryMsg, MigrateMsg, AvailableTicketsResponse, BridgeState, BridgeStateResponse, Config, CosmosTokensResponse, CosmosToken, FeesCollectedResponse, OwnershipForString, OperationType, PendingOperationsResponse, Operation, Signature, PendingRefundsResponse, PendingRefund, Boolean, ProcessedTxsResponse, ProhibitedXRPLAddressesResponse, TransactionEvidence, TransactionEvidencesResponse, XRPLTokensResponse, XRPLToken} from "./CwXrpl.types";
+import {Addr, Uint128, InstantiateMsg, Relayer, ExecuteMsg, Evidence, OperationResult, TransactionResult, TokenState, Action, Expiration, Timestamp, Uint64, Cw20Coin, Coin, QueryMsg, MigrateMsg, AvailableTicketsResponse, BridgeState, BridgeStateResponse, Config, CosmosTokensResponse, CosmosToken, FeesCollectedResponse, OwnershipForString, OperationType, PendingOperationsResponse, Operation, Signature, PendingRefundsResponse, PendingRefund, Boolean, ProcessedTxsResponse, ProhibitedXrplAddressesResponse, TransactionEvidence, TransactionEvidencesResponse, XrplTokensResponse, XRPLToken} from "./CwXrpl.types";
 export interface CwXrplReadOnlyInterface {
   contractAddress: string;
   config: () => Promise<Config>;

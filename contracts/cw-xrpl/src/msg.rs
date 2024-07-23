@@ -229,6 +229,7 @@ pub enum QueryMsg {
 }
 
 #[cw_serde]
+#[serde(rename = "XrplTokensResponse")]
 pub struct XRPLTokensResponse {
     pub last_key: Option<String>,
     pub tokens: Vec<XRPLToken>,
@@ -293,6 +294,7 @@ pub struct ProcessedTxsResponse {
 }
 
 #[cw_serde]
+#[serde(rename = "ProhibitedXrplAddressesResponse")]
 pub struct ProhibitedXRPLAddressesResponse {
     pub prohibited_xrpl_addresses: Vec<String>,
 }

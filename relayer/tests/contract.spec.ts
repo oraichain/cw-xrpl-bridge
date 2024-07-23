@@ -1,12 +1,23 @@
-import { SimulateCosmWasmClient } from '@oraichain/cw-simulate';
+import { toBinary } from '@cosmjs/cosmwasm-stargate';
+import { AppResponse, CosmosMsg, SimulateCosmWasmClient, Result, Ok, Err, TokenFactoryMsg, HandleCustomMsgFunction, Metadata } from '@oraichain/cw-simulate';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { deriveAddress } from 'xrpl';
 import { CwXrplClient, CwXrplTypes } from '../lib';
+import handleTokenFactory from '../src/cw-simulate/handleCustom/handleTokenFactory';
 import { generateXrplAddress, generateXrplPubkey } from '../src/utils';
 
-const client = new SimulateCosmWasmClient({ chainId: 'Oraichain', bech32Prefix: 'orai' });
+const ADMIN: { [key: string]: string } = {};
+const DENOMS_BY_CREATOR: { [key: string]: string[] } = {};
+const METADATA: { [key: string]: Metadata } = {};
 
+const handleCustomMsg: HandleCustomMsgFunction = async (sender, msg) => {
+  let response = handleTokenFactory(client, sender, msg);
+  if (response) return response;
+  return Ok({ events: [], data: null });
+};
+
+const client = new SimulateCosmWasmClient({ chainId: 'Oraichain', bech32Prefix: 'orai', handleCustomMsg });
+const receiverAddress = 'orai1e9rxz3ssv5sqf4n23nfnlh4atv3uf3fs5wgm66';
 const senderAddress = 'orai19xtunzaq20unp8squpmfrw8duclac22hd7ves2';
 
 const deployTokenFactory = async () => {
@@ -40,9 +51,25 @@ describe('Test contract', () => {
     } as CwXrplTypes.InstantiateMsg;
 
     const { contractAddress } = await client.instantiate(senderAddress, codeId, initMsg, 'cw-xrpl');
-
     const cwXrpl = new CwXrplClient(client, senderAddress, contractAddress);
 
-    console.log(await cwXrpl.config());
+    const response = await cwXrpl.createCosmosToken({
+      subdenom: 'UTEST',
+      decimals: 6,
+      initialBalances: [
+        {
+          address: receiverAddress,
+          amount: '100000000'
+        }
+      ],
+      symbol: 'TEST',
+      description: 'description'
+    });
+
+    console.log(response);
+
+    const denom = `factory/${tokenFactoryAddr}/UTEST`;
+    const balance = await client.getBalance(receiverAddress, denom);
+    console.log(balance);
   });
 });

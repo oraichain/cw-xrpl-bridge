@@ -316,7 +316,7 @@ export interface ProcessedTxsResponse {
   last_key?: string | null;
   processed_txs: string[];
 }
-export interface ProhibitedXRPLAddressesResponse {
+export interface ProhibitedXrplAddressesResponse {
   prohibited_xrpl_addresses: string[];
 }
 export interface TransactionEvidence {
@@ -327,7 +327,7 @@ export interface TransactionEvidencesResponse {
   last_key?: string | null;
   transaction_evidences: TransactionEvidence[];
 }
-export interface XRPLTokensResponse {
+export interface XrplTokensResponse {
   last_key?: string | null;
   tokens: XRPLToken[];
 }
