@@ -1,3 +1,4 @@
+import { coin } from '@cosmjs/amino';
 import { SimulateCosmWasmClient, HandleCustomMsgFunction, QueryCustomMsgFunction } from '@oraichain/cw-simulate';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
@@ -6,7 +7,7 @@ import { handleTokenFactory, queryTokenFactory } from '../src/cw-simulate/tokenf
 import { generateXrplAddress, generateXrplPubkey } from '../src/utils';
 
 const handleCustomMsg: HandleCustomMsgFunction = async (sender, msg) => {
-  let response = handleTokenFactory(client, sender, msg);
+  let response = await handleTokenFactory(client, sender, msg);
   if (response) return response;
 };
 
@@ -67,6 +68,6 @@ describe('Test contract', () => {
 
     const denom = `factory/${tokenFactoryAddr}/UTEST`;
     const balance = await client.getBalance(receiverAddress, denom);
-    console.log(balance);
+    expect(coin('100000000', denom)).toEqual(balance);
   });
 });
