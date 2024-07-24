@@ -158,9 +158,9 @@ fn bridge_fee_collection_and_claiming() {
         &ExecuteMsg::RegisterXRPLToken {
             issuer: issuer.clone(),
             currency: currency.clone(),
-            sending_precision: sending_precision,
-            max_holding_amount: max_holding_amount,
-            bridging_fee: bridging_fee,
+            sending_precision,
+            max_holding_amount,
+            bridging_fee,
         },
         &[],
     )

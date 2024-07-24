@@ -69,5 +69,16 @@ describe('Test contract', () => {
     const denom = `factory/${tokenFactoryAddr}/UTEST`;
     const balance = await client.getBalance(receiverAddress, denom);
     expect(coin('100000000', denom)).toEqual(balance);
+
+    // Register Cosmos originated token
+    const ret = await cwXrpl.registerCosmosToken({
+      denom,
+      decimals: 6,
+      sendingPrecision: 4,
+      maxHoldingAmount: '10000000000',
+      bridgingFee: '300000'
+    });
+
+    console.dir(ret, { depth: null });
   });
 });
