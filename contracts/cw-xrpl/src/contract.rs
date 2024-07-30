@@ -903,6 +903,7 @@ fn recover_tickets(
     if number_to_allocate <= config.used_ticket_sequence_threshold
         || number_to_allocate > MAX_TICKETS
     {
+        #[cfg(debug_assertions)]
         println!(
             "{} {}",
             number_to_allocate, config.used_ticket_sequence_threshold
