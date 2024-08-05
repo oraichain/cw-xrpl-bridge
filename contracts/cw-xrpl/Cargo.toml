@@ -46,7 +46,7 @@ cw2 = { workspace = true }
 cw20 = { workspace = true }
 thiserror = { workspace = true }
 derive_more = { workspace = true }
-tokenfactory = { workspace = true }
+tokenfactory = { workspace = true, features = ["library"] }
 token-bindings = { workspace = true }
 
 bs58 = "0.5.0"
