@@ -779,6 +779,7 @@ fn save_evidence(
                         remainder,
                     )?;
 
+                    // TODO: should we support CW20 as well?
                     let send_msg = BankMsg::Send {
                         to_address: recipient.to_string(),
                         amount: coins(amount_to_send.u128(), token.denom),
