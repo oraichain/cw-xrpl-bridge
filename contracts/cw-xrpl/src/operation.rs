@@ -131,7 +131,7 @@ pub fn handle_operation(
             Some(OperationResult::TicketsAllocation { tickets }) => {
                 handle_ticket_allocation_confirmation(
                     storage,
-                    tickets.clone(),
+                    tickets,
                     transaction_result,
                 )?;
             }

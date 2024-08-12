@@ -65,7 +65,7 @@ pub fn register_used_ticket(
 
 pub fn handle_ticket_allocation_confirmation(
     storage: &mut dyn Storage,
-    tickets: Option<Vec<u64>>,
+    tickets: &Option<Vec<u64>>,
     transaction_result: &TransactionResult,
 ) -> Result<(), ContractError> {
     // We set pending update ticket to false because we complete the ticket allocation operation
@@ -73,16 +73,19 @@ pub fn handle_ticket_allocation_confirmation(
 
     // Allocate ticket numbers in our ticket array if operation is accepted
     if transaction_result.eq(&TransactionResult::Accepted) {
+        let mut tickets = tickets
+            .clone()
+            .ok_or_else(|| ContractError::InvalidTicketSequenceToAllocate {})?;
         let mut available_tickets = AVAILABLE_TICKETS.load(storage)?;
 
         let mut new_tickets = available_tickets.make_contiguous().to_vec();
-        new_tickets.append(tickets.clone().unwrap().as_mut());
+        new_tickets.append(tickets.as_mut());
 
         AVAILABLE_TICKETS.save(storage, &VecDeque::from(new_tickets))?;
 
         // Used tickets can't be under 0 if admin allocated more tickets than used tickets
         USED_TICKETS_COUNTER.update(storage, |used_tickets| -> StdResult<_> {
-            Ok(used_tickets.saturating_sub(tickets.unwrap().len() as u32))
+            Ok(used_tickets.saturating_sub(tickets.len() as u32))
         })?;
     }
 
