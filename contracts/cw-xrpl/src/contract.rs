@@ -1528,10 +1528,12 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             start_after_key,
             limit,
         } => to_json_binary(&query_xrpl_tokens(deps, start_after_key, limit)),
+        QueryMsg::XRPLToken { key } => to_json_binary(&query_xrpl_token(deps, key)?),
         QueryMsg::CosmosTokens {
             start_after_key,
             limit,
         } => to_json_binary(&query_cosmos_tokens(deps, start_after_key, limit)),
+        QueryMsg::CosmosToken { key } => to_json_binary(&query_cosmos_token(deps, key)?),
         QueryMsg::Ownership {} => to_json_binary(&get_ownership(deps.storage)?),
         QueryMsg::PendingOperations {
             start_after_key,
@@ -1603,6 +1605,10 @@ fn query_xrpl_tokens(
     XRPLTokensResponse { last_key, tokens }
 }
 
+pub fn query_xrpl_token(deps: Deps, key: String) -> StdResult<XRPLToken> {
+    XRPL_TOKENS.load(deps.storage, key)
+}
+
 fn query_cosmos_tokens(
     deps: Deps,
     start_after_key: Option<String>,
@@ -1622,6 +1628,10 @@ fn query_cosmos_tokens(
         .collect();
 
     CosmosTokensResponse { last_key, tokens }
+}
+
+pub fn query_cosmos_token(deps: Deps, key: String) -> StdResult<CosmosToken> {
+    COSMOS_TOKENS.load(deps.storage, key)
 }
 
 fn query_pending_operations(

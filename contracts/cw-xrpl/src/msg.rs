@@ -187,11 +187,16 @@ pub enum QueryMsg {
         start_after_key: Option<String>,
         limit: Option<u32>,
     },
+    #[returns(XRPLTokenResponse)]
+    #[serde(rename = "xrpl_token")]
+    XRPLToken { key: String },
     #[returns(CosmosTokensResponse)]
     CosmosTokens {
         start_after_key: Option<String>,
         limit: Option<u32>,
     },
+    #[returns(CosmosToken)]
+    CosmosToken { key: String },
     #[returns(PendingOperationsResponse)]
     PendingOperations {
         start_after_key: Option<u64>,
@@ -234,6 +239,10 @@ pub struct XRPLTokensResponse {
     pub last_key: Option<String>,
     pub tokens: Vec<XRPLToken>,
 }
+
+#[cw_serde]
+#[serde(rename = "XrplTokenResponse")]
+pub struct XRPLTokenResponse(XRPLToken);
 
 #[cw_serde]
 pub struct CosmosTokensResponse {
