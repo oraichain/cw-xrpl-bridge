@@ -21,3 +21,5 @@ artifacts
 /schema
 .scannerwork/
 clippy-report.json
+.DS_Store
+.env
