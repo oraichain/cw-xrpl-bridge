@@ -4,14 +4,14 @@ use derive_more::{Deref, DerefMut};
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use ripple_keypairs::Seed;
 
-pub const FEE_DENOM: &str = "ucore";
+pub const FEE_DENOM: &str = "orai";
 pub const TRUST_SET_LIMIT_AMOUNT: u128 = 1000000000000000000; // 1e18
 
 #[derive(Deref, DerefMut)]
 pub struct MockApp {
     #[deref]
     #[deref_mut]
-    app: cosmwasm_testing_util::TestTubeMockApp,
+    app: cosmwasm_testing_util::MultiTestMockApp,
     bridge_id: u64,
 }
 
@@ -20,9 +20,15 @@ static CW_BYTES: &[u8] = include_bytes!("../../artifacts/cw-xrpl.wasm");
 #[allow(dead_code)]
 impl MockApp {
     pub fn new(init_balances: &[(&str, &[Coin])]) -> Self {
-        let mut app = cosmwasm_testing_util::TestTubeMockApp::new(init_balances);
+        let mut app = cosmwasm_testing_util::MultiTestMockApp::new(init_balances);
 
-        let bridge_id = app.upload(CW_BYTES);
+        let bridge_id = app.upload(Box::new(
+            cosmwasm_testing_util::ContractWrapper::new_with_empty(
+                crate::contract::execute,
+                crate::contract::instantiate,
+                crate::contract::query,
+            ),
+        ));
 
         Self { app, bridge_id }
     }

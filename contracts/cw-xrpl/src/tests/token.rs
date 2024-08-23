@@ -13,8 +13,7 @@ use crate::{
     relayer::Relayer,
     state::TokenState,
 };
-use cosmwasm_std::{coins, Addr, BankMsg, Uint128};
-use cosmwasm_testing_util::Executor;
+use cosmwasm_std::{coins, Addr, Uint128};
 use cosmwasm_testing_util::{MockApp as TestingMockApp, MockTokenExtensions};
 use cw20::Cw20Coin;
 
@@ -986,10 +985,7 @@ fn token_update() {
     // that max_holding_amount checks are applied correctly
 
     // Get current bridged amount
-    let total_supply = app
-        .as_querier()
-        .query_supply(xrpl_token_denom.clone())
-        .unwrap();
+    let total_supply = app.query_supply(&xrpl_token_denom).unwrap();
     let current_bridged_amount = total_supply.amount;
 
     // Let's update the max holding amount with current bridged amount - 1 (it should fail)
@@ -1236,16 +1232,12 @@ fn test_burning_rate_and_commission_fee_cosmos_tokens() {
     let denom = full_denom(&token_factory_addr, &subunit.to_uppercase());
 
     // Let's transfer some tokens to a sender from the issuer so that we can check both rates being applied
-    app.app
-        .execute(
-            Addr::unchecked(signer),
-            BankMsg::Send {
-                to_address: sender.to_string(),
-                amount: coins(100000000, denom.clone()),
-            }
-            .into(),
-        )
-        .unwrap();
+    app.send_coins(
+        Addr::unchecked(signer),
+        Addr::unchecked(sender),
+        &coins(100000000, denom.clone()),
+    )
+    .unwrap();
 
     // Check the balance
     let request_balance = app

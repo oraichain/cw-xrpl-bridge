@@ -13,7 +13,7 @@ use crate::tests::helper::{
 };
 use crate::token::full_denom;
 use crate::{contract::XRP_CURRENCY, msg::InstantiateMsg, relayer::Relayer};
-use cosmwasm_std::{coin, coins, Addr, BankMsg, Uint128};
+use cosmwasm_std::{coin, coins, Addr, Uint128};
 use cosmwasm_testing_util::{MockApp as TestingMockApp, MockTokenExtensions};
 use cw20::Cw20Coin;
 
@@ -635,16 +635,12 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
 
     // Send all initial amount tokens to the sender so that we can correctly test freezing without sending to the issuer
 
-    app.app
-        .execute(
-            Addr::unchecked(signer),
-            BankMsg::Send {
-                to_address: sender.to_string(),
-                amount: coins(initial_amount.u128(), denom.clone()),
-            }
-            .into(),
-        )
-        .unwrap();
+    app.send_coins(
+        Addr::unchecked(signer),
+        Addr::unchecked(sender),
+        &coins(initial_amount.u128(), denom.clone()),
+    )
+    .unwrap();
 
     app.execute(
         Addr::unchecked(signer),
