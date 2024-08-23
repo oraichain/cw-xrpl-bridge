@@ -9,6 +9,7 @@ use crate::{
     msg::{InstantiateMsg, QueryMsg},
     relayer::Relayer,
 };
+use cosmwasm_testing_util::{MockApp as TestingMockApp, MockTokenExtensions};
 
 #[test]
 fn transfer_ownership() {

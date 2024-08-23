@@ -15,6 +15,7 @@ use crate::{
 };
 use cosmwasm_std::{coins, Addr, BankMsg, Uint128};
 use cosmwasm_testing_util::Executor;
+use cosmwasm_testing_util::{MockApp as TestingMockApp, MockTokenExtensions};
 use cw20::Cw20Coin;
 
 #[test]

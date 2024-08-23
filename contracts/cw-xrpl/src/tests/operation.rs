@@ -15,6 +15,7 @@ use crate::{
     state::TokenState,
 };
 use cosmwasm_std::{coin, coins, Addr, Uint128};
+use cosmwasm_testing_util::{MockApp as TestingMockApp, MockTokenExtensions};
 
 #[test]
 fn cancel_pending_operation() {

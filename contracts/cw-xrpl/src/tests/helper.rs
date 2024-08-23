@@ -1,5 +1,5 @@
 use cosmwasm_std::{Addr, Coin};
-use cosmwasm_testing_util::{ContractWrapper, MockResult};
+use cosmwasm_testing_util::{MockApp as TestingMockApp, MockResult};
 use derive_more::{Deref, DerefMut};
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use ripple_keypairs::Seed;
@@ -11,20 +11,18 @@ pub const TRUST_SET_LIMIT_AMOUNT: u128 = 1000000000000000000; // 1e18
 pub struct MockApp {
     #[deref]
     #[deref_mut]
-    app: cosmwasm_testing_util::MockApp,
+    app: cosmwasm_testing_util::TestTubeMockApp,
     bridge_id: u64,
 }
+
+static CW_BYTES: &[u8] = include_bytes!("../../artifacts/cw-xrpl.wasm");
 
 #[allow(dead_code)]
 impl MockApp {
     pub fn new(init_balances: &[(&str, &[Coin])]) -> Self {
-        let mut app = cosmwasm_testing_util::MockApp::new(init_balances);
+        let mut app = cosmwasm_testing_util::TestTubeMockApp::new(init_balances);
 
-        let bridge_id = app.upload(Box::new(ContractWrapper::new_with_empty(
-            crate::contract::execute,
-            crate::contract::instantiate,
-            crate::contract::query,
-        )));
+        let bridge_id = app.upload(CW_BYTES);
 
         Self { app, bridge_id }
     }

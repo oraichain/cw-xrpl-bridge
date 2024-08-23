@@ -14,6 +14,7 @@ use crate::{
     relayer::Relayer,
 };
 use cosmwasm_std::{coins, Addr, Uint128};
+use cosmwasm_testing_util::{MockApp as TestingMockApp, MockTokenExtensions};
 
 #[test]
 fn key_rotation() {
