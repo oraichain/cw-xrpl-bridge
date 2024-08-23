@@ -38,9 +38,8 @@ cw2 = "1.0"
 cw20 = "1.0"
 thiserror = "1.0.56"
 derive_more = "0.99.17"
-tokenfactory = { git = "https://github.com/oraichain/token-bindings.git", rev = "7861576" }
-token-bindings = { git = "https://github.com/oraichain/token-bindings.git", rev = "7861576" }
-cosmwasm-testing-util = { git = "https://github.com/oraichain/cosmwasm-testing-util.git", rev = "1b9c412" }
+tokenfactory = { git = "https://github.com/oraichain/token-bindings.git", rev = "9796c74" }
+cosmwasm-testing-util = { git = "https://github.com/oraichain/cosmwasm-testing-util.git", rev = "44cd4f7" }
 ripple-keypairs = "0.1.0"
 
 [patch.crates-io]

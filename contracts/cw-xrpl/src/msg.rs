@@ -42,11 +42,7 @@ pub enum ExecuteMsg {
     // Creates a Cosmos token so that it can be registered later
     CreateCosmosToken {
         subdenom: String,
-        decimals: u32,
         initial_balances: Vec<Cw20Coin>,
-        name: Option<String>,
-        symbol: Option<String>,
-        description: Option<String>,
     },
     MintCosmosToken {
         denom: String,
@@ -172,6 +168,20 @@ pub enum ExecuteMsg {
     // Only owner can do this
     CancelPendingOperation {
         operation_id: u64,
+    },
+
+    #[cfg(test)]
+    BurnTokens {
+        denom: String,
+        amount: Uint128,
+        address: String,
+    },
+
+    #[cfg(test)]
+    MintTokens {
+        denom: String,
+        amount: Uint128,
+        address: String,
     },
 }
 

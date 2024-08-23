@@ -15,18 +15,13 @@ use crate::{
     state::TokenState,
 };
 use cosmwasm_std::{coin, coins, Addr, Uint128};
+use cosmwasm_testing_util::{MockApp as TestingMockApp, MockTokenExtensions};
 
 #[test]
 fn cancel_pending_operation() {
-    let accounts_number = 2;
-    let accounts: Vec<_> = (0..accounts_number)
-        .into_iter()
-        .map(|i| format!("account{i}"))
-        .collect();
-
-    let mut app = MockApp::new(&[
-        (accounts[0].as_str(), &coins(100_000_000_000, FEE_DENOM)),
-        (accounts[1].as_str(), &coins(100_000_000_000, FEE_DENOM)),
+    let (mut app, accounts) = MockApp::new(&[
+        ("account0", &coins(100_000_000_000, FEE_DENOM)),
+        ("account1", &coins(100_000_000_000, FEE_DENOM)),
     ]);
 
     let signer = &accounts[0];
@@ -179,7 +174,7 @@ fn cancel_pending_operation() {
             max_holding_amount: Uint128::new(50000),
             bridging_fee: Uint128::zero(),
         },
-        &[],
+        &coins(10_000_000u128, FEE_DENOM),
     )
     .unwrap();
 
@@ -407,9 +402,8 @@ fn cancel_pending_operation() {
 
 #[test]
 fn invalid_transaction_evidences() {
-    let signer = "signer";
-    let mut app = MockApp::new(&[(signer, &coins(100_000_000_000, FEE_DENOM))]);
-
+    let (mut app, accounts) = MockApp::new(&[("signer", &coins(100_000_000_000, FEE_DENOM))]);
+    let signer = &accounts[0];
     let relayer = Relayer {
         cosmos_address: Addr::unchecked(signer),
         xrpl_address: generate_xrpl_address(),
@@ -536,15 +530,9 @@ fn invalid_transaction_evidences() {
 
 #[test]
 fn unauthorized_access() {
-    let accounts_number = 2;
-    let accounts: Vec<_> = (0..accounts_number)
-        .into_iter()
-        .map(|i| format!("account{i}"))
-        .collect();
-
-    let mut app = MockApp::new(&[
-        (accounts[0].as_str(), &coins(100_000_000_000, FEE_DENOM)),
-        (accounts[1].as_str(), &coins(100_000_000_000, FEE_DENOM)),
+    let (mut app, accounts) = MockApp::new(&[
+        ("account0", &coins(100_000_000_000, FEE_DENOM)),
+        ("account1", &coins(100_000_000_000, FEE_DENOM)),
     ]);
 
     let signer = &accounts[0];
@@ -628,7 +616,7 @@ fn unauthorized_access() {
                 max_holding_amount: Uint128::new(50000),
                 bridging_fee: Uint128::zero(),
             },
-            &[],
+            &coins(10_000_000u128, FEE_DENOM),
         )
         .unwrap_err();
 

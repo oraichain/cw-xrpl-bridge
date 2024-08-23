@@ -13,24 +13,19 @@ use crate::tests::helper::{
 };
 use crate::token::full_denom;
 use crate::{contract::XRP_CURRENCY, msg::InstantiateMsg, relayer::Relayer};
-use cosmwasm_std::{coin, coins, Addr, BankMsg, Uint128};
-use cosmwasm_testing_util::Executor;
+use cosmwasm_std::{coin, coins, Addr, Uint128};
+use cosmwasm_testing_util::{MockApp as TestingMockApp, MockTokenExtensions};
 use cw20::Cw20Coin;
 
 #[test]
 fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
-    let accounts_number = 4;
-    let accounts: Vec<_> = (0..accounts_number)
-        .into_iter()
-        .map(|i| format!("account{i}"))
-        .collect();
-
-    let mut app = MockApp::new(&[
-        (accounts[0].as_str(), &coins(100_000_000_000, FEE_DENOM)),
-        (accounts[1].as_str(), &coins(100_000_000_000, FEE_DENOM)),
-        (accounts[2].as_str(), &coins(100_000_000_000, FEE_DENOM)),
-        (accounts[3].as_str(), &coins(100_000_000_000, FEE_DENOM)),
+    let (mut app, accounts) = MockApp::new(&[
+        ("account0", &coins(100_000_000_000, FEE_DENOM)),
+        ("account1", &coins(100_000_000_000, FEE_DENOM)),
+        ("account2", &coins(100_000_000_000, FEE_DENOM)),
+        ("account3", &coins(100_000_000_000, FEE_DENOM)),
     ]);
+    let accounts_number = accounts.len();
 
     let signer = &accounts[accounts_number - 1];
     let receiver = &accounts[accounts_number - 2];
@@ -42,7 +37,7 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
     let mut relayers = vec![];
 
     for i in 0..accounts_number - 2 {
-        let account = format!("account{}", i);
+        let account = &accounts[i];
         relayer_accounts.push(account.clone());
         relayers.push(Relayer {
             cosmos_address: Addr::unchecked(account),
@@ -119,7 +114,7 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
             max_holding_amount: max_holding_amount.clone(),
             bridging_fee: bridging_fee,
         },
-        &[],
+        &coins(10_000_000u128, FEE_DENOM),
     )
     .unwrap();
 
@@ -162,10 +157,10 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
         )
         .unwrap_err();
 
-    assert_eq!(
-        not_active_error.root_cause().to_string(),
-        ContractError::TokenNotEnabled {}.to_string()
-    );
+    assert!(not_active_error
+        .root_cause()
+        .to_string()
+        .contains(&ContractError::TokenNotEnabled {}.to_string()));
 
     // Activate the token
     let query_pending_operations: PendingOperationsResponse = app
@@ -314,7 +309,7 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
             max_holding_amount: max_holding_amount,
             bridging_fee: bridging_fee,
         },
-        &[],
+        &coins(10_000_000u128, FEE_DENOM),
     )
     .unwrap();
 
@@ -534,16 +529,10 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
 
 #[test]
 fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
-    let accounts_number = 3;
-    let accounts: Vec<_> = (0..accounts_number)
-        .into_iter()
-        .map(|i| format!("account{i}"))
-        .collect();
-
-    let mut app = MockApp::new(&[
-        (accounts[0].as_str(), &coins(100_000_000_000, FEE_DENOM)),
-        (accounts[1].as_str(), &coins(100_000_000_000, FEE_DENOM)),
-        (accounts[2].as_str(), &coins(100_000_000_000, FEE_DENOM)),
+    let (mut app, accounts) = MockApp::new(&[
+        ("account0", &coins(100_000_000_000, FEE_DENOM)),
+        ("account1", &coins(100_000_000_000, FEE_DENOM)),
+        ("account2", &coins(100_000_000_000, FEE_DENOM)),
     ]);
 
     let signer = &accounts[0];
@@ -608,7 +597,6 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     .unwrap();
 
     // Let's issue a token where decimals are less than an XRPL token decimals to the sender and register it.
-    let symbol = "TEST".to_string();
     let subunit = "utest".to_string();
     let decimals = 6;
     let initial_amount = Uint128::new(100000000000000000000);
@@ -618,16 +606,12 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
         contract_addr.clone(),
         &ExecuteMsg::CreateCosmosToken {
             subdenom: subunit.to_uppercase(),
-            decimals,
             initial_balances: vec![Cw20Coin {
                 address: signer.to_string(),
                 amount: initial_amount,
             }],
-            name: None,
-            symbol: Some(symbol),
-            description: Some("description".to_string()),
         },
-        &[],
+        &coins(10_000_000u128, FEE_DENOM),
     )
     .unwrap();
 
@@ -635,16 +619,12 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
 
     // Send all initial amount tokens to the sender so that we can correctly test freezing without sending to the issuer
 
-    app.app
-        .execute(
-            Addr::unchecked(signer),
-            BankMsg::Send {
-                to_address: sender.to_string(),
-                amount: coins(initial_amount.u128(), denom.clone()),
-            }
-            .into(),
-        )
-        .unwrap();
+    app.send_coins(
+        Addr::unchecked(signer),
+        Addr::unchecked(sender),
+        &coins(initial_amount.u128(), denom.clone()),
+    )
+    .unwrap();
 
     app.execute(
         Addr::unchecked(signer),
@@ -859,11 +839,11 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     // Let's freeze the token to verify that claiming will fail
     app.execute(
         Addr::unchecked(signer),
-        token_factory_addr.clone(),
-        &tokenfactory::msg::ExecuteMsg::BurnTokens {
+        contract_addr.clone(),
+        &ExecuteMsg::BurnTokens {
             denom: denom.clone(),
             amount: 100000u128.into(),
-            burn_from_address: contract_addr.to_string(),
+            address: contract_addr.to_string(),
         },
         &[],
     )
@@ -884,11 +864,11 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     // signer is admin and can mint more token to contract_addr
     app.execute(
         Addr::unchecked(signer),
-        token_factory_addr.clone(),
-        &tokenfactory::msg::ExecuteMsg::MintTokens {
+        contract_addr.clone(),
+        &ExecuteMsg::MintTokens {
             denom: denom.clone(),
             amount: 100000u128.into(),
-            mint_to_address: contract_addr.to_string(),
+            address: contract_addr.to_string(),
         },
         &[],
     )
@@ -1101,7 +1081,6 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     );
 
     // Now let's issue a token where decimals are more than an XRPL token decimals to the sender and register it.
-    let symbol = "TEST2".to_string();
     let subunit = "utest2".to_string();
     let decimals = 20;
     let initial_amount = Uint128::new(200000000000000000000); // 2e20
@@ -1111,16 +1090,12 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
         contract_addr.clone(),
         &ExecuteMsg::CreateCosmosToken {
             subdenom: subunit.to_uppercase(),
-            decimals,
             initial_balances: vec![Cw20Coin {
                 address: sender.to_string(),
                 amount: initial_amount,
             }],
-            name: None,
-            symbol: Some(symbol),
-            description: Some("description".to_string()),
         },
-        &[],
+        &coins(10_000_000u128, FEE_DENOM),
     )
     .unwrap();
 
@@ -1471,16 +1446,10 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
 
 #[test]
 fn send_from_cosmos_to_xrpl() {
-    let accounts_number = 3;
-    let accounts: Vec<_> = (0..accounts_number)
-        .into_iter()
-        .map(|i| format!("account{i}"))
-        .collect();
-
-    let mut app = MockApp::new(&[
-        (accounts[0].as_str(), &coins(100_000_000_000, FEE_DENOM)),
-        (accounts[1].as_str(), &coins(100_000_000_000, FEE_DENOM)),
-        (accounts[2].as_str(), &coins(100_000_000_000, FEE_DENOM)),
+    let (mut app, accounts) = MockApp::new(&[
+        ("account0", &coins(100_000_000_000, FEE_DENOM)),
+        ("account1", &coins(100_000_000_000, FEE_DENOM)),
+        ("account2", &coins(100_000_000_000, FEE_DENOM)),
     ]);
 
     let signer = &accounts[0];
@@ -1858,7 +1827,7 @@ fn send_from_cosmos_to_xrpl() {
             max_holding_amount: max_holding_amount,
             bridging_fee: bridging_fee,
         },
-        &[],
+        &coins(10_000_000u128, FEE_DENOM),
     )
     .unwrap();
 
@@ -1942,17 +1911,16 @@ fn send_from_cosmos_to_xrpl() {
                 deliver_amount: None,
             },
             &vec![
-                coin(1, FEE_DENOM),
                 coin(amount_to_send_back.u128(), denom_xrpl_origin_token.clone()),
+                coin(1, FEE_DENOM),
             ],
         )
         .unwrap_err();
 
-    assert!(invalid_funds_error.root_cause().to_string().contains(
-        ContractError::Payment(cw_utils::PaymentError::MultipleDenoms {})
-            .to_string()
-            .as_str()
-    ));
+    assert!(invalid_funds_error
+        .root_cause()
+        .to_string()
+        .contains("Sent more than one denomination"));
 
     // If we send to an invalid XRPL address we should get an error
     let invalid_address_error = app
@@ -2351,7 +2319,6 @@ fn send_from_cosmos_to_xrpl() {
 
     // Let's issue a token to the sender and register it.
 
-    let symbol = "TEST".to_string();
     let subunit = "utest".to_string();
     let initial_amount = Uint128::new(1000000000);
     let decimals = 6;
@@ -2361,16 +2328,12 @@ fn send_from_cosmos_to_xrpl() {
         contract_addr.clone(),
         &ExecuteMsg::CreateCosmosToken {
             subdenom: subunit.to_uppercase(),
-            decimals,
             initial_balances: vec![Cw20Coin {
                 address: sender.to_string(),
                 amount: initial_amount,
             }],
-            name: None,
-            symbol: Some(symbol),
-            description: Some("description".to_string()),
         },
-        &[],
+        &coins(10_000_000u128, FEE_DENOM),
     )
     .unwrap();
 

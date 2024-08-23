@@ -13,23 +13,20 @@ use crate::tests::helper::{
 use crate::token::full_denom;
 use crate::{contract::XRP_CURRENCY, msg::InstantiateMsg, relayer::Relayer};
 use cosmwasm_std::{coin, coins, Addr, Uint128};
+use cosmwasm_testing_util::{MockApp as TestingMockApp, MockTokenExtensions};
 use cw20::Cw20Coin;
 
 #[test]
 fn bridge_fee_collection_and_claiming() {
-    let accounts_number = 5;
-    let accounts: Vec<_> = (0..accounts_number)
-        .into_iter()
-        .map(|i| format!("account{i}"))
-        .collect();
-
-    let mut app = MockApp::new(&[
-        (accounts[0].as_str(), &coins(100_000_000_000, FEE_DENOM)),
-        (accounts[1].as_str(), &coins(100_000_000_000, FEE_DENOM)),
-        (accounts[2].as_str(), &coins(100_000_000_000, FEE_DENOM)),
-        (accounts[3].as_str(), &coins(100_000_000_000, FEE_DENOM)),
-        (accounts[4].as_str(), &coins(100_000_000_000, FEE_DENOM)),
+    let (mut app, accounts) = MockApp::new(&[
+        ("account0", &coins(100_000_000_000, FEE_DENOM)),
+        ("account1", &coins(100_000_000_000, FEE_DENOM)),
+        ("account2", &coins(100_000_000_000, FEE_DENOM)),
+        ("account3", &coins(100_000_000_000, FEE_DENOM)),
+        ("account4", &coins(100_000_000_000, FEE_DENOM)),
     ]);
+
+    let accounts_number = accounts.len();
 
     let signer = &accounts[accounts_number - 1];
     let receiver = &accounts[accounts_number - 2];
@@ -116,7 +113,6 @@ fn bridge_fee_collection_and_claiming() {
     let max_holding_amount = Uint128::new(5000000000000000); // 5e15
     let bridging_fee = Uint128::new(50000); // 5e4
 
-    let symbol = "TEST".to_string();
     let subunit = "utest".to_string();
     let decimals = 6;
     let initial_amount = Uint128::new(100000000);
@@ -126,16 +122,12 @@ fn bridge_fee_collection_and_claiming() {
         contract_addr.clone(),
         &ExecuteMsg::CreateCosmosToken {
             subdenom: subunit.to_uppercase(),
-            decimals,
             initial_balances: vec![Cw20Coin {
                 address: receiver.to_string(),
                 amount: initial_amount,
             }],
-            name: None,
-            symbol: Some(symbol),
-            description: Some("description".to_string()),
         },
-        &[],
+        &coins(10_000_000u128, FEE_DENOM),
     )
     .unwrap();
 
@@ -162,7 +154,7 @@ fn bridge_fee_collection_and_claiming() {
             max_holding_amount,
             bridging_fee,
         },
-        &[],
+        &coins(10_000_000u128, FEE_DENOM),
     )
     .unwrap();
 
@@ -972,16 +964,10 @@ fn bridge_fee_collection_and_claiming() {
 
 #[test]
 fn bridge_halting_and_resuming() {
-    let accounts_number = 3;
-    let accounts: Vec<_> = (0..accounts_number)
-        .into_iter()
-        .map(|i| format!("account{i}"))
-        .collect();
-
-    let mut app = MockApp::new(&[
-        (accounts[0].as_str(), &coins(100_000_000_000, FEE_DENOM)),
-        (accounts[1].as_str(), &coins(100_000_000_000, FEE_DENOM)),
-        (accounts[2].as_str(), &coins(100_000_000_000, FEE_DENOM)),
+    let (mut app, accounts) = MockApp::new(&[
+        ("account0", &coins(100_000_000_000, FEE_DENOM)),
+        ("account1", &coins(100_000_000_000, FEE_DENOM)),
+        ("account2", &coins(100_000_000_000, FEE_DENOM)),
     ]);
 
     let signer = &accounts[0];
@@ -1094,7 +1080,7 @@ fn bridge_halting_and_resuming() {
                 max_holding_amount: Uint128::new(50000),
                 bridging_fee: Uint128::zero(),
             },
-            &[],
+            &coins(10_000_000u128, FEE_DENOM),
         )
         .unwrap_err();
 

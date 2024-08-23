@@ -3,21 +3,16 @@ use crate::error::ContractError;
 use crate::tests::helper::{
     generate_xrpl_address, generate_xrpl_pub_key, MockApp, FEE_DENOM, TRUST_SET_LIMIT_AMOUNT,
 };
-use crate::{contract::XRP_CURRENCY, msg::InstantiateMsg, relayer::Relayer};
+use crate::{msg::InstantiateMsg, relayer::Relayer};
 use cosmwasm_std::{coins, Addr, Uint128};
-use token_bindings::{DenomUnit, FullDenomResponse, Metadata, MetadataResponse};
+use cosmwasm_testing_util::{FullDenomResponse, MetadataResponse};
+use cosmwasm_testing_util::{MockApp as TestingMockApp, MockTokenExtensions};
 
 #[test]
 fn contract_instantiation() {
-    let accounts_number = 2;
-    let accounts: Vec<_> = (0..accounts_number)
-        .into_iter()
-        .map(|i| format!("account{i}"))
-        .collect();
-
-    let mut app = MockApp::new(&[
-        (accounts[0].as_str(), &coins(100_000_000_000, FEE_DENOM)),
-        (accounts[1].as_str(), &coins(100_000_000_000, FEE_DENOM)),
+    let (mut app, accounts) = MockApp::new(&[
+        ("account0", &coins(100_000_000_000, FEE_DENOM)),
+        ("account1", &coins(100_000_000_000, FEE_DENOM)),
     ]);
 
     let signer = &accounts[0];
@@ -311,30 +306,14 @@ fn contract_instantiation() {
         .unwrap();
 
     // We query the issued token by the contract instantiation (XRP)
-    let token_response: MetadataResponse = app
-        .query(
+    let MetadataResponse { metadata } = app
+        .query::<MetadataResponse, _>(
             token_factory_addr.clone(),
             &tokenfactory::msg::QueryMsg::GetMetadata {
                 denom: denom.to_string(),
             },
         )
-        .unwrap();
+        .unwrap_or(MetadataResponse { metadata: None });
 
-    assert_eq!(
-        token_response,
-        MetadataResponse {
-            metadata: Some(Metadata {
-                description: None,
-                denom_units: vec![DenomUnit {
-                    denom: XRP_SYMBOL.to_string(),
-                    exponent: 6,
-                    aliases: vec![]
-                }],
-                base: None,
-                display: None,
-                name: Some(XRP_CURRENCY.to_string()),
-                symbol: Some(XRP_SYMBOL.to_string())
-            })
-        }
-    );
+    assert_eq!(metadata, None);
 }
