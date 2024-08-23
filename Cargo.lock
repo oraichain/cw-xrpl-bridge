@@ -511,7 +511,7 @@ dependencies = [
 [[package]]
 name = "cosmwasm-testing-util"
 version = "0.1.0"
-source = "git+https://github.com/oraichain/cosmwasm-testing-util.git?rev=44cd4f7#44cd4f7af6a59c969c70471e5c39cb29802ff527"
+source = "git+https://github.com/oraichain/cosmwasm-testing-util.git?rev=3ed0397#3ed03974960122fcda17fd6beb1a657334fe425a"
 dependencies = [
  "anyhow",
  "bech32 0.9.1",
@@ -886,6 +886,7 @@ dependencies = [
  "ripple-keypairs",
  "sha2 0.10.8",
  "thiserror",
+ "token-bindings",
  "tokenfactory",
 ]
 

@@ -17,7 +17,7 @@ use crate::{
     relayer::Relayer,
     state::TokenState,
 };
-use cosmwasm_testing_util::DenomsByCreatorResponse;
+use token_bindings::DenomsByCreatorResponse;
 use cosmwasm_testing_util::{MockApp as TestingMockApp, MockTokenExtensions};
 
 #[test]

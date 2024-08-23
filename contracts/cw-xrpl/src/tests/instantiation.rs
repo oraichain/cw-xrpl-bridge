@@ -5,8 +5,8 @@ use crate::tests::helper::{
 };
 use crate::{msg::InstantiateMsg, relayer::Relayer};
 use cosmwasm_std::{coins, Addr, Uint128};
-use cosmwasm_testing_util::{FullDenomResponse, MetadataResponse};
 use cosmwasm_testing_util::{MockApp as TestingMockApp, MockTokenExtensions};
+use token_bindings::{FullDenomResponse, MetadataResponse};
 
 #[test]
 fn contract_instantiation() {
