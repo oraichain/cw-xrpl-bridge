@@ -13,7 +13,7 @@ use crate::tests::helper::{
 use crate::token::full_denom;
 use crate::{contract::XRP_CURRENCY, msg::InstantiateMsg, relayer::Relayer};
 use cosmwasm_std::{coin, coins, Addr, Uint128};
-use cosmwasm_testing_util::{MockApp as TestingMockApp, MockTokenExtensions};
+use cosmwasm_testing_util::{MockAppExtensions, MockTokenExtensions};
 use cw20::Cw20Coin;
 
 #[test]

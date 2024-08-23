@@ -18,7 +18,7 @@ use crate::{
     state::TokenState,
 };
 use token_bindings::DenomsByCreatorResponse;
-use cosmwasm_testing_util::{MockApp as TestingMockApp, MockTokenExtensions};
+use cosmwasm_testing_util::{MockAppExtensions, MockTokenExtensions};
 
 #[test]
 fn register_cosmos_token() {

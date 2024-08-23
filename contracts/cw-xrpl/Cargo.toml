@@ -11,7 +11,7 @@ documentation = { workspace = true }
 [features]
 backtraces = ["cosmwasm-std/backtraces"]
 library = []
-test-tube = []
+test-tube = ["cosmwasm-testing-util/test-tube"]
 default = ["cosmwasm_1_1"]
 cosmwasm_1_1 = [
     "cosmwasm-std/cosmwasm_1_1",
