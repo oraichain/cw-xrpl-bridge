@@ -11,6 +11,7 @@ documentation = { workspace = true }
 [features]
 backtraces = ["cosmwasm-std/backtraces"]
 library = []
+test-tube = []
 default = ["cosmwasm_1_1"]
 cosmwasm_1_1 = [
     "cosmwasm-std/cosmwasm_1_1",
@@ -47,7 +48,6 @@ cw20 = { workspace = true }
 thiserror = { workspace = true }
 derive_more = { workspace = true }
 tokenfactory = { workspace = true, features = ["library"] }
-token-bindings = { workspace = true }
 
 bs58 = "0.5.0"
 sha2 = "0.10.8"

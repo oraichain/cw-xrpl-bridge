@@ -42,7 +42,6 @@ use cw20::Cw20Coin;
 use cw_ownable::{get_ownership, initialize_owner, is_owner, Action};
 use cw_storage_plus::Bound;
 use cw_utils::one_coin;
-use token_bindings::{DenomUnit, Metadata};
 
 // version info for migration info
 pub const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -107,7 +106,7 @@ pub fn instantiate(
     initialize_owner(
         deps.storage,
         deps.api,
-        Some(deps.api.addr_validate(msg.owner.as_ref())?.as_ref()),
+        Some(deps.api.addr_validate(msg.owner.as_str())?.as_str()),
     )?;
 
     // We store all the prohibited addresses in state, including the multisig address, which is also prohibited to send to
@@ -159,20 +158,9 @@ pub fn instantiate(
             config.token_factory_addr.to_string(),
             &tokenfactory::msg::ExecuteMsg::CreateDenom {
                 subdenom: XRP_SYMBOL.to_string(),
-                metadata: Some(Metadata {
-                    symbol: Some(XRP_SYMBOL.to_string()),
-                    denom_units: vec![DenomUnit {
-                        exponent: XRP_DECIMALS,
-                        denom: XRP_SYMBOL.to_string(),
-                        aliases: vec![],
-                    }],
-                    description: None,
-                    base: None,
-                    display: None,
-                    name: Some(XRP_CURRENCY.to_string()),
-                }),
+                metadata: None,
             },
-            vec![],
+            info.funds,
         )?;
         response = response.add_message(xrp_issue_msg);
     }
@@ -211,21 +199,8 @@ pub fn execute(
     match msg {
         ExecuteMsg::CreateCosmosToken {
             subdenom,
-            decimals,
             initial_balances,
-            name,
-            symbol,
-            description,
-        } => create_cosmos_token(
-            deps,
-            info.sender,
-            subdenom,
-            decimals,
-            initial_balances,
-            name,
-            symbol,
-            description,
-        ),
+        } => create_cosmos_token(deps, info, subdenom, initial_balances),
         ExecuteMsg::MintCosmosToken {
             denom,
             initial_balances,
@@ -350,6 +325,44 @@ pub fn execute(
         ExecuteMsg::CancelPendingOperation { operation_id } => {
             cancel_pending_operation(env, deps, info.sender, operation_id)
         }
+        #[cfg(test)]
+        ExecuteMsg::BurnTokens {
+            denom,
+            amount,
+            address,
+        } => {
+            let config = CONFIG.load(deps.storage)?;
+            let burn_msg = wasm_execute(
+                config.token_factory_addr,
+                &tokenfactory::msg::ExecuteMsg::BurnTokens {
+                    denom,
+                    amount,
+                    burn_from_address: address,
+                },
+                vec![],
+            )?;
+
+            Ok(Response::new().add_message(burn_msg))
+        }
+        #[cfg(test)]
+        ExecuteMsg::MintTokens {
+            denom,
+            amount,
+            address,
+        } => {
+            let config = CONFIG.load(deps.storage)?;
+            let mint_msg = wasm_execute(
+                config.token_factory_addr,
+                &tokenfactory::msg::ExecuteMsg::MintTokens {
+                    denom,
+                    amount,
+                    mint_to_address: address,
+                },
+                vec![],
+            )?;
+
+            Ok(Response::new().add_message(mint_msg))
+        }
     }
 }
 
@@ -367,15 +380,15 @@ fn update_ownership(
 
 fn create_cosmos_token(
     deps: DepsMut,
-    sender: Addr,
+    info: MessageInfo,
     subdenom: String,
-    decimals: u32,
     initial_balances: Vec<Cw20Coin>,
-    name: Option<String>,
-    symbol: Option<String>,
-    description: Option<String>,
 ) -> ContractResult<Response> {
-    check_authorization(deps.storage, &sender, &ContractActions::CreateCosmosToken)?;
+    check_authorization(
+        deps.storage,
+        &info.sender,
+        &ContractActions::CreateCosmosToken,
+    )?;
 
     let config = CONFIG.load(deps.storage)?;
     let denom = full_denom(&config.token_factory_addr, &subdenom.to_uppercase());
@@ -384,20 +397,9 @@ fn create_cosmos_token(
         config.token_factory_addr.to_string(),
         &tokenfactory::msg::ExecuteMsg::CreateDenom {
             subdenom: subdenom.to_uppercase(),
-            metadata: Some(Metadata {
-                symbol,
-                denom_units: vec![DenomUnit {
-                    denom: subdenom.clone(),
-                    exponent: decimals,
-                    aliases: vec![],
-                }],
-                name,
-                description,
-                base: None,
-                display: None,
-            }),
+            metadata: None,
         },
-        vec![],
+        info.funds,
     )?];
 
     if !initial_balances.is_empty() {
@@ -418,9 +420,8 @@ fn create_cosmos_token(
     Ok(Response::new()
         .add_messages(msgs)
         .add_attribute("action", ContractActions::CreateCosmosToken.as_str())
-        .add_attribute("sender", sender)
-        .add_attribute("denom", denom)
-        .add_attribute("decimals", decimals.to_string()))
+        .add_attribute("sender", info.sender)
+        .add_attribute("denom", denom))
 }
 
 pub fn mint_cosmos_token(
@@ -562,20 +563,9 @@ fn register_xrpl_token(
         config.token_factory_addr.to_string(),
         &tokenfactory::msg::ExecuteMsg::CreateDenom {
             subdenom: subdenom.clone(),
-            metadata: Some(Metadata {
-                symbol: Some(XRP_SYMBOL.to_string()),
-                denom_units: vec![DenomUnit {
-                    exponent: XRPL_TOKENS_DECIMALS,
-                    denom: subunit,
-                    aliases: vec![],
-                }],
-                description: None,
-                base: None,
-                display: None,
-                name: Some(XRP_CURRENCY.to_string()),
-            }),
+            metadata: None,
         },
-        vec![],
+        info.funds,
     )?;
 
     // Denom that token will have in Cosmos

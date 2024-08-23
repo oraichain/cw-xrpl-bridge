@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, Coin};
+use cosmwasm_std::{coins, Addr, Coin};
 use cosmwasm_testing_util::{MockApp as TestingMockApp, MockResult};
 use derive_more::{Deref, DerefMut};
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
@@ -7,30 +7,40 @@ use ripple_keypairs::Seed;
 pub const FEE_DENOM: &str = "orai";
 pub const TRUST_SET_LIMIT_AMOUNT: u128 = 1000000000000000000; // 1e18
 
+#[cfg(feature = "test-tube")]
+pub type TestMockApp = cosmwasm_testing_util::TestTubeMockApp;
+#[cfg(not(feature = "test-tube"))]
+pub type TestMockApp = cosmwasm_testing_util::MultiTestMockApp;
+
 #[derive(Deref, DerefMut)]
 pub struct MockApp {
     #[deref]
     #[deref_mut]
-    app: cosmwasm_testing_util::MultiTestMockApp,
+    app: TestMockApp,
     bridge_id: u64,
 }
 
-static CW_BYTES: &[u8] = include_bytes!("../../artifacts/cw-xrpl.wasm");
-
 #[allow(dead_code)]
 impl MockApp {
-    pub fn new(init_balances: &[(&str, &[Coin])]) -> Self {
-        let mut app = cosmwasm_testing_util::MultiTestMockApp::new(init_balances);
-
-        let bridge_id = app.upload(Box::new(
-            cosmwasm_testing_util::ContractWrapper::new_with_empty(
-                crate::contract::execute,
-                crate::contract::instantiate,
-                crate::contract::query,
-            ),
-        ));
-
-        Self { app, bridge_id }
+    pub fn new(init_balances: &[(&str, &[Coin])]) -> (Self, Vec<String>) {
+        let (mut app, accounts) = TestMockApp::new(init_balances);
+        let bridge_id;
+        #[cfg(feature = "test-tube")]
+        {
+            static CW_BYTES: &[u8] = include_bytes!("./testdata/cw-xrpl.wasm");
+            bridge_id = app.upload(CW_BYTES);
+        }
+        #[cfg(not(feature = "test-tube"))]
+        {
+            bridge_id = app.upload(Box::new(
+                cosmwasm_testing_util::ContractWrapper::new_with_empty(
+                    crate::contract::execute,
+                    crate::contract::instantiate,
+                    crate::contract::query,
+                ),
+            ));
+        }
+        (Self { app, bridge_id }, accounts)
     }
 
     /// external method
@@ -40,7 +50,13 @@ impl MockApp {
         init_msg: &crate::msg::InstantiateMsg,
     ) -> MockResult<Addr> {
         let code_id = self.bridge_id;
-        self.instantiate(code_id, sender, init_msg, &[], "cw-xrpl-bridge")
+        self.instantiate(
+            code_id,
+            sender,
+            init_msg,
+            &coins(10_000_000u128, FEE_DENOM), // denom creation fee
+            "cw-xrpl-bridge",
+        )
     }
 }
 

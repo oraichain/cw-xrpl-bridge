@@ -17,17 +17,12 @@ use cosmwasm_testing_util::{MockApp as TestingMockApp, MockTokenExtensions};
 
 #[test]
 fn ticket_recovery() {
-    let accounts_number = 3;
-    let accounts: Vec<_> = (0..accounts_number)
-        .into_iter()
-        .map(|i| format!("account{i}"))
-        .collect();
-
-    let mut app = MockApp::new(&[
-        (accounts[0].as_str(), &coins(100_000_000_000, FEE_DENOM)),
-        (accounts[1].as_str(), &coins(100_000_000_000, FEE_DENOM)),
-        (accounts[2].as_str(), &coins(100_000_000_000, FEE_DENOM)),
+    let (mut app, accounts) = MockApp::new(&[
+        ("account0", &coins(100_000_000_000, FEE_DENOM)),
+        ("account1", &coins(100_000_000_000, FEE_DENOM)),
+        ("account2", &coins(100_000_000_000, FEE_DENOM)),
     ]);
+    let accounts_number = accounts.len();
 
     let signer = &accounts[accounts_number - 1];
     let xrpl_addresses = vec![generate_xrpl_address(), generate_xrpl_address()];
@@ -626,13 +621,13 @@ fn ticket_recovery() {
 
 #[test]
 fn rejected_ticket_allocation_with_no_tickets_left() {
-    let signer ="signer";
-    let mut app = MockApp::new(&[
-        (signer, &coins(100_000_000_000, FEE_DENOM)),
+    
+    let (mut app,accounts) = MockApp::new(&[
+        ("signer", &coins(100_000_000_000, FEE_DENOM)),
         
     ]);
-    
 
+    let signer = &accounts[0];
     let relayer = Relayer {
         cosmos_address: Addr::unchecked(signer),
         xrpl_address: generate_xrpl_address(),
@@ -726,7 +721,7 @@ fn rejected_ticket_allocation_with_no_tickets_left() {
                 max_holding_amount: token.max_holding_amount,
                 bridging_fee: token.bridging_fee,
             },
-            &[],
+            &coins(10_000_000u128, FEE_DENOM),
             
         )
         .unwrap();
@@ -823,20 +818,11 @@ fn rejected_ticket_allocation_with_no_tickets_left() {
 
 #[test]
 fn ticket_return_invalid_transactions() {
-    let accounts_number = 3;
-    let accounts: Vec<_> = (0..accounts_number)
-        .into_iter()
-        .map(|i| format!("account{i}"))
-        .collect();
-
-    let mut app = MockApp::new(&[
-        (accounts[0].as_str(), &coins(100_000_000_000, FEE_DENOM)),
-        (accounts[1].as_str(), &coins(100_000_000_000, FEE_DENOM)),
-        (accounts[2].as_str(), &coins(100_000_000_000, FEE_DENOM)),
+    let (mut app, accounts) = MockApp::new(&[
+        ("account0", &coins(100_000_000_000, FEE_DENOM)),
+        ("account1", &coins(100_000_000_000, FEE_DENOM)),
+        ("account2", &coins(100_000_000_000, FEE_DENOM)),
     ]);
-
-    
-    
 
     let signer = &accounts[0];
     let sender = &accounts[1];
@@ -904,8 +890,7 @@ fn ticket_return_invalid_transactions() {
     .unwrap();    
     
     // Let's issue a token and register it
-
-    let symbol = "TEST".to_string();
+    
     let subunit = "utest".to_string();
     let decimals = 6;
     let initial_amount = Uint128::new(100000000);
@@ -914,17 +899,13 @@ fn ticket_return_invalid_transactions() {
         Addr::unchecked(signer),
         contract_addr.clone(),
         &ExecuteMsg::CreateCosmosToken {
-            subdenom: subunit.to_uppercase(),
-            decimals,            
+            subdenom: subunit.to_uppercase(),                       
             initial_balances: vec![Cw20Coin {
                 address: sender.to_string(),
                 amount: initial_amount,
             }],
-            name: None,
-            symbol: Some(symbol),
-            description: Some("description".to_string()),
         },
-        &[],
+        &coins(10_000_000u128, FEE_DENOM),
     )
     .unwrap();
 

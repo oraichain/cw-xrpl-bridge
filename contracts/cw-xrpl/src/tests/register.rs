@@ -1,5 +1,4 @@
 use cosmwasm_std::{coins, Addr, Uint128};
-use token_bindings::DenomsByCreatorResponse;
 use crate::contract::{MAX_COSMOS_TOKEN_DECIMALS, XRPL_DENOM_PREFIX};
 use crate::error::ContractError;
 use crate::evidence::{Evidence, OperationResult, TransactionResult};
@@ -18,13 +17,14 @@ use crate::{
     relayer::Relayer,
     state::TokenState,
 };
+use cosmwasm_testing_util::DenomsByCreatorResponse;
 use cosmwasm_testing_util::{MockApp as TestingMockApp, MockTokenExtensions};
 
 #[test]
 fn register_cosmos_token() {
-    let signer = "signer";
-    let mut app = MockApp::new(&[(signer, &coins(100_000_000_000, FEE_DENOM))]);
-
+    
+    let (mut app,accounts) = MockApp::new(&[("signer", &coins(100_000_000_000, FEE_DENOM))]);
+    let signer = &accounts[0];
     let relayer = Relayer {
         cosmos_address: Addr::unchecked(signer),
         xrpl_address: generate_xrpl_address(),
@@ -250,9 +250,9 @@ fn register_cosmos_token() {
 
 #[test]
 fn register_xrpl_token() {
-    let signer = "signer";
-    let mut app = MockApp::new(&[(signer, &coins(100_000_000_000, FEE_DENOM))]);
-
+    
+    let (mut app,accounts) = MockApp::new(&[("signer", &coins(100_000_000_000, FEE_DENOM))]);
+    let signer = &accounts[0];
     
     let relayer = Relayer {
         cosmos_address: Addr::unchecked(signer),
@@ -315,7 +315,7 @@ fn register_xrpl_token() {
                 max_holding_amount: test_tokens[0].max_holding_amount.clone(),
                 bridging_fee: test_tokens[0].bridging_fee,
             },
-            &[],            
+            &coins(10_000_000u128, FEE_DENOM),
         )
         .unwrap_err();
 
@@ -332,7 +332,7 @@ fn register_xrpl_token() {
                 max_holding_amount: test_tokens[0].max_holding_amount.clone(),
                 bridging_fee: test_tokens[0].bridging_fee,
             },
-            &[],
+            &coins(10_000_000u128, FEE_DENOM),
             
         )
         .unwrap_err();
@@ -350,7 +350,7 @@ fn register_xrpl_token() {
                 max_holding_amount: test_tokens[0].max_holding_amount.clone(),
                 bridging_fee: test_tokens[0].bridging_fee,
             },
-            &[],
+            &coins(10_000_000u128, FEE_DENOM),
             
         )
         .unwrap_err();
@@ -368,7 +368,7 @@ fn register_xrpl_token() {
                 max_holding_amount: test_tokens[1].max_holding_amount.clone(),
                 bridging_fee: test_tokens[1].bridging_fee,
             },
-            &[],
+            &coins(10_000_000u128, FEE_DENOM),
             
         )
         .unwrap_err();
@@ -387,7 +387,7 @@ fn register_xrpl_token() {
                 max_holding_amount: test_tokens[1].max_holding_amount.clone(),
                 bridging_fee: test_tokens[1].bridging_fee,
             },
-            &[],
+            &coins(10_000_000u128, FEE_DENOM),
             
         )
         .unwrap_err();
@@ -406,7 +406,7 @@ fn register_xrpl_token() {
                 max_holding_amount: test_tokens[1].max_holding_amount.clone(),
                 bridging_fee: test_tokens[1].bridging_fee,
             },
-            &[],
+            &coins(10_000_000u128, FEE_DENOM),
             
         )
         .unwrap_err();
@@ -425,7 +425,7 @@ fn register_xrpl_token() {
                 max_holding_amount: test_tokens[1].max_holding_amount.clone(),
                 bridging_fee: test_tokens[1].bridging_fee,
             },
-            &[],
+            &coins(10_000_000u128, FEE_DENOM),
             
         )
         .unwrap_err();
@@ -444,7 +444,7 @@ fn register_xrpl_token() {
                 max_holding_amount: test_tokens[1].max_holding_amount.clone(),
                 bridging_fee: test_tokens[1].bridging_fee,
             },
-            &[],
+            &coins(10_000_000u128, FEE_DENOM),
             
         )
         .unwrap_err();
@@ -482,7 +482,7 @@ fn register_xrpl_token() {
                 max_holding_amount: test_tokens[1].max_holding_amount.clone(),
                 bridging_fee: test_tokens[1].bridging_fee,
             },
-            &[],
+            &coins(10_000_000u128, FEE_DENOM),
             
         )
         .unwrap_err();
@@ -501,7 +501,7 @@ fn register_xrpl_token() {
                 max_holding_amount: test_tokens[0].max_holding_amount,
                 bridging_fee: test_tokens[0].bridging_fee,
             },
-            &[],
+            &coins(10_000_000u128, FEE_DENOM),
             
         )
         .unwrap_err();
@@ -552,7 +552,7 @@ fn register_xrpl_token() {
                 max_holding_amount: token.max_holding_amount,
                 bridging_fee: token.bridging_fee,
             },
-            &[],
+            &coins(10_000_000u128, FEE_DENOM),
             
         )
         .unwrap();
@@ -580,7 +580,7 @@ fn register_xrpl_token() {
                 max_holding_amount: extra_token.max_holding_amount,
                 bridging_fee: extra_token.bridging_fee,
             },
-            &[],
+            &coins(10_000_000u128, FEE_DENOM),
             
         )
         .unwrap_err();
@@ -610,7 +610,7 @@ fn register_xrpl_token() {
                 max_holding_amount: test_tokens[0].max_holding_amount.clone(),
                 bridging_fee: test_tokens[0].bridging_fee,
             },
-            &[],
+            &coins(10_000_000u128, FEE_DENOM),
             
         )
         .unwrap_err();
@@ -654,10 +654,11 @@ fn register_xrpl_token() {
 
 #[test]
 fn xrpl_token_registration_recovery() {
-    let signer = "signer";
-    let mut app = MockApp::new(&[
-        (signer, &coins(100_000_000_000, FEE_DENOM)),
+    
+    let (mut app,accounts) = MockApp::new(&[
+        ("signer", &coins(100_000_000_000, FEE_DENOM)),
     ]);
+    let signer = &accounts[0];
 
 
     let relayer = Relayer {
@@ -742,7 +743,7 @@ fn xrpl_token_registration_recovery() {
             max_holding_amount: max_holding_amount,
             bridging_fee: bridging_fee,
         },
-        &[],
+        &coins(10_000_000u128, FEE_DENOM),
         
     )
     .unwrap();

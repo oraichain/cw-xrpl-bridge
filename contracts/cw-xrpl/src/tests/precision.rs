@@ -18,15 +18,9 @@ use cw20::Cw20Coin;
 
 #[test]
 fn precisions() {
-    let accounts_number = 2;
-    let accounts: Vec<_> = (0..accounts_number)
-        .into_iter()
-        .map(|i| format!("account{i}"))
-        .collect();
-
-    let mut app = MockApp::new(&[
-        (accounts[0].as_str(), &coins(100_000_000_000, FEE_DENOM)),
-        (accounts[1].as_str(), &coins(100_000_000_000, FEE_DENOM)),
+    let (mut app, accounts) = MockApp::new(&[
+        ("account0", &coins(100_000_000_000, FEE_DENOM)),
+        ("account1", &coins(100_000_000_000, FEE_DENOM)),
     ]);
 
     let signer = &accounts[0];
@@ -131,7 +125,7 @@ fn precisions() {
             max_holding_amount: test_token1.max_holding_amount.clone(),
             bridging_fee: test_token1.bridging_fee,
         },
-        &[],
+        &coins(10_000_000u128, FEE_DENOM),
     )
     .unwrap();
 
@@ -271,7 +265,7 @@ fn precisions() {
             max_holding_amount: test_token2.max_holding_amount.clone(),
             bridging_fee: test_token2.bridging_fee,
         },
-        &[],
+        &coins(10_000_000u128, FEE_DENOM),
     )
     .unwrap();
 
@@ -457,7 +451,7 @@ fn precisions() {
             max_holding_amount: test_token3.max_holding_amount.clone(),
             bridging_fee: test_token3.bridging_fee,
         },
-        &[],
+        &coins(10_000_000u128, FEE_DENOM),
     )
     .unwrap();
 
@@ -738,7 +732,6 @@ fn precisions() {
     // Let's issue a few assets to the sender and registering them with different precisions and max sending amounts.
 
     for i in 1..=3 {
-        let symbol = "TEST".to_string() + &i.to_string();
         let subunit = "utest".to_string() + &i.to_string();
         let initial_amount = Uint128::from(100000000000000u128);
 
@@ -747,16 +740,12 @@ fn precisions() {
             contract_addr.clone(),
             &ExecuteMsg::CreateCosmosToken {
                 subdenom: subunit.to_uppercase(),
-                decimals: 6,
                 initial_balances: vec![Cw20Coin {
                     address: signer.to_string(),
                     amount: initial_amount,
                 }],
-                name: None,
-                symbol: Some(symbol),
-                description: Some("description".to_string()),
             },
-            &[],
+            &coins(10_000_000u128, FEE_DENOM),
         )
         .unwrap();
     }

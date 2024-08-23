@@ -19,18 +19,13 @@ use cw20::Cw20Coin;
 
 #[test]
 fn token_update() {
-    let accounts_number = 3;
-    let accounts: Vec<_> = (0..accounts_number)
-        .into_iter()
-        .map(|i| format!("account{i}"))
-        .collect();
-
-    let mut app = MockApp::new(&[
-        (accounts[0].as_str(), &coins(100_000_000_000, FEE_DENOM)),
-        (accounts[1].as_str(), &coins(100_000_000_000, FEE_DENOM)),
-        (accounts[2].as_str(), &coins(100_000_000_000, FEE_DENOM)),
+    let (mut app, accounts) = MockApp::new(&[
+        ("account0", &coins(100_000_000_000, FEE_DENOM)),
+        ("account1", &coins(100_000_000_000, FEE_DENOM)),
+        ("account2", &coins(100_000_000_000, FEE_DENOM)),
     ]);
 
+    let accounts_number = accounts.len();
     let signer = &accounts[accounts_number - 1];
     let xrpl_addresses: Vec<String> = (0..2).map(|_| generate_xrpl_address()).collect();
     let xrpl_pub_keys: Vec<String> = (0..2).map(|_| generate_xrpl_pub_key()).collect();
@@ -112,16 +107,12 @@ fn token_update() {
         contract_addr.clone(),
         &ExecuteMsg::CreateCosmosToken {
             subdenom: subunit.to_uppercase(),
-            decimals,
             initial_balances: vec![Cw20Coin {
                 address: signer.to_string(),
                 amount: initial_amount,
             }],
-            name: None,
-            symbol: Some("TEST".to_string()),
-            description: Some("description".to_string()),
         },
-        &[],
+        &coins(10_000_000u128, FEE_DENOM),
     )
     .unwrap();
 
@@ -141,7 +132,7 @@ fn token_update() {
             max_holding_amount,
             bridging_fee,
         },
-        &[],
+        &coins(10_000_000u128, FEE_DENOM),
     )
     .unwrap();
 
@@ -1129,16 +1120,10 @@ fn token_update() {
 
 #[test]
 fn test_burning_rate_and_commission_fee_cosmos_tokens() {
-    let accounts_number = 3;
-    let accounts: Vec<_> = (0..accounts_number)
-        .into_iter()
-        .map(|i| format!("account{i}"))
-        .collect();
-
-    let mut app = MockApp::new(&[
-        (accounts[0].as_str(), &coins(100_000_000_000, FEE_DENOM)),
-        (accounts[1].as_str(), &coins(100_000_000_000, FEE_DENOM)),
-        (accounts[2].as_str(), &coins(100_000_000_000, FEE_DENOM)),
+    let (mut app, accounts) = MockApp::new(&[
+        ("account0", &coins(100_000_000_000, FEE_DENOM)),
+        ("account1", &coins(100_000_000_000, FEE_DENOM)),
+        ("account2", &coins(100_000_000_000, FEE_DENOM)),
     ]);
 
     let signer = &accounts[0];
@@ -1206,7 +1191,6 @@ fn test_burning_rate_and_commission_fee_cosmos_tokens() {
 
     // Let's issue a token with burning and commission fees and make sure it works out of the box
 
-    let symbol = "TEST".to_string();
     let subunit = "utest".to_string();
     let decimals = 6;
     let initial_amount = Uint128::new(10000000000);
@@ -1216,16 +1200,12 @@ fn test_burning_rate_and_commission_fee_cosmos_tokens() {
         contract_addr.clone(),
         &ExecuteMsg::CreateCosmosToken {
             subdenom: subunit.to_uppercase(),
-            decimals,
             initial_balances: vec![Cw20Coin {
                 address: signer.to_string(),
                 amount: initial_amount,
             }],
-            name: None,
-            symbol: Some(symbol),
-            description: Some("description".to_string()),
         },
-        &[],
+        &coins(10_000_000u128, FEE_DENOM),
     )
     .unwrap();
 

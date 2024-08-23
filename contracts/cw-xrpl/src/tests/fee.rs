@@ -12,18 +12,13 @@ use cosmwasm_testing_util::{MockApp as TestingMockApp, MockTokenExtensions};
 
 #[test]
 fn updating_xrpl_base_fee() {
-    let accounts_number = 4;
-    let accounts: Vec<_> = (0..accounts_number)
-        .into_iter()
-        .map(|i| format!("account{i}"))
-        .collect();
-
-    let mut app = MockApp::new(&[
-        (accounts[0].as_str(), &coins(100_000_000_000, FEE_DENOM)),
-        (accounts[1].as_str(), &coins(100_000_000_000, FEE_DENOM)),
-        (accounts[2].as_str(), &coins(100_000_000_000, FEE_DENOM)),
-        (accounts[3].as_str(), &coins(100_000_000_000, FEE_DENOM)),
+    let (mut app, accounts) = MockApp::new(&[
+        ("account0", &coins(100_000_000_000_000_000, FEE_DENOM)),
+        ("account1", &coins(100_000_000_000_000_000, FEE_DENOM)),
+        ("account2", &coins(100_000_000_000_000_000, FEE_DENOM)),
+        ("account3", &coins(100_000_000_000_000_000, FEE_DENOM)),
     ]);
+    let accounts_number = accounts.len();
 
     let signer = &accounts[accounts_number - 1];
     let xrpl_addresses: Vec<String> = (0..3).map(|_| generate_xrpl_address()).collect();
@@ -106,7 +101,7 @@ fn updating_xrpl_base_fee() {
             max_holding_amount: Uint128::new(100000),
             bridging_fee: Uint128::zero(),
         },
-        &[],
+        &coins(10_000_000u128, FEE_DENOM),
     )
     .unwrap();
 
