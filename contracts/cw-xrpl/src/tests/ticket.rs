@@ -13,7 +13,7 @@ use crate::token::full_denom;
 use crate::{msg::InstantiateMsg, relayer::Relayer};
 use cosmwasm_std::{coins, Addr, Uint128};
 use cw20::Cw20Coin;
-use cosmwasm_testing_util::{MockAppExtensions, MockTokenExtensions};
+
 
 #[test]
 fn ticket_recovery() {

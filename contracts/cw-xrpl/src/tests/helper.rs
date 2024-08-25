@@ -1,11 +1,16 @@
 use cosmwasm_std::{coins, Addr, Coin};
-use cosmwasm_testing_util::{MockAppExtensions, MockResult, TestMockApp};
+use cosmwasm_testing_util::MockResult;
 use derive_more::{Deref, DerefMut};
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use ripple_keypairs::Seed;
 
 pub const FEE_DENOM: &str = "orai";
 pub const TRUST_SET_LIMIT_AMOUNT: u128 = 1000000000000000000; // 1e18
+
+#[cfg(not(feature = "test-tube"))]
+pub type TestMockApp = cosmwasm_testing_util::MultiTestMockApp;
+#[cfg(feature = "test-tube")]
+pub type TestMockApp = cosmwasm_testing_util::TestTubeMockApp;
 
 #[derive(Deref, DerefMut)]
 pub struct MockApp {

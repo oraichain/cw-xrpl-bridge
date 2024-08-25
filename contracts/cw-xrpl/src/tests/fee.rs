@@ -8,7 +8,6 @@ use crate::tests::helper::{
 };
 use crate::{msg::InstantiateMsg, relayer::Relayer};
 use cosmwasm_std::{coins, Addr, Uint128};
-use cosmwasm_testing_util::{MockAppExtensions, MockTokenExtensions};
 
 #[test]
 fn updating_xrpl_base_fee() {
