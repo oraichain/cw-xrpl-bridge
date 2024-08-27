@@ -170,6 +170,10 @@ pub enum ExecuteMsg {
         operation_id: u64,
     },
 
+    UpdateUsedTicketSequenceThreshold {
+        used_ticket_sequence_threshold: u32,
+    },
+
     #[cfg(test)]
     BurnTokens {
         denom: String,

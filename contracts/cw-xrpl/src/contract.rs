@@ -325,6 +325,11 @@ pub fn execute(
         ExecuteMsg::CancelPendingOperation { operation_id } => {
             cancel_pending_operation(env, deps, info.sender, operation_id)
         }
+        ExecuteMsg::UpdateUsedTicketSequenceThreshold {
+            used_ticket_sequence_threshold,
+        } => {
+            update_used_ticket_sequence_threshold(deps, info.sender, used_ticket_sequence_threshold)
+        }
         #[cfg(test)]
         ExecuteMsg::BurnTokens {
             denom,
@@ -1320,6 +1325,31 @@ fn update_xrpl_base_fee(
         .add_attribute("action", ContractActions::UpdateXRPLBaseFee.as_str())
         .add_attribute("sender", sender)
         .add_attribute("new_xrpl_base_fee", xrpl_base_fee.to_string()))
+}
+
+fn update_used_ticket_sequence_threshold(
+    deps: DepsMut,
+    sender: Addr,
+    used_ticket_sequence_threshold: u32,
+) -> ContractResult<Response> {
+    check_authorization(
+        deps.as_ref().storage,
+        &sender,
+        &ContractActions::UpdateUsedTicketSequenceThreshold,
+    )?;
+
+    // Update the value in config
+    let mut config = CONFIG.load(deps.storage)?;
+    config.used_ticket_sequence_threshold = used_ticket_sequence_threshold;
+    CONFIG.save(deps.storage, &config)?;
+
+    Ok(Response::new()
+        .add_attribute("action", ContractActions::UpdateXRPLBaseFee.as_str())
+        .add_attribute("sender", sender)
+        .add_attribute(
+            "new_used_ticket_sequence_threshold",
+            used_ticket_sequence_threshold.to_string(),
+        ))
 }
 
 fn claim_relayer_fees(deps: DepsMut, sender: Addr, amounts: Vec<Coin>) -> ContractResult<Response> {
