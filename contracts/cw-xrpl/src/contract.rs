@@ -1344,7 +1344,10 @@ fn update_used_ticket_sequence_threshold(
     CONFIG.save(deps.storage, &config)?;
 
     Ok(Response::new()
-        .add_attribute("action", ContractActions::UpdateXRPLBaseFee.as_str())
+        .add_attribute(
+            "action",
+            ContractActions::UpdateUsedTicketSequenceThreshold.as_str(),
+        )
         .add_attribute("sender", sender)
         .add_attribute(
             "new_used_ticket_sequence_threshold",
