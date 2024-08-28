@@ -2,6 +2,7 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Coin, Uint128};
 use cw20::Cw20Coin;
 use cw_ownable::{cw_ownable_execute, cw_ownable_query};
+use rate_limiter::msg::QuotaMsg;
 
 #[allow(unused_imports)]
 use crate::state::{Config, CosmosToken, XRPLToken};
@@ -31,6 +32,8 @@ pub struct InstantiateMsg {
     pub token_factory_addr: Addr,
     // issue token while instantiating contract
     pub issue_token: bool,
+    // rate limit contract
+    pub rate_limit_addr: Option<Addr>,
 }
 
 #[cw_serde]
@@ -186,6 +189,17 @@ pub enum ExecuteMsg {
         denom: String,
         amount: Uint128,
         address: String,
+    },
+    AddRateLimit {
+        xrpl_denom: String,
+        quotas: Vec<QuotaMsg>,
+    },
+    RemoveRateLimit {
+        xrpl_denom: String,
+    },
+    ResetRateLimitQuota {
+        xrpl_denom: String,
+        quota_id: String,
     },
 }
 

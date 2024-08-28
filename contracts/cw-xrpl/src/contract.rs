@@ -42,6 +42,7 @@ use cw20::Cw20Coin;
 use cw_ownable::{get_ownership, initialize_owner, is_owner, Action};
 use cw_storage_plus::Bound;
 use cw_utils::one_coin;
+use rate_limiter::msg::{ExecuteMsg as RateLimitMsg, QuotaMsg};
 
 // version info for migration info
 pub const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -145,6 +146,7 @@ pub fn instantiate(
         bridge_state: BridgeState::Active,
         xrpl_base_fee: msg.xrpl_base_fee,
         token_factory_addr: msg.token_factory_addr,
+        rate_limit_addr: msg.rate_limit_addr,
     };
 
     CONFIG.save(deps.storage, &config)?;
@@ -368,6 +370,16 @@ pub fn execute(
 
             Ok(Response::new().add_message(mint_msg))
         }
+        ExecuteMsg::AddRateLimit { xrpl_denom, quotas } => {
+            execute_add_rate_limit(deps, info, xrpl_denom, quotas)
+        }
+        ExecuteMsg::RemoveRateLimit { xrpl_denom } => {
+            execute_remove_rate_limit(deps, info, xrpl_denom)
+        }
+        ExecuteMsg::ResetRateLimitQuota {
+            xrpl_denom,
+            quota_id,
+        } => execute_reset_rate_limit_quota(deps, info, xrpl_denom, quota_id),
     }
 }
 
@@ -1542,6 +1554,81 @@ fn cancel_pending_operation(
         .add_attribute("sender", sender))
 }
 
+fn execute_add_rate_limit(
+    deps: DepsMut,
+    info: MessageInfo,
+    xrpl_denom: String,
+    quotas: Vec<QuotaMsg>,
+) -> ContractResult<Response> {
+    check_authorization(
+        deps.as_ref().storage,
+        &info.sender,
+        &ContractActions::AddRateLimit,
+    )?;
+    let config = CONFIG.load(deps.storage)?;
+
+    Ok(Response::new()
+        .add_attribute("action", ContractActions::AddRateLimit.as_str())
+        .add_message(wasm_execute(
+            config.rate_limit_addr.unwrap().to_string(),
+            &RateLimitMsg::AddPath {
+                channel_id: "channel-0".to_string(), // default channel-0
+                denom: xrpl_denom,
+                quotas,
+            },
+            vec![],
+        )?))
+}
+
+fn execute_remove_rate_limit(
+    deps: DepsMut,
+    info: MessageInfo,
+    xrpl_denom: String,
+) -> ContractResult<Response> {
+    check_authorization(
+        deps.as_ref().storage,
+        &info.sender,
+        &ContractActions::RemoveRateLimit,
+    )?;
+    let config = CONFIG.load(deps.storage)?;
+
+    Ok(Response::new()
+        .add_attribute("action", ContractActions::RemoveRateLimit.as_str())
+        .add_message(wasm_execute(
+            config.rate_limit_addr.unwrap().to_string(),
+            &RateLimitMsg::RemovePath {
+                channel_id: "channel-0".to_string(), // default channel-0
+                denom: xrpl_denom,
+            },
+            vec![],
+        )?))
+}
+
+fn execute_reset_rate_limit_quota(
+    deps: DepsMut,
+    info: MessageInfo,
+    xrpl_denom: String,
+    quota_id: String,
+) -> ContractResult<Response> {
+    check_authorization(
+        deps.as_ref().storage,
+        &info.sender,
+        &ContractActions::ResetRateLimitQuota,
+    )?;
+    let config = CONFIG.load(deps.storage)?;
+
+    Ok(Response::new()
+        .add_attribute("action", ContractActions::ResetRateLimitQuota.as_str())
+        .add_message(wasm_execute(
+            config.rate_limit_addr.unwrap().to_string(),
+            &RateLimitMsg::ResetPathQuota {
+                channel_id: "channel-0".to_string(), // default channel-0
+                denom: xrpl_denom,
+                quota_id,
+            },
+            vec![],
+        )?))
+}
 // ********** Queries **********
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
