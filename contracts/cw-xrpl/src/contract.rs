@@ -34,15 +34,18 @@ use crate::{
 };
 
 use cosmwasm_std::{
-    coins, entry_point, to_json_binary, wasm_execute, Addr, BankMsg, Binary, Coin, Deps, DepsMut,
-    Empty, Env, HexBinary, MessageInfo, Order, Response, StdResult, Storage, Uint128,
+    coins, entry_point, to_json_binary, wasm_execute, Addr, BankMsg, Binary, Coin, CosmosMsg, Deps,
+    DepsMut, Empty, Env, HexBinary, MessageInfo, Order, Response, StdResult, Storage, Uint128,
 };
 use cw2::set_contract_version;
 use cw20::Cw20Coin;
 use cw_ownable::{get_ownership, initialize_owner, is_owner, Action};
 use cw_storage_plus::Bound;
 use cw_utils::one_coin;
-use rate_limiter::msg::{ExecuteMsg as RateLimitMsg, QuotaMsg};
+use rate_limiter::{
+    msg::{ExecuteMsg as RateLimitMsg, QuotaMsg},
+    packet::Packet,
+};
 
 // version info for migration info
 pub const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -95,6 +98,8 @@ pub const INITIAL_PROHIBITED_XRPL_ADDRESSES: [&str; 5] = [
     "rrrrrrrrrrrrrrrrrNAMEtxvNvQ", // Ripple Name reservation black-hole: In the past, Ripple asked users to send XRP to this account to reserve Ripple Names.
     "rrrrrrrrrrrrrrrrrrrn5RM1rHd", // NaN Address: Previous versions of ripple-lib generated this address when encoding the value NaN using the XRP Ledger's base58 string encoding format.
 ];
+
+pub const CHANNEL: &str = "channel-0"; // chanel default for rate limit
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -1165,6 +1170,7 @@ fn send_to_xrpl(
         validate_xrpl_amount(max_amount.unwrap())?;
     }
 
+    let xrpl_denom = build_xrpl_token_key(&issuer, &currency);
     // Get a ticket and store the pending operation
     let ticket = allocate_ticket(deps.storage)?;
     create_pending_operation(
@@ -1182,11 +1188,31 @@ fn send_to_xrpl(
         },
     )?;
 
+    let mut msgs: Vec<CosmosMsg> = vec![];
+    let config = CONFIG.load(deps.storage)?;
+    if let Some(rate_limit_addr) = config.rate_limit_addr {
+        msgs.push(
+            wasm_execute(
+                rate_limit_addr,
+                &RateLimitMsg::SendPacket {
+                    packet: Packet {
+                        channel: CHANNEL.to_string(),
+                        denom: xrpl_denom,
+                        amount: amount_to_send,
+                    },
+                },
+                vec![],
+            )?
+            .into(),
+        )
+    }
+
     Ok(Response::new()
         .add_attribute("action", ContractActions::SendToXRPL.as_str())
         .add_attribute("sender", info.sender)
         .add_attribute("recipient", recipient)
-        .add_attribute("coin", funds.to_string()))
+        .add_attribute("coin", funds.to_string())
+        .add_messages(msgs))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1572,7 +1598,7 @@ fn execute_add_rate_limit(
         .add_message(wasm_execute(
             config.rate_limit_addr.unwrap().to_string(),
             &RateLimitMsg::AddPath {
-                channel_id: "channel-0".to_string(), // default channel-0
+                channel_id: CHANNEL.to_string(),
                 denom: xrpl_denom,
                 quotas,
             },
@@ -1597,7 +1623,7 @@ fn execute_remove_rate_limit(
         .add_message(wasm_execute(
             config.rate_limit_addr.unwrap().to_string(),
             &RateLimitMsg::RemovePath {
-                channel_id: "channel-0".to_string(), // default channel-0
+                channel_id: CHANNEL.to_string(),
                 denom: xrpl_denom,
             },
             vec![],
@@ -1622,7 +1648,7 @@ fn execute_reset_rate_limit_quota(
         .add_message(wasm_execute(
             config.rate_limit_addr.unwrap().to_string(),
             &RateLimitMsg::ResetPathQuota {
-                channel_id: "channel-0".to_string(), // default channel-0
+                channel_id: CHANNEL.to_string(),
                 denom: xrpl_denom,
                 quota_id,
             },
