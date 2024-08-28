@@ -42,7 +42,7 @@ tokenfactory = { git = "https://github.com/oraichain/token-bindings.git", rev = 
     "library",
 ] }
 token-bindings = { git = "https://github.com/oraichain/token-bindings.git", rev = "9796c74" }
-cosmwasm-testing-util = { git = "https://github.com/oraichain/cosmwasm-testing-util.git", rev = "efc0356" }
+cosmwasm-testing-util = { git = "https://github.com/oraichain/cosmwasm-testing-util.git", rev = "a9d4116" }
 ripple-keypairs = "0.1.0"
 
 [patch.crates-io]
