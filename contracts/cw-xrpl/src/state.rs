@@ -221,6 +221,7 @@ pub enum ContractActions {
     ResumeBridge,
     RotateKeys,
     CancelPendingOperation,
+    UpdateUsedTicketSequenceThreshold,
 }
 
 pub enum UserType {
@@ -251,6 +252,7 @@ impl UserType {
             ContractActions::ResumeBridge => matches!(self, Self::Owner),
             ContractActions::RotateKeys => matches!(self, Self::Owner),
             ContractActions::CancelPendingOperation => matches!(self, Self::Owner),
+            ContractActions::UpdateUsedTicketSequenceThreshold => matches!(self, Self::Owner),
         }
     }
 }
@@ -278,6 +280,7 @@ impl ContractActions {
             Self::ResumeBridge => "resume_bridge",
             Self::RotateKeys => "rotate_keys",
             Self::CancelPendingOperation => "cancel_pending_operation",
+            Self::UpdateUsedTicketSequenceThreshold => "update_used_ticket_sequence_threshold",
         }
     }
 }
