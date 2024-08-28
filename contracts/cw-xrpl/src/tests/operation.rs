@@ -16,7 +16,6 @@ use crate::{
 };
 use cosmwasm_std::{coin, coins, Addr, Uint128};
 
-
 #[test]
 fn cancel_pending_operation() {
     let (mut app, accounts) = MockApp::new(&[
@@ -55,6 +54,7 @@ fn cancel_pending_operation() {
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
                 issue_token: true,
+                rate_limit_addr: None,
             },
         )
         .unwrap();
@@ -426,6 +426,7 @@ fn invalid_transaction_evidences() {
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
                 issue_token: true,
+                rate_limit_addr: None,
             },
         )
         .unwrap();
@@ -560,6 +561,7 @@ fn unauthorized_access() {
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
                 issue_token: true,
+                rate_limit_addr: None,
             },
         )
         .unwrap();

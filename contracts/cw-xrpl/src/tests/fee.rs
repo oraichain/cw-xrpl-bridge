@@ -52,6 +52,7 @@ fn updating_xrpl_base_fee() {
                 xrpl_base_fee,
                 token_factory_addr: token_factory_addr.clone(),
                 issue_token: true,
+                rate_limit_addr: None,
             },
         )
         .unwrap();

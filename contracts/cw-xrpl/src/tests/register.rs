@@ -46,6 +46,7 @@ fn register_cosmos_token() {
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
                 issue_token: true,
+                rate_limit_addr: None,
             },
         )
         .unwrap();
@@ -277,6 +278,7 @@ fn register_xrpl_token() {
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
                 issue_token: true,
+                rate_limit_addr: None,
             },
         )
         .unwrap();
@@ -687,6 +689,7 @@ fn xrpl_token_registration_recovery() {
                 xrpl_base_fee,
                 token_factory_addr: token_factory_addr.clone(),
                 issue_token: true,
+                rate_limit_addr: None,
             },
         )
         .unwrap();    

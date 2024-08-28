@@ -20,7 +20,6 @@ use crate::{
     relayer::Relayer,
 };
 
-
 #[test]
 fn queries() {
     let (mut app, accounts) = MockApp::new(&[
@@ -67,6 +66,7 @@ fn queries() {
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
                 issue_token: true,
+                rate_limit_addr: None,
             },
         )
         .unwrap();
@@ -90,7 +90,8 @@ fn queries() {
             bridge_xrpl_address: bridge_xrpl_address.clone(),
             bridge_state: BridgeState::Active,
             xrpl_base_fee: 10,
-            token_factory_addr: token_factory_addr.clone()
+            token_factory_addr: token_factory_addr.clone(),
+            rate_limit_addr: None,
         }
     );
 

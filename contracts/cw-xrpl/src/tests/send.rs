@@ -64,6 +64,7 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
                 issue_token: true,
+                rate_limit_addr: None,
             },
         )
         .unwrap();
@@ -245,6 +246,7 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos() {
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
                 issue_token: false,
+                rate_limit_addr: None,
             },
         )
         .unwrap();
@@ -562,6 +564,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
                 issue_token: true,
+                rate_limit_addr: None,
             },
         )
         .unwrap();
@@ -1479,6 +1482,7 @@ fn send_from_cosmos_to_xrpl() {
                 xrpl_base_fee,
                 token_factory_addr: token_factory_addr.clone(),
                 issue_token: true,
+                rate_limit_addr: None,
             },
         )
         .unwrap();

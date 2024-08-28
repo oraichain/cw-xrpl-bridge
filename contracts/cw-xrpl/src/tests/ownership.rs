@@ -10,7 +10,6 @@ use crate::{
     relayer::Relayer,
 };
 
-
 #[test]
 fn transfer_ownership() {
     let (mut app, accounts) = MockApp::new(&[
@@ -42,6 +41,7 @@ fn transfer_ownership() {
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
                 issue_token: true,
+                rate_limit_addr: None,
             },
         )
         .unwrap();
