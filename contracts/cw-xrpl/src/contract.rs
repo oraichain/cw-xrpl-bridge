@@ -686,7 +686,7 @@ fn save_evidence(
 
                 // To transfer a token it must be registered and activated
                 let token = XRPL_TOKENS
-                    .load(deps.storage, key)
+                    .load(deps.storage, key.clone())
                     .map_err(|_| ContractError::TokenNotRegistered {})?;
 
                 if token.state.ne(&TokenState::Enabled) {
@@ -751,7 +751,23 @@ fn save_evidence(
                             },
                             vec![],
                         )?;
+
                         response = response.add_message(mint_msg_for_recipient);
+
+                        // handle rate limit
+                        if let Some(rate_limit_addr) = config.rate_limit_addr {
+                            response = response.add_message(wasm_execute(
+                                rate_limit_addr,
+                                &RateLimitMsg::RecvPacket {
+                                    packet: Packet {
+                                        channel: CHANNEL.to_string(),
+                                        denom: key,
+                                        amount: amount_to_send,
+                                    },
+                                },
+                                vec![],
+                            )?)
+                        }
                     }
                 }
             } else {
@@ -796,7 +812,24 @@ fn save_evidence(
                         to_address: recipient.to_string(),
                         amount: coins(amount_to_send.u128(), token.denom),
                     };
+
                     response = response.add_message(send_msg);
+
+                    // handle rate limit
+                    if let Some(rate_limit_addr) = config.rate_limit_addr {
+                        let key = build_xrpl_token_key(&issuer, &currency);
+                        response = response.add_message(wasm_execute(
+                            rate_limit_addr,
+                            &RateLimitMsg::RecvPacket {
+                                packet: Packet {
+                                    channel: CHANNEL.to_string(),
+                                    denom: key,
+                                    amount: amount_to_send,
+                                },
+                            },
+                            vec![],
+                        )?)
+                    }
                 }
             }
 
