@@ -1,8 +1,8 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{coin, wasm_execute, Addr, Coin, Response, Storage, Uint128};
+use cosmwasm_std::{coin, wasm_execute, Addr, Coin, CosmosMsg, Response, Storage, Uint128};
 
 use crate::{
-    contract::{convert_amount_decimals, XRPL_TOKENS_DECIMALS},
+    contract::{convert_amount_decimals, CHANNEL, XRPL_TOKENS_DECIMALS},
     error::{ContractError, ContractResult},
     evidence::{OperationResult, TransactionResult},
     relayer::{handle_rotate_keys_confirmation, Relayer},
@@ -14,6 +14,7 @@ use crate::{
     tickets::{handle_ticket_allocation_confirmation, return_ticket},
     token::build_xrpl_token_key,
 };
+use rate_limiter::{msg::ExecuteMsg as RateLimitMsg, packet::Packet};
 
 #[cw_serde]
 pub struct Operation {
@@ -124,16 +125,13 @@ pub fn handle_operation(
     token_factory_addr: &Addr,
     burn_addr: &Addr,
     response: &mut Response,
-) -> ContractResult<()> {
+) -> ContractResult<Vec<CosmosMsg>> {
+    let mut msgs: Vec<CosmosMsg> = vec![];
     match &operation.operation_type {
         // We check that if the operation was a ticket allocation, the result is also for a ticket allocation
         OperationType::AllocateTickets { .. } => match operation_result {
             Some(OperationResult::TicketsAllocation { tickets }) => {
-                handle_ticket_allocation_confirmation(
-                    storage,
-                    tickets,
-                    transaction_result,
-                )?;
+                handle_ticket_allocation_confirmation(storage, tickets, transaction_result)?;
             }
             None => return Err(ContractError::InvalidOperationResult {}),
         },
@@ -162,7 +160,9 @@ pub fn handle_operation(
                 token_factory_addr,
                 burn_addr,
                 response,
-            )?;
+            )?
+            .iter()
+            .for_each(|msg| msgs.push(msg.clone()));
         }
     }
     // Operation is removed because it was confirmed
@@ -173,7 +173,7 @@ pub fn handle_operation(
         return_ticket(storage, ticket_sequence.unwrap())?;
     }
 
-    Ok(())
+    Ok(msgs)
 }
 
 pub fn handle_trust_set_confirmation(
@@ -207,10 +207,11 @@ pub fn handle_cosmos_to_xrpl_transfer_confirmation(
     token_factory_addr: &Addr,
     burn_addr: &Addr,
     response: &mut Response,
-) -> Result<(), ContractError> {
+) -> Result<Vec<CosmosMsg>, ContractError> {
     let pending_operation = PENDING_OPERATIONS
         .load(storage, operation_id)
         .map_err(|_| ContractError::PendingOperationNotFound {})?;
+    let mut msgs: Vec<CosmosMsg> = vec![];
 
     match pending_operation.operation_type {
         OperationType::CosmosToXRPLTransfer {
@@ -223,7 +224,7 @@ pub fn handle_cosmos_to_xrpl_transfer_confirmation(
         } => {
             // We check that the token that was sent was an XRPL originated token:
             let key = build_xrpl_token_key(&issuer, &currency);
-            match XRPL_TOKENS.may_load(storage, key)? {
+            match XRPL_TOKENS.may_load(storage, key.clone())? {
                 Some(xrpl_token) => {
                     // if operation was with XRP, max amount might be empty so we will use amount.
                     let amount_sent = max_amount.unwrap_or(amount);
@@ -253,6 +254,23 @@ pub fn handle_cosmos_to_xrpl_transfer_confirmation(
                             sender,
                             coin(amount_sent.u128(), xrpl_token.cosmos_denom),
                         )?;
+                        let config = CONFIG.load(storage)?;
+                        if let Some(rate_limit_addr) = config.rate_limit_addr {
+                            msgs.push(
+                                wasm_execute(
+                                    rate_limit_addr,
+                                    &RateLimitMsg::UndoSend {
+                                        packet: Packet {
+                                            channel: CHANNEL.to_string(),
+                                            denom: key,
+                                            amount: amount_sent,
+                                        },
+                                    },
+                                    vec![],
+                                )?
+                                .into(),
+                            )
+                        }
                     }
                 }
                 None => {
@@ -279,6 +297,23 @@ pub fn handle_cosmos_to_xrpl_transfer_confirmation(
                                     sender,
                                     coin(amount_to_send_back.u128(), token.denom),
                                 )?;
+                                let config = CONFIG.load(storage)?;
+                                if let Some(rate_limit_addr) = config.rate_limit_addr {
+                                    msgs.push(
+                                        wasm_execute(
+                                            rate_limit_addr,
+                                            &RateLimitMsg::UndoSend {
+                                                packet: Packet {
+                                                    channel: CHANNEL.to_string(),
+                                                    denom: key,
+                                                    amount: amount_to_send_back,
+                                                },
+                                            },
+                                            vec![],
+                                        )?
+                                        .into(),
+                                    )
+                                }
                             }
                             // In practice this will never happen because any token issued from the multisig address is a token that was bridged from Cosmos so it will be registered.
                             // This could theoretically happen if the multisig address on XRPL issued a token on its own and then tried to bridge it
@@ -293,7 +328,7 @@ pub fn handle_cosmos_to_xrpl_transfer_confirmation(
         _ => return Err(ContractError::InvalidOperationResult {}),
     }
 
-    Ok(())
+    Ok(vec![])
 }
 
 pub fn store_pending_refund(

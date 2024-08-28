@@ -818,6 +818,7 @@ fn save_evidence(
             // An XRPL transaction uses an account sequence or a ticket sequence, but not both
             let operation_id = account_sequence.unwrap_or_else(|| ticket_sequence.unwrap());
             let operation = check_operation_exists(deps.storage, operation_id)?;
+            let mut messages: Vec<CosmosMsg> = vec![];
 
             // Validation for certain operation types that can't have account sequences
             match &operation.operation_type {
@@ -844,7 +845,9 @@ fn save_evidence(
                     &config.token_factory_addr,
                     &env.contract.address,
                     &mut response,
-                )?;
+                )?
+                .iter()
+                .for_each(|msg| messages.push(msg.clone()));
 
                 // If the operation was not Invalid, we must register a used ticket
                 if transaction_result.ne(&TransactionResult::Invalid) && ticket_sequence.is_some() {
@@ -866,7 +869,8 @@ fn save_evidence(
                 .add_attribute("operation_type", operation.operation_type.as_str())
                 .add_attribute("operation_id", operation_id.to_string())
                 .add_attribute("transaction_result", transaction_result.as_str())
-                .add_attribute("threshold_reached", threshold_reached.to_string());
+                .add_attribute("threshold_reached", threshold_reached.to_string())
+                .add_messages(messages);
 
             if let Some(tx_hash) = tx_hash {
                 response = response.add_attribute("tx_hash", tx_hash);
@@ -1562,7 +1566,7 @@ fn cancel_pending_operation(
 
     let config = CONFIG.load(deps.storage)?;
     // We handle the operation with an invalid result
-    handle_operation(
+    let msgs = handle_operation(
         deps.storage,
         &operation,
         &operation_result,
@@ -1577,7 +1581,8 @@ fn cancel_pending_operation(
 
     Ok(response
         .add_attribute("action", ContractActions::CancelPendingOperation.as_str())
-        .add_attribute("sender", sender))
+        .add_attribute("sender", sender)
+        .add_messages(msgs))
 }
 
 fn execute_add_rate_limit(
