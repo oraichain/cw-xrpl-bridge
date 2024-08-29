@@ -51,7 +51,7 @@ tokenfactory = { workspace = true, features = ["library"] }
 token-bindings = { workspace = true }
 bs58 = "0.5.0"
 sha2 = "0.10.8"
-rate-limiter = { workspace = true }
+rate-limiter = { workspace = true, features = ["library"] }
 
 [dev-dependencies]
 cosmwasm-testing-util = { workspace = true }
