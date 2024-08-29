@@ -152,6 +152,7 @@ pub fn instantiate(
         xrpl_base_fee: msg.xrpl_base_fee,
         token_factory_addr: msg.token_factory_addr,
         rate_limit_addr: msg.rate_limit_addr,
+        osor_entry_point: msg.osor_entry_point,
     };
 
     CONFIG.save(deps.storage, &config)?;

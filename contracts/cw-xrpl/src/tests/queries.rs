@@ -66,7 +66,7 @@ fn queries() {
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
                 issue_token: true,
-                rate_limit_addr: None,
+                rate_limit_addr: None,osor_entry_point: None,
             },
         )
         .unwrap();
@@ -91,7 +91,7 @@ fn queries() {
             bridge_state: BridgeState::Active,
             xrpl_base_fee: 10,
             token_factory_addr: token_factory_addr.clone(),
-            rate_limit_addr: None,
+            rate_limit_addr: None,osor_entry_point: None,
         }
     );
 

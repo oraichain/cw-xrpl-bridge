@@ -68,6 +68,7 @@ fn bridge_fee_collection_and_claiming() {
                 token_factory_addr: token_factory_addr.clone(),
                 issue_token: true,
                 rate_limit_addr: None,
+                osor_entry_point: None,
             },
         )
         .unwrap();
@@ -999,6 +1000,7 @@ fn bridge_halting_and_resuming() {
                 token_factory_addr: token_factory_addr.clone(),
                 issue_token: true,
                 rate_limit_addr: None,
+                osor_entry_point: None,
             },
         )
         .unwrap();

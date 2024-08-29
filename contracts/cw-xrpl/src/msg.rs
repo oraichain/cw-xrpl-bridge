@@ -34,6 +34,8 @@ pub struct InstantiateMsg {
     pub issue_token: bool,
     // rate limit contract
     pub rate_limit_addr: Option<Addr>,
+    // osor entry point contract
+    pub osor_entry_point: Option<Addr>,
 }
 
 #[cw_serde]

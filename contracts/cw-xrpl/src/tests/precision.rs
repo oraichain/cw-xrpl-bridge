@@ -47,7 +47,7 @@ fn precisions() {
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
                 issue_token: true,
-                rate_limit_addr: None,
+                rate_limit_addr: None,osor_entry_point: None,
             },
         )
         .unwrap();

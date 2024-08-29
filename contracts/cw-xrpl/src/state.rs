@@ -48,6 +48,7 @@ pub struct Config {
     pub xrpl_base_fee: u64,
     pub token_factory_addr: Addr,
     pub rate_limit_addr: Option<Addr>,
+    pub osor_entry_point: Option<Addr>,
 }
 
 #[cw_serde]

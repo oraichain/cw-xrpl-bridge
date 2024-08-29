@@ -58,7 +58,7 @@ fn token_update() {
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
                 issue_token: true,
-                rate_limit_addr: None,
+                rate_limit_addr: None,osor_entry_point: None,
             },
         )
         .unwrap();
@@ -1155,7 +1155,7 @@ fn test_burning_rate_and_commission_fee_cosmos_tokens() {
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
                 issue_token: true,
-                rate_limit_addr: None,
+                rate_limit_addr: None,osor_entry_point: None,
             },
         )
         .unwrap();

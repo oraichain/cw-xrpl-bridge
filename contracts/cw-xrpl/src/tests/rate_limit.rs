@@ -1,9 +1,9 @@
-use crate::contract::{CHANNEL, INITIAL_PROHIBITED_XRPL_ADDRESSES, XRP_ISSUER};
+use crate::contract::{CHANNEL, XRP_ISSUER};
 use crate::error::ContractError;
 use crate::evidence::{Evidence, OperationResult, TransactionResult};
 use crate::msg::{
-    CosmosTokensResponse, ExecuteMsg, PendingOperationsResponse, PendingRefundsResponse,
-    ProcessedTxsResponse, QueryMsg, XRPLTokensResponse,
+    CosmosTokensResponse, ExecuteMsg, PendingOperationsResponse, PendingRefundsResponse, QueryMsg,
+    XRPLTokensResponse,
 };
 use crate::operation::{Operation, OperationType};
 use crate::state::Config;
@@ -76,6 +76,7 @@ fn test_register_rate_limit() {
                 token_factory_addr: token_factory_addr.clone(),
                 issue_token: true,
                 rate_limit_addr: Some(rate_limit_addr.clone()),
+                osor_entry_point: None,
             },
         )
         .unwrap();
@@ -307,6 +308,7 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos_with_rate_limit() {
                 token_factory_addr: token_factory_addr.clone(),
                 issue_token: true,
                 rate_limit_addr: Some(rate_limit_addr),
+                osor_entry_point: None,
             },
         )
         .unwrap();
@@ -528,6 +530,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos_with_rate_limit() {
                 token_factory_addr: token_factory_addr.clone(),
                 issue_token: true,
                 rate_limit_addr: Some(rate_limit_addr.clone()),
+                osor_entry_point: None,
             },
         )
         .unwrap();
@@ -1010,6 +1013,7 @@ fn send_from_cosmos_to_xrp_with_rate_limit() {
                 token_factory_addr: token_factory_addr.clone(),
                 issue_token: true,
                 rate_limit_addr: Some(rate_limit_addr.clone()),
+                osor_entry_point: None,
             },
         )
         .unwrap();
