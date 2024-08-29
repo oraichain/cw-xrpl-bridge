@@ -638,7 +638,7 @@ fn unauthorized_access() {
                     issuer: generate_xrpl_address(),
                     currency: "USD".to_string(),
                     amount: Uint128::new(100),
-                    recipient: Addr::unchecked(signer),
+                    recipient: Addr::unchecked(signer),memo: None
                 },
             },
             &[],

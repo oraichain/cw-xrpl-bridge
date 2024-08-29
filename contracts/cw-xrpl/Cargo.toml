@@ -52,6 +52,7 @@ token-bindings = { workspace = true }
 bs58 = "0.5.0"
 sha2 = "0.10.8"
 rate-limiter = { workspace = true, features = ["library"] }
+skip = { workspace = true }
 
 [dev-dependencies]
 cosmwasm-testing-util = { workspace = true }

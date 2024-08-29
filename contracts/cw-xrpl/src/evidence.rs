@@ -17,6 +17,7 @@ pub enum Evidence {
         currency: String,
         amount: Uint128,
         recipient: Addr,
+        memo: Option<String>,
     },
     // This type will be used for ANY transaction that comes from XRPL and that is notifying a confirmation or rejection
     #[serde(rename = "xrpl_transaction_result")]

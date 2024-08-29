@@ -46,6 +46,7 @@ use rate_limiter::{
     msg::{ExecuteMsg as RateLimitMsg, QuotaMsg},
     packet::Packet,
 };
+use skip::entry_point::ExecuteMsg as EntryPointExecuteMsg;
 
 // version info for migration info
 pub const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -669,11 +670,13 @@ fn save_evidence(
             currency,
             amount,
             recipient,
+            memo,
         } => {
             if config.bridge_state == BridgeState::Halted {
                 return Err(ContractError::BridgeHalted {});
             }
             deps.api.addr_validate(recipient.as_ref())?;
+            let memo = memo.unwrap_or_default();
 
             // If the recipient of the operation is the bridge contract address, we error
             if recipient.eq(&env.contract.address) {
@@ -722,6 +725,8 @@ fn save_evidence(
 
                 // If enough evidences are provided (threshold reached), we collect fees and mint the token for the recipient
                 if threshold_reached {
+                    let mut msgs: Vec<CosmosMsg> = vec![];
+
                     let fee_collected = handle_fee_collection(
                         deps.storage,
                         token.bridging_fee,
@@ -739,42 +744,65 @@ fn save_evidence(
                             },
                             vec![],
                         )?;
-                        response = response.add_message(mint_msg_fees);
+                        msgs.push(mint_msg_fees.into());
                     }
 
                     if !amount_to_send.is_zero() {
+                        let is_universal_swap =
+                            !memo.is_empty() && config.osor_entry_point.is_some();
+                        let recipient_to_mint = if is_universal_swap {
+                            env.contract.address
+                        } else {
+                            recipient.clone()
+                        };
+
                         let mint_msg_for_recipient = wasm_execute(
                             config.token_factory_addr,
                             &tokenfactory::msg::ExecuteMsg::MintTokens {
-                                denom: token.cosmos_denom,
+                                denom: token.cosmos_denom.clone(),
                                 amount: amount_to_send,
-                                mint_to_address: recipient.to_string(),
+                                mint_to_address: recipient_to_mint.to_string(),
                             },
                             vec![],
                         )?;
+                        // if universal swap , call entry point contract
+                        if is_universal_swap {
+                            msgs.push(
+                                wasm_execute(
+                                    config.osor_entry_point.unwrap(),
+                                    &EntryPointExecuteMsg::UniversalSwap { memo },
+                                    coins(amount_to_send.u128(), token.cosmos_denom),
+                                )?
+                                .into(),
+                            )
+                        }
 
-                        response = response.add_message(mint_msg_for_recipient);
+                        msgs.push(mint_msg_for_recipient.into());
 
                         // handle rate limit
                         if let Some(rate_limit_addr) = config.rate_limit_addr {
-                            response = response.add_message(wasm_execute(
-                                rate_limit_addr,
-                                &RateLimitMsg::RecvPacket {
-                                    packet: Packet {
-                                        channel: CHANNEL.to_string(),
-                                        denom: key,
-                                        amount: truncate_amount(
-                                            token.sending_precision,
-                                            decimals,
-                                            amount,
-                                        )?
-                                        .0,
+                            msgs.push(
+                                wasm_execute(
+                                    rate_limit_addr,
+                                    &RateLimitMsg::RecvPacket {
+                                        packet: Packet {
+                                            channel: CHANNEL.to_string(),
+                                            denom: key,
+                                            amount: truncate_amount(
+                                                token.sending_precision,
+                                                decimals,
+                                                amount,
+                                            )?
+                                            .0,
+                                        },
                                     },
-                                },
-                                vec![],
-                            )?)
+                                    vec![],
+                                )?
+                                .into(),
+                            );
                         }
                     }
+                    response = response.add_messages(msgs);
                 }
             } else {
                 // We check that the token is registered and enabled
@@ -806,6 +834,7 @@ fn save_evidence(
 
                 // If enough evidences are provided (threshold reached), we collect fees and send tokens from the bridge contract (it was holding them in escrow)
                 if threshold_reached {
+                    let mut msgs: Vec<CosmosMsg> = vec![];
                     handle_fee_collection(
                         deps.storage,
                         token.bridging_fee,
@@ -813,33 +842,49 @@ fn save_evidence(
                         remainder,
                     )?;
 
-                    // TODO: should we support CW20 as well?
-                    let send_msg = BankMsg::Send {
-                        to_address: recipient.to_string(),
-                        amount: coins(amount_to_send.u128(), token.denom),
-                    };
+                    let is_universal_swap = !memo.is_empty() && config.osor_entry_point.is_some();
 
-                    response = response.add_message(send_msg);
+                    // TODO: should we support CW20 as well?
+                    if is_universal_swap {
+                        msgs.push(
+                            wasm_execute(
+                                config.osor_entry_point.unwrap(),
+                                &EntryPointExecuteMsg::UniversalSwap { memo },
+                                coins(amount_to_send.u128(), token.denom),
+                            )?
+                            .into(),
+                        )
+                    } else {
+                        let send_msg = BankMsg::Send {
+                            to_address: recipient.to_string(),
+                            amount: coins(amount_to_send.u128(), token.denom),
+                        };
+                        msgs.push(send_msg.into());
+                    }
 
                     // handle rate limit
                     if let Some(rate_limit_addr) = config.rate_limit_addr {
                         let key = build_xrpl_token_key(&issuer, &currency);
-                        response = response.add_message(wasm_execute(
-                            rate_limit_addr,
-                            &RateLimitMsg::RecvPacket {
-                                packet: Packet {
-                                    channel: CHANNEL.to_string(),
-                                    denom: key,
-                                    amount: convert_amount_decimals(
-                                        XRPL_TOKENS_DECIMALS,
-                                        token.decimals,
-                                        amount,
-                                    )?,
+                        msgs.push(
+                            wasm_execute(
+                                rate_limit_addr,
+                                &RateLimitMsg::RecvPacket {
+                                    packet: Packet {
+                                        channel: CHANNEL.to_string(),
+                                        denom: key,
+                                        amount: convert_amount_decimals(
+                                            XRPL_TOKENS_DECIMALS,
+                                            token.decimals,
+                                            amount,
+                                        )?,
+                                    },
                                 },
-                            },
-                            vec![],
-                        )?)
+                                vec![],
+                            )?
+                            .into(),
+                        )
                     }
+                    response = response.add_messages(msgs);
                 }
             }
 

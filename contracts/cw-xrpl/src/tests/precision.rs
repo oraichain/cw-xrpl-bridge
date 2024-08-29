@@ -186,7 +186,7 @@ fn precisions() {
                     currency: test_token1.currency.clone(),
                     // Sending less than 100000000000000000, in this case 99999999999999999 (1 less digit) should return an error because it will truncate to zero
                     amount: Uint128::new(99999999999999999),
-                    recipient: Addr::unchecked(receiver),
+                    recipient: Addr::unchecked(receiver), memo: None
                 },
             },
             &[],
@@ -209,7 +209,7 @@ fn precisions() {
                 currency: test_token1.currency.clone(),
                 // Sending more than 199999999999999999 will truncate to 100000000000000000 and send it to the user and keep the remainder in the contract as fees to collect.
                 amount: Uint128::new(199999999999999999),
-                recipient: Addr::unchecked(receiver),
+                recipient: Addr::unchecked(receiver), memo: None
             },
         },
         &[],
@@ -233,7 +233,7 @@ fn precisions() {
                     issuer: test_token1.issuer.clone(),
                     currency: test_token1.currency.clone(),
                     amount: Uint128::new(100000000000000000),
-                    recipient: Addr::unchecked(receiver),
+                    recipient: Addr::unchecked(receiver), memo: None
                 },
             },
             &[],
@@ -326,7 +326,7 @@ fn precisions() {
                     currency: test_token2.currency.clone(),
                     // Sending more than 499 should fail because maximum holding amount is 499
                     amount: Uint128::new(500),
-                    recipient: Addr::unchecked(receiver),
+                    recipient: Addr::unchecked(receiver), memo: None
                 },
             },
             &[],
@@ -350,7 +350,7 @@ fn precisions() {
                     currency: test_token2.currency.clone(),
                     // Sending less than 100 will truncate to 0 so should fail
                     amount: Uint128::new(99),
-                    recipient: Addr::unchecked(receiver),
+                    recipient: Addr::unchecked(receiver), memo: None
                 },
             },
             &[],
@@ -373,7 +373,7 @@ fn precisions() {
                 currency: test_token2.currency.clone(),
                 // Sending 299 should truncate the amount to 200 and keep the 99 in the contract as fees to collect
                 amount: Uint128::new(299),
-                recipient: Addr::unchecked(receiver),
+                recipient: Addr::unchecked(receiver), memo: None
             },
         },
         &[],
@@ -396,7 +396,7 @@ fn precisions() {
                 issuer: test_token2.issuer.clone(),
                 currency: test_token2.currency.clone(),
                 amount: Uint128::new(200),
-                recipient: Addr::unchecked(receiver),
+                recipient: Addr::unchecked(receiver), memo: None
             },
         },
         &[],
@@ -426,7 +426,7 @@ fn precisions() {
                     issuer: test_token2.issuer.clone(),
                     currency: test_token2.currency.clone(),
                     amount: Uint128::new(199),
-                    recipient: Addr::unchecked(receiver),
+                    recipient: Addr::unchecked(receiver), memo: None
                 },
             },
             &[],
@@ -512,7 +512,7 @@ fn precisions() {
                     currency: test_token3.currency.clone(),
                     // Sending more than 5000000000000000 should fail because maximum holding amount is 5000000000000000
                     amount: Uint128::new(6000000000000000),
-                    recipient: Addr::unchecked(receiver),
+                    recipient: Addr::unchecked(receiver), memo: None
                 },
             },
             &[],
@@ -536,7 +536,7 @@ fn precisions() {
                     currency: test_token3.currency.clone(),
                     // Sending less than 1000000000000000 will truncate to 0 so should fail
                     amount: Uint128::new(900000000000000),
-                    recipient: Addr::unchecked(receiver),
+                    recipient: Addr::unchecked(receiver), memo: None
                 },
             },
             &[],
@@ -559,7 +559,7 @@ fn precisions() {
                 currency: test_token3.currency.clone(),
                 // Sending 1111111111111111 should truncate the amount to 1000000000000000 and keep 111111111111111 as fees to collect
                 amount: Uint128::new(1111111111111111),
-                recipient: Addr::unchecked(receiver),
+                recipient: Addr::unchecked(receiver), memo: None
             },
         },
         &[],
@@ -582,7 +582,7 @@ fn precisions() {
                 currency: test_token3.currency.clone(),
                 // Sending 3111111111111111 should truncate the amount to 3000000000000000 and keep another 111111111111111 as fees to collect
                 amount: Uint128::new(3111111111111111),
-                recipient: Addr::unchecked(receiver),
+                recipient: Addr::unchecked(receiver), memo: None
             },
         },
         &[],
@@ -612,7 +612,7 @@ fn precisions() {
                     currency: test_token2.currency.clone(),
                     // Sending 1111111111111111 should truncate the amount to 1000000000000000 and should fail because bridge is already holding maximum
                     amount: Uint128::new(1111111111111111),
-                    recipient: Addr::unchecked(receiver),
+                    recipient: Addr::unchecked(receiver), memo: None
                 },
             },
             &[],
@@ -645,7 +645,7 @@ fn precisions() {
                     currency: XRP_CURRENCY.to_string(),
                     // Sending more than 100000000000000000 should fail because maximum holding amount is 10000000000000000 (1 less zero)
                     amount: Uint128::new(100000000000000000),
-                    recipient: Addr::unchecked(receiver),
+                    recipient: Addr::unchecked(receiver), memo: None
                 },
             },
             &[],
@@ -668,7 +668,7 @@ fn precisions() {
                 currency: XRP_CURRENCY.to_string(),
                 // There should never be truncation because we allow full precision for XRP initially
                 amount: Uint128::one(),
-                recipient: Addr::unchecked(receiver),
+                recipient: Addr::unchecked(receiver), memo: None
             },
         },
         &[],
@@ -691,7 +691,7 @@ fn precisions() {
                 currency: XRP_CURRENCY.to_string(),
                 // This should work because we are sending the rest to reach the maximum amount
                 amount: Uint128::new(9999999999999999),
-                recipient: Addr::unchecked(receiver),
+                recipient: Addr::unchecked(receiver), memo: None
             },
         },
         &[],
@@ -715,7 +715,7 @@ fn precisions() {
                     currency: XRP_CURRENCY.to_string(),
                     // Sending 1 more token would surpass the maximum so should fail
                     amount: Uint128::one(),
-                    recipient: Addr::unchecked(receiver),
+                    recipient: Addr::unchecked(receiver), memo: None
                 },
             },
             &[],
