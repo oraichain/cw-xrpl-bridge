@@ -202,6 +202,14 @@ pub const FEE_REMAINDERS: Map<String, Uint128> = Map::new(TopKey::FeeRemainders.
 pub const PROHIBITED_XRPL_ADDRESSES: Map<String, Empty> =
     Map::new(TopKey::ProhibitedXRPLAddresses.as_str());
 
+pub const TEMP_UNIVERSAL_SWAP: Item<TempUniversalSwap> = Item::new("temp_universal_swap");
+
+#[cw_serde]
+pub struct TempUniversalSwap {
+    pub recovery_address: String,
+    pub return_amount: Coin,
+}
+
 pub enum ContractActions {
     Instantiation,
     CreateCosmosToken,

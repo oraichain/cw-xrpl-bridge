@@ -197,6 +197,9 @@ pub enum ContractError {
 
     #[error("InvalidDenom: A valid denom must fulfil the following Regex criteria: [a-zA-Z][a-zA-Z0-9/:._-]{{2,127}}")]
     InvalidDenom {},
+
+    #[error("Got a submessage reply with unknown id: {id}")]
+    UnknownReplyId { id: u64 },
 }
 
 pub type ContractResult<T> = std::result::Result<T, ContractError>;

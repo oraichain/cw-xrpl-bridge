@@ -24,7 +24,8 @@ use crate::{
         BridgeState, Config, ContractActions, CosmosToken, TokenState, UserType, XRPLToken,
         AVAILABLE_TICKETS, CONFIG, COSMOS_TOKENS, FEES_COLLECTED, PENDING_OPERATIONS,
         PENDING_REFUNDS, PENDING_ROTATE_KEYS, PENDING_TICKET_UPDATE, PROCESSED_TXS,
-        PROHIBITED_XRPL_ADDRESSES, TX_EVIDENCES, USED_TICKETS_COUNTER, XRPL_TOKENS,
+        PROHIBITED_XRPL_ADDRESSES, TEMP_UNIVERSAL_SWAP, TX_EVIDENCES, USED_TICKETS_COUNTER,
+        XRPL_TOKENS,
     },
     tickets::{allocate_ticket, register_used_ticket},
     token::{
@@ -35,7 +36,8 @@ use crate::{
 
 use cosmwasm_std::{
     coins, entry_point, to_json_binary, wasm_execute, Addr, BankMsg, Binary, Coin, CosmosMsg, Deps,
-    DepsMut, Empty, Env, HexBinary, MessageInfo, Order, Response, StdResult, Storage, Uint128,
+    DepsMut, Empty, Env, HexBinary, MessageInfo, Order, Reply, Response, StdResult, Storage,
+    SubMsg, SubMsgResult, Uint128,
 };
 use cw2::set_contract_version;
 use cw20::Cw20Coin;
@@ -101,6 +103,7 @@ pub const INITIAL_PROHIBITED_XRPL_ADDRESSES: [&str; 5] = [
 ];
 
 pub const CHANNEL: &str = "channel-0"; // chanel default for rate limit
+pub const UNIVERSAL_SWAP_ERROR_ID: u64 = 1;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -388,6 +391,31 @@ pub fn execute(
             quota_id,
         } => execute_reset_rate_limit_quota(deps, info, xrpl_denom, quota_id),
     }
+}
+
+#[entry_point]
+pub fn reply(deps: DepsMut, _env: Env, reply: Reply) -> Result<Response, ContractError> {
+    if let SubMsgResult::Err(err) = reply.result {
+        return match reply.id {
+            UNIVERSAL_SWAP_ERROR_ID => {
+                let universal_swap_data = TEMP_UNIVERSAL_SWAP.load(deps.storage)?;
+
+                let refund_msg = BankMsg::Send {
+                    to_address: universal_swap_data.recovery_address,
+                    amount: vec![universal_swap_data.return_amount],
+                };
+                TEMP_UNIVERSAL_SWAP.remove(deps.storage);
+
+                Ok(Response::new()
+                    .add_attribute("action", "refund_universal_swap")
+                    .add_attribute("error_trying_to_call_entrypoint_for_universal_swap", err)
+                    .add_message(refund_msg))
+            }
+            _ => Err(ContractError::UnknownReplyId { id: reply.id }),
+        };
+    }
+    // default response
+    Ok(Response::new())
 }
 
 fn update_ownership(
@@ -726,6 +754,7 @@ fn save_evidence(
                 // If enough evidences are provided (threshold reached), we collect fees and mint the token for the recipient
                 if threshold_reached {
                     let mut msgs: Vec<CosmosMsg> = vec![];
+                    let mut sub_msgs: Vec<SubMsg> = vec![];
 
                     let fee_collected = handle_fee_collection(
                         deps.storage,
@@ -767,14 +796,14 @@ fn save_evidence(
                         )?;
                         // if universal swap , call entry point contract
                         if is_universal_swap {
-                            msgs.push(
+                            sub_msgs.push(SubMsg::reply_on_error(
                                 wasm_execute(
                                     config.osor_entry_point.unwrap(),
                                     &EntryPointExecuteMsg::UniversalSwap { memo },
                                     coins(amount_to_send.u128(), token.cosmos_denom),
-                                )?
-                                .into(),
-                            )
+                                )?,
+                                UNIVERSAL_SWAP_ERROR_ID,
+                            ));
                         }
 
                         msgs.push(mint_msg_for_recipient.into());
@@ -802,7 +831,7 @@ fn save_evidence(
                             );
                         }
                     }
-                    response = response.add_messages(msgs);
+                    response = response.add_messages(msgs).add_submessages(sub_msgs);
                 }
             } else {
                 // We check that the token is registered and enabled
@@ -835,6 +864,7 @@ fn save_evidence(
                 // If enough evidences are provided (threshold reached), we collect fees and send tokens from the bridge contract (it was holding them in escrow)
                 if threshold_reached {
                     let mut msgs: Vec<CosmosMsg> = vec![];
+                    let mut sub_msgs: Vec<SubMsg> = vec![];
                     handle_fee_collection(
                         deps.storage,
                         token.bridging_fee,
@@ -846,14 +876,14 @@ fn save_evidence(
 
                     // TODO: should we support CW20 as well?
                     if is_universal_swap {
-                        msgs.push(
+                        sub_msgs.push(SubMsg::reply_on_error(
                             wasm_execute(
                                 config.osor_entry_point.unwrap(),
                                 &EntryPointExecuteMsg::UniversalSwap { memo },
                                 coins(amount_to_send.u128(), token.denom),
-                            )?
-                            .into(),
-                        )
+                            )?,
+                            UNIVERSAL_SWAP_ERROR_ID,
+                        ));
                     } else {
                         let send_msg = BankMsg::Send {
                             to_address: recipient.to_string(),
@@ -884,7 +914,7 @@ fn save_evidence(
                             .into(),
                         )
                     }
-                    response = response.add_messages(msgs);
+                    response = response.add_messages(msgs).add_submessages(sub_msgs);
                 }
             }
 

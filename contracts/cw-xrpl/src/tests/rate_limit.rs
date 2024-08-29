@@ -6,7 +6,7 @@ use crate::msg::{
     XRPLTokensResponse,
 };
 use crate::operation::{Operation, OperationType};
-use crate::state::Config;
+
 use crate::tests::helper::{
     generate_hash, generate_xrpl_address, generate_xrpl_pub_key, MockApp, FEE_DENOM,
     TRUST_SET_LIMIT_AMOUNT,
@@ -1020,10 +1020,6 @@ fn send_from_cosmos_to_xrp_with_rate_limit() {
                 osor_entry_point: None,
             },
         )
-        .unwrap();
-
-    let config: Config = app
-        .query(contract_addr.clone(), &QueryMsg::Config {})
         .unwrap();
 
     let query_xrpl_tokens: XRPLTokensResponse = app
