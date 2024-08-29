@@ -2466,7 +2466,7 @@ dependencies = [
 [[package]]
 name = "rate-limiter"
 version = "0.1.0"
-source = "git+https://github.com/oraichain/rate-limit-contract.git?rev=49532e9#49532e9470d40f7a402163a207e421c8bd3fc111"
+source = "git+https://github.com/oraichain/rate-limit-contract.git?rev=fecf976#fecf976bbf0d33a8965ee0576547a9ed17f88f8d"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
