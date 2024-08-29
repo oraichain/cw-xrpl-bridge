@@ -174,14 +174,14 @@ pub enum ExecuteMsg {
         used_ticket_sequence_threshold: u32,
     },
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-tube"))]
     BurnTokens {
         denom: String,
         amount: Uint128,
         address: String,
     },
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-tube"))]
     MintTokens {
         denom: String,
         amount: Uint128,
