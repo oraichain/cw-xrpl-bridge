@@ -82,9 +82,6 @@ fn test_register_rate_limit() {
 
     let issuer = generate_xrpl_address();
     let currency = "USD".to_string();
-    let sending_precision = 15;
-    let max_holding_amount = Uint128::new(50000);
-    let bridging_fee = Uint128::zero();
     let denom = build_xrpl_token_key(&issuer, &currency);
 
     // register rate limit failed, unauthorized
@@ -258,6 +255,7 @@ fn test_register_rate_limit() {
     assert_eq!(rate_limits[0].flow.inflow, Uint128::zero());
     assert_eq!(rate_limits[0].flow.outflow, Uint128::zero());
 }
+
 #[test]
 fn send_xrpl_originated_tokens_from_xrpl_to_cosmos_with_rate_limit() {
     let (mut app, accounts) = MockApp::new(&[
@@ -290,6 +288,9 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos_with_rate_limit() {
     let bridge_xrpl_address = generate_xrpl_address();
 
     let token_factory_addr = app.create_tokenfactory(Addr::unchecked(signer)).unwrap();
+    let rate_limit_addr = app
+        .create_rate_limit_contract(Addr::unchecked(signer), &RateLimitInitMsg { paths: vec![] })
+        .unwrap();
 
     // Test with 1 relayer and 1 evidence threshold first
     let contract_addr = app
@@ -305,7 +306,7 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos_with_rate_limit() {
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
                 issue_token: true,
-                rate_limit_addr: None,
+                rate_limit_addr: Some(rate_limit_addr),
             },
         )
         .unwrap();
@@ -315,6 +316,24 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos_with_rate_limit() {
     let sending_precision = 15;
     let max_holding_amount = Uint128::new(50000);
     let bridging_fee = Uint128::zero();
+    let denom = build_xrpl_token_key(&issuer, &currency);
+
+    // init rate limit (1000000 per side)
+    app.execute(
+        Addr::unchecked(signer),
+        contract_addr.clone(),
+        &ExecuteMsg::AddRateLimit {
+            xrpl_denom: denom.clone(),
+            quotas: vec![QuotaMsg {
+                name: "daily".to_string(),
+                duration: 86400,
+                max_send: Uint128::new(1000),
+                max_receive: Uint128::new(1000),
+            }],
+        },
+        &[],
+    )
+    .unwrap();
 
     // Set up enough tickets first to allow registering tokens.
     app.execute(
@@ -379,30 +398,7 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos_with_rate_limit() {
         .clone();
 
     let hash = generate_hash();
-    let amount = Uint128::new(100);
-
-    // Bridging with 1 relayer before activating the token should return an error
-    let not_active_error = app
-        .execute(
-            Addr::unchecked(&relayer_accounts[0]),
-            contract_addr.clone(),
-            &ExecuteMsg::SaveEvidence {
-                evidence: Evidence::XRPLToCosmosTransfer {
-                    tx_hash: hash.clone(),
-                    issuer: issuer.clone(),
-                    currency: currency.clone(),
-                    amount: amount.clone(),
-                    recipient: Addr::unchecked(receiver),
-                },
-            },
-            &[],
-        )
-        .unwrap_err();
-
-    assert!(not_active_error
-        .root_cause()
-        .to_string()
-        .contains(&ContractError::TokenNotEnabled {}.to_string()));
+    let amount = Uint128::new(600);
 
     // Activate the token
     let query_pending_operations: PendingOperationsResponse = app
@@ -456,7 +452,8 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos_with_rate_limit() {
 
     assert_eq!(request_balance, amount);
 
-    // If we try to bridge to the contract address, it should fail
+    // If we try to bridge to the contract one more time with the same amount, it should fail because reach rate limit
+
     app.execute(
         Addr::unchecked(&relayer_accounts[0]),
         contract_addr.clone(),
@@ -466,168 +463,6 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos_with_rate_limit() {
                 issuer: issuer.clone(),
                 currency: currency.clone(),
                 amount: amount.clone(),
-                recipient: Addr::unchecked(contract_addr.clone()),
-            },
-        },
-        &[],
-    )
-    .unwrap_err();
-
-    // Test with more than 1 relayer
-    let contract_addr = app
-        .create_bridge(
-            Addr::unchecked(signer),
-            &InstantiateMsg {
-                owner: Addr::unchecked(signer),
-                relayers: vec![relayers[0].clone(), relayers[1].clone()],
-                evidence_threshold: 2,
-                used_ticket_sequence_threshold: 2,
-                trust_set_limit_amount: Uint128::new(TRUST_SET_LIMIT_AMOUNT),
-                bridge_xrpl_address: generate_xrpl_address(),
-                xrpl_base_fee: 10,
-                token_factory_addr: token_factory_addr.clone(),
-                issue_token: false,
-                rate_limit_addr: None,
-            },
-        )
-        .unwrap();
-
-    // Set up enough tickets first to allow registering tokens.
-    app.execute(
-        Addr::unchecked(signer),
-        contract_addr.clone(),
-        &ExecuteMsg::RecoverTickets {
-            account_sequence: 1,
-            number_of_tickets: Some(3),
-        },
-        &[],
-    )
-    .unwrap();
-
-    let hash2 = generate_hash();
-    app.execute(
-        Addr::unchecked(&relayer_accounts[0]),
-        contract_addr.clone(),
-        &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLTransactionResult {
-                tx_hash: Some(hash2.clone()),
-                account_sequence: Some(1),
-                ticket_sequence: None,
-                transaction_result: TransactionResult::Accepted,
-                operation_result: Some(OperationResult::TicketsAllocation {
-                    tickets: Some((1..4).collect()),
-                }),
-            },
-        },
-        &[],
-    )
-    .unwrap();
-
-    app.execute(
-        Addr::unchecked(&relayer_accounts[1]),
-        contract_addr.clone(),
-        &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLTransactionResult {
-                tx_hash: Some(hash2),
-                account_sequence: Some(1),
-                ticket_sequence: None,
-                transaction_result: TransactionResult::Accepted,
-                operation_result: Some(OperationResult::TicketsAllocation {
-                    tickets: Some((1..4).collect()),
-                }),
-            },
-        },
-        &[],
-    )
-    .unwrap();
-
-    // Register a token
-    app.execute(
-        Addr::unchecked(signer),
-        contract_addr.clone(),
-        &ExecuteMsg::RegisterXRPLToken {
-            issuer: issuer.clone(),
-            currency: currency.clone(),
-            sending_precision: sending_precision,
-            max_holding_amount: max_holding_amount,
-            bridging_fee: bridging_fee,
-        },
-        &coins(10_000_000u128, FEE_DENOM),
-    )
-    .unwrap();
-
-    // Activate the token
-    let query_pending_operations: PendingOperationsResponse = app
-        .query(
-            contract_addr.clone(),
-            &QueryMsg::PendingOperations {
-                start_after_key: None,
-                limit: None,
-            },
-        )
-        .unwrap();
-
-    let tx_hash = generate_hash();
-    app.execute(
-        Addr::unchecked(&relayer_accounts[0]),
-        contract_addr.clone(),
-        &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLTransactionResult {
-                tx_hash: Some(tx_hash.clone()),
-                account_sequence: None,
-                ticket_sequence: query_pending_operations.operations[0].ticket_sequence,
-                transaction_result: TransactionResult::Accepted,
-                operation_result: None,
-            },
-        },
-        &[],
-    )
-    .unwrap();
-
-    app.execute(
-        Addr::unchecked(&relayer_accounts[1]),
-        contract_addr.clone(),
-        &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLTransactionResult {
-                tx_hash: Some(tx_hash),
-                account_sequence: None,
-                ticket_sequence: query_pending_operations.operations[0].ticket_sequence,
-                transaction_result: TransactionResult::Accepted,
-                operation_result: None,
-            },
-        },
-        &[],
-    )
-    .unwrap();
-
-    let query_xrpl_tokens: XRPLTokensResponse = app
-        .query(
-            contract_addr.clone(),
-            &QueryMsg::XRPLTokens {
-                start_after_key: None,
-                limit: None,
-            },
-        )
-        .unwrap();
-
-    let denom = query_xrpl_tokens
-        .tokens
-        .iter()
-        .find(|t| t.issuer == issuer && t.currency == currency)
-        .unwrap()
-        .cosmos_denom
-        .clone();
-
-    // Trying to send from an address that is not a relayer should fail
-    app.execute(
-        Addr::unchecked(signer),
-        contract_addr.clone(),
-        &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLToCosmosTransfer {
-                tx_hash: hash.clone(),
-                issuer: issuer.clone(),
-                currency: currency.clone(),
-                amount: amount.clone(),
                 recipient: Addr::unchecked(receiver),
             },
         },
@@ -635,47 +470,14 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos_with_rate_limit() {
     )
     .unwrap_err();
 
-    // Trying to send a token that is not previously registered should also fail
+    // after time period, we can bridge again
+    app.increase_time(86400);
     app.execute(
         Addr::unchecked(&relayer_accounts[0]),
         contract_addr.clone(),
         &ExecuteMsg::SaveEvidence {
             evidence: Evidence::XRPLToCosmosTransfer {
-                tx_hash: hash.clone(),
-                issuer: "not_registered".to_string(),
-                currency: "not_registered".to_string(),
-                amount: amount.clone(),
-                recipient: Addr::unchecked(receiver),
-            },
-        },
-        &[],
-    )
-    .unwrap_err();
-
-    // Trying to send invalid evidence should fail
-    app.execute(
-        Addr::unchecked(&relayer_accounts[0]),
-        contract_addr.clone(),
-        &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLToCosmosTransfer {
-                tx_hash: hash.clone(),
-                issuer: issuer.clone(),
-                currency: currency.clone(),
-                amount: Uint128::new(0),
-                recipient: Addr::unchecked(receiver),
-            },
-        },
-        &[],
-    )
-    .unwrap_err();
-
-    // First relayer to execute should not trigger a mint and send
-    app.execute(
-        Addr::unchecked(&relayer_accounts[0]),
-        contract_addr.clone(),
-        &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLToCosmosTransfer {
-                tx_hash: hash.clone(),
+                tx_hash: generate_hash(),
                 issuer: issuer.clone(),
                 currency: currency.clone(),
                 amount: amount.clone(),
@@ -685,93 +487,10 @@ fn send_xrpl_originated_tokens_from_xrpl_to_cosmos_with_rate_limit() {
         &[],
     )
     .unwrap();
-
-    // Balance should be 0
-    let request_balance = app
-        .query_balance(Addr::unchecked(receiver), denom.clone())
-        .unwrap();
-
-    assert_eq!(request_balance, Uint128::zero());
-
-    // Relaying again from same relayer should trigger an error
-    app.execute(
-        Addr::unchecked(&relayer_accounts[0]),
-        contract_addr.clone(),
-        &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLToCosmosTransfer {
-                tx_hash: hash.clone(),
-                issuer: issuer.clone(),
-                currency: currency.clone(),
-                amount: amount.clone(),
-                recipient: Addr::unchecked(receiver),
-            },
-        },
-        &[],
-    )
-    .unwrap_err();
-
-    // Second relayer to execute should trigger a mint and send
-    app.execute(
-        Addr::unchecked(&relayer_accounts[1]),
-        contract_addr.clone(),
-        &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLToCosmosTransfer {
-                tx_hash: hash.clone(),
-                issuer: issuer.clone(),
-                currency: currency.clone(),
-                amount: amount.clone(),
-                recipient: Addr::unchecked(receiver),
-            },
-        },
-        &[],
-    )
-    .unwrap();
-
-    // Balance should be 0
-    let request_balance = app
-        .query_balance(Addr::unchecked(receiver), denom.clone())
-        .unwrap();
-
-    assert_eq!(request_balance, amount);
-
-    // Trying to relay again will trigger an error because operation is already executed
-    app.execute(
-        Addr::unchecked(&relayer_accounts[1]),
-        contract_addr.clone(),
-        &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLToCosmosTransfer {
-                tx_hash: hash.clone(),
-                issuer: issuer.clone(),
-                currency: currency.clone(),
-                amount: amount.clone(),
-                recipient: Addr::unchecked(receiver),
-            },
-        },
-        &[],
-    )
-    .unwrap_err();
-
-    let new_amount = Uint128::new(150);
-    // Trying to relay a different operation with same hash will trigger an error
-    app.execute(
-        Addr::unchecked(&relayer_accounts[0]),
-        contract_addr.clone(),
-        &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLToCosmosTransfer {
-                tx_hash: hash.clone(),
-                issuer: issuer.clone(),
-                currency: currency.clone(),
-                amount: new_amount.clone(),
-                recipient: Addr::unchecked(receiver),
-            },
-        },
-        &[],
-    )
-    .unwrap_err();
 }
 
 #[test]
-fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
+fn send_cosmos_originated_tokens_from_xrpl_to_cosmos_with_rate_limit() {
     let (mut app, accounts) = MockApp::new(&[
         ("account0", &coins(100_000_000_000, FEE_DENOM)),
         ("account1", &coins(100_000_000_000, FEE_DENOM)),
@@ -791,6 +510,9 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     let bridge_xrpl_address = generate_xrpl_address();
 
     let token_factory_addr = app.create_tokenfactory(Addr::unchecked(sender)).unwrap();
+    let rate_limit_addr = app
+        .create_rate_limit_contract(Addr::unchecked(signer), &RateLimitInitMsg { paths: vec![] })
+        .unwrap();
 
     let contract_addr = app
         .create_bridge(
@@ -805,7 +527,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
                 issue_token: true,
-                rate_limit_addr: None,
+                rate_limit_addr: Some(rate_limit_addr.clone()),
             },
         )
         .unwrap();
@@ -883,46 +605,45 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
         &[],
     )
     .unwrap();
+    // Get the token information
+    let query_cosmos_tokens: CosmosTokensResponse = app
+        .query(
+            contract_addr.clone(),
+            &QueryMsg::CosmosTokens {
+                start_after_key: None,
+                limit: None,
+            },
+        )
+        .unwrap();
+
+    let cosmos_originated_token = query_cosmos_tokens
+        .tokens
+        .iter()
+        .find(|t| t.denom == denom)
+        .unwrap();
+
+    let xrpl_denom_key =
+        build_xrpl_token_key(&bridge_xrpl_address, &cosmos_originated_token.xrpl_currency);
+
+    // init rate limit (1000000 per side)
+    app.execute(
+        Addr::unchecked(signer),
+        contract_addr.clone(),
+        &ExecuteMsg::AddRateLimit {
+            xrpl_denom: xrpl_denom_key.clone(),
+            quotas: vec![QuotaMsg {
+                name: "daily".to_string(),
+                duration: 86400,
+                max_send: Uint128::new(1500000),
+                max_receive: Uint128::new(1500000),
+            }],
+        },
+        &[],
+    )
+    .unwrap();
 
     // It should truncate 1 because sending precision is 5
     let amount_to_send = Uint128::new(1000001);
-
-    // If we try to send an amount in the optional field it should fail.
-    let send_error = app
-        .execute(
-            Addr::unchecked(sender),
-            contract_addr.clone(),
-            &ExecuteMsg::SendToXRPL {
-                recipient: xrpl_receiver_address.clone(),
-                deliver_amount: Some(Uint128::new(100)),
-            },
-            &coins(amount_to_send.u128(), denom.clone()),
-        )
-        .unwrap_err();
-
-    assert!(send_error.root_cause().to_string().contains(
-        ContractError::DeliverAmountIsProhibited {}
-            .to_string()
-            .as_str()
-    ));
-
-    // If we try to send an amount that will become an invalid XRPL amount, it should fail
-    let send_error = app
-        .execute(
-            Addr::unchecked(sender),
-            contract_addr.clone(),
-            &ExecuteMsg::SendToXRPL {
-                recipient: xrpl_receiver_address.clone(),
-                deliver_amount: None,
-            },
-            &coins(10000000000000000010, denom.clone()), // Nothing is truncated, and after transforming into XRPL amount it will have more than 17 digits
-        )
-        .unwrap_err();
-
-    assert!(send_error
-        .root_cause()
-        .to_string()
-        .contains(ContractError::InvalidXRPLAmount {}.to_string().as_str()));
 
     // Try to bridge the token to the xrpl receiver address so that we can send it back.
     app.execute(
@@ -949,23 +670,20 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
 
     assert_eq!(request_balance, amount_to_send);
 
-    // Get the token information
-    let query_cosmos_tokens: CosmosTokensResponse = app
+    // query rate limits
+    let rate_limits: Vec<RateLimit> = app
         .query(
-            contract_addr.clone(),
-            &QueryMsg::CosmosTokens {
-                start_after_key: None,
-                limit: None,
+            rate_limit_addr.clone(),
+            &RateLimitQueryMsg::GetQuotas {
+                contract: contract_addr.clone(),
+                channel_id: CHANNEL.to_string(),
+                denom: xrpl_denom_key.clone(),
             },
         )
         .unwrap();
 
-    let cosmos_originated_token = query_cosmos_tokens
-        .tokens
-        .iter()
-        .find(|t| t.denom == denom)
-        .unwrap();
-
+    assert_eq!(rate_limits[0].flow.inflow, Uint128::zero());
+    assert_eq!(rate_limits[0].flow.outflow, Uint128::new(1000000));
     // Confirm the operation to remove it from pending operations.
     let query_pending_operations: PendingOperationsResponse = app
         .query(
@@ -1052,71 +770,19 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
         coin(amount_to_send.u128() - 1u128, denom.clone())
     );
 
-    // Trying to claim a refund with an invalid pending refund operation id should fail
-    let claim_error = app
-        .execute(
-            Addr::unchecked(sender),
-            contract_addr.clone(),
-            &ExecuteMsg::ClaimRefund {
-                pending_refund_id: "random_id".to_string(),
+    let rate_limits: Vec<RateLimit> = app
+        .query(
+            rate_limit_addr.clone(),
+            &RateLimitQueryMsg::GetQuotas {
+                contract: contract_addr.clone(),
+                channel_id: CHANNEL.to_string(),
+                denom: xrpl_denom_key.clone(),
             },
-            &[],
         )
-        .unwrap_err();
+        .unwrap();
 
-    assert!(claim_error
-        .root_cause()
-        .to_string()
-        .contains(ContractError::PendingRefundNotFound {}.to_string().as_str()));
-
-    // Try to claim a pending refund with a valid pending refund operation id but not as a different user, should also fail
-    app.execute(
-        Addr::unchecked(signer),
-        contract_addr.clone(),
-        &ExecuteMsg::ClaimRefund {
-            pending_refund_id: query_pending_refunds.pending_refunds[0].id.clone(),
-        },
-        &[],
-    )
-    .unwrap_err();
-
-    // Let's freeze the token to verify that claiming will fail
-    app.execute(
-        Addr::unchecked(signer),
-        contract_addr.clone(),
-        &ExecuteMsg::BurnTokens {
-            denom: denom.clone(),
-            amount: 100000u128.into(),
-            address: contract_addr.to_string(),
-        },
-        &[],
-    )
-    .unwrap();
-
-    // Can't claim because token is frozen
-    app.execute(
-        Addr::unchecked(sender),
-        contract_addr.clone(),
-        &ExecuteMsg::ClaimRefund {
-            pending_refund_id: query_pending_refunds.pending_refunds[0].id.clone(),
-        },
-        &[],
-    )
-    .unwrap_err();
-
-    // Let's unfreeze token so we can claim
-    // signer is admin and can mint more token to contract_addr
-    app.execute(
-        Addr::unchecked(signer),
-        contract_addr.clone(),
-        &ExecuteMsg::MintTokens {
-            denom: denom.clone(),
-            amount: 100000u128.into(),
-            address: contract_addr.to_string(),
-        },
-        &[],
-    )
-    .unwrap();
+    assert_eq!(rate_limits[0].flow.inflow, Uint128::zero());
+    assert_eq!(rate_limits[0].flow.outflow, Uint128::new(0));
 
     // Let's claim our pending refund
     app.execute(
@@ -1192,6 +858,19 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
     )
     .unwrap();
 
+    let rate_limits: Vec<RateLimit> = app
+        .query(
+            rate_limit_addr.clone(),
+            &RateLimitQueryMsg::GetQuotas {
+                contract: contract_addr.clone(),
+                channel_id: CHANNEL.to_string(),
+                denom: xrpl_denom_key.clone(),
+            },
+        )
+        .unwrap();
+    assert_eq!(rate_limits[0].flow.inflow, Uint128::zero());
+    assert_eq!(rate_limits[0].flow.outflow, Uint128::new(1000000));
+
     let query_pending_operations: PendingOperationsResponse = app
         .query(
             contract_addr.clone(),
@@ -1204,79 +883,21 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
 
     assert_eq!(query_pending_operations.operations.len(), 0);
 
+    // Try to send again, failed because got rate limit
+    app.execute(
+        Addr::unchecked(sender),
+        contract_addr.clone(),
+        &ExecuteMsg::SendToXRPL {
+            recipient: xrpl_receiver_address.clone(),
+            deliver_amount: None,
+        },
+        &coins(amount_to_send.u128(), denom.clone()),
+    )
+    .unwrap_err();
+
     // Test sending the amount back from XRPL to Cosmos
     // 10000000000 (1e10) is the minimum we can send back (15 - 5 (sending precision))
-    let amount_to_send_back = Uint128::new(10000000000);
-
-    // If we send the token with a different issuer (not multisig address) it should fail
-    let transfer_error = app
-        .execute(
-            Addr::unchecked(relayer_account),
-            contract_addr.clone(),
-            &ExecuteMsg::SaveEvidence {
-                evidence: Evidence::XRPLToCosmosTransfer {
-                    tx_hash: generate_hash(),
-                    issuer: generate_xrpl_address(),
-                    currency: cosmos_originated_token.xrpl_currency.clone(),
-                    amount: amount_to_send_back.clone(),
-                    recipient: Addr::unchecked(sender),
-                },
-            },
-            &[],
-        )
-        .unwrap_err();
-
-    assert!(transfer_error
-        .root_cause()
-        .to_string()
-        .contains(ContractError::TokenNotRegistered {}.to_string().as_str()));
-
-    // If we send the token with a different currency (one that is not the one in the registered token list) it should fail
-    let transfer_error = app
-        .execute(
-            Addr::unchecked(relayer_account),
-            contract_addr.clone(),
-            &ExecuteMsg::SaveEvidence {
-                evidence: Evidence::XRPLToCosmosTransfer {
-                    tx_hash: generate_hash(),
-                    issuer: bridge_xrpl_address.clone(),
-                    currency: "invalid_currency".to_string(),
-                    amount: amount_to_send_back.clone(),
-                    recipient: Addr::unchecked(sender),
-                },
-            },
-            &[],
-        )
-        .unwrap_err();
-
-    assert!(transfer_error
-        .root_cause()
-        .to_string()
-        .contains(ContractError::TokenNotRegistered {}.to_string().as_str()));
-
-    // Sending under the minimum should fail (minimum - 1)
-    let transfer_error = app
-        .execute(
-            Addr::unchecked(relayer_account),
-            contract_addr.clone(),
-            &ExecuteMsg::SaveEvidence {
-                evidence: Evidence::XRPLToCosmosTransfer {
-                    tx_hash: generate_hash(),
-                    issuer: bridge_xrpl_address.clone(),
-                    currency: cosmos_originated_token.xrpl_currency.clone(),
-                    amount: amount_to_send_back.checked_sub(Uint128::one()).unwrap(),
-                    recipient: Addr::unchecked(sender),
-                },
-            },
-            &[],
-        )
-        .unwrap_err();
-
-    assert!(transfer_error.root_cause().to_string().contains(
-        ContractError::AmountSentIsZeroAfterTruncation {}
-            .to_string()
-            .as_str()
-    ));
+    let amount_to_send_back = Uint128::new(1000000000000000);
 
     // Sending the right evidence should move tokens from the contract to the sender's account
     app.execute(
@@ -1294,6 +915,19 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
         &[],
     )
     .unwrap();
+
+    let rate_limits: Vec<RateLimit> = app
+        .query(
+            rate_limit_addr.clone(),
+            &RateLimitQueryMsg::GetQuotas {
+                contract: contract_addr.clone(),
+                channel_id: CHANNEL.to_string(),
+                denom: xrpl_denom_key.clone(),
+            },
+        )
+        .unwrap();
+    assert_eq!(rate_limits[0].flow.inflow, Uint128::new(1000000));
+    assert_eq!(rate_limits[0].flow.outflow, Uint128::new(1000000));
 
     // Check balance of sender and contract
     let request_balance = app
@@ -1307,7 +941,7 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
             .unwrap()
             .checked_sub(Uint128::one()) // amount lost during truncation of first rejection
             .unwrap()
-            .checked_add(Uint128::new(10)) // Amount that we sent back (10) after conversion, the minimum
+            .checked_add(Uint128::new(1000000)) // Amount that we sent back (10) after conversion, the minimum
             .unwrap()
     );
 
@@ -1320,49 +954,11 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
         amount_to_send
             .checked_add(Uint128::one()) // Truncated amount staying in contract
             .unwrap()
-            .checked_sub(Uint128::new(10))
+            .checked_sub(Uint128::new(1000000))
             .unwrap()
     );
 
-    // Now let's issue a token where decimals are more than an XRPL token decimals to the sender and register it.
-    let subunit = "utest2".to_string();
-    let decimals = 20;
-    let initial_amount = Uint128::new(200000000000000000000); // 2e20
-
-    app.execute(
-        Addr::unchecked(signer),
-        contract_addr.clone(),
-        &ExecuteMsg::CreateCosmosToken {
-            subdenom: subunit.to_uppercase(),
-            initial_balances: vec![Cw20Coin {
-                address: sender.to_string(),
-                amount: initial_amount,
-            }],
-        },
-        &coins(10_000_000u128, FEE_DENOM),
-    )
-    .unwrap();
-
-    let denom = full_denom(&token_factory_addr, &subunit.to_uppercase());
-
-    app.execute(
-        Addr::unchecked(signer),
-        contract_addr.clone(),
-        &ExecuteMsg::RegisterCosmosToken {
-            denom: denom.clone(),
-            decimals,
-            sending_precision: 10,
-            max_holding_amount: Uint128::new(200000000000000000000), //2e20
-            bridging_fee: Uint128::zero(),
-        },
-        &[],
-    )
-    .unwrap();
-
-    // It should truncate and remove all 9s because they are under precision
-    let amount_to_send = Uint128::new(100000000019999999999);
-
-    // Bridge the token to the xrpl receiver address so that we can send it back.
+    // currently, we can send to xrpl
     app.execute(
         Addr::unchecked(sender),
         contract_addr.clone(),
@@ -1373,323 +969,10 @@ fn send_cosmos_originated_tokens_from_xrpl_to_cosmos() {
         &coins(amount_to_send.u128(), denom.clone()),
     )
     .unwrap();
-
-    // Check balance of sender and contract
-    let request_balance = app
-        .query_balance(Addr::unchecked(sender), denom.clone())
-        .unwrap();
-
-    assert_eq!(
-        request_balance,
-        initial_amount.checked_sub(amount_to_send).unwrap()
-    );
-
-    let request_balance = app
-        .query_balance(contract_addr.clone(), denom.clone())
-        .unwrap();
-
-    assert_eq!(request_balance, amount_to_send);
-
-    // Get the token information
-    let query_cosmos_tokens: CosmosTokensResponse = app
-        .query(
-            contract_addr.clone(),
-            &QueryMsg::CosmosTokens {
-                start_after_key: None,
-                limit: None,
-            },
-        )
-        .unwrap();
-
-    let cosmos_originated_token = query_cosmos_tokens
-        .tokens
-        .iter()
-        .find(|t| t.denom == denom)
-        .unwrap();
-
-    // Confirm the operation to remove it from pending operations.
-    let query_pending_operations: PendingOperationsResponse = app
-        .query(
-            contract_addr.clone(),
-            &QueryMsg::PendingOperations {
-                start_after_key: None,
-                limit: None,
-            },
-        )
-        .unwrap();
-
-    let amount_truncated_and_converted = Uint128::new(1000000000100000); // 100000000019999999999 -> truncate -> 100000000010000000000  -> convert -> 1000000000100000
-    assert_eq!(query_pending_operations.operations.len(), 1);
-    assert_eq!(
-        query_pending_operations.operations[0].operation_type,
-        OperationType::CosmosToXRPLTransfer {
-            issuer: bridge_xrpl_address.clone(),
-            currency: cosmos_originated_token.xrpl_currency.clone(),
-            amount: amount_truncated_and_converted,
-            max_amount: Some(amount_truncated_and_converted),
-            sender: Addr::unchecked(sender),
-            recipient: xrpl_receiver_address.clone(),
-        }
-    );
-
-    // Reject the operation so that tokens are sent back to sender
-    app.execute(
-        Addr::unchecked(relayer_account),
-        contract_addr.clone(),
-        &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLTransactionResult {
-                tx_hash: Some(generate_hash()),
-                account_sequence: query_pending_operations.operations[0].account_sequence,
-                ticket_sequence: query_pending_operations.operations[0].ticket_sequence,
-                transaction_result: TransactionResult::Rejected,
-                operation_result: None,
-            },
-        },
-        &[],
-    )
-    .unwrap();
-
-    // Truncated amount won't be sent back (goes to relayer fees) and the rest will be stored in refundable array for the user to claim
-    let request_balance = app
-        .query_balance(Addr::unchecked(sender), denom.clone())
-        .unwrap();
-
-    assert_eq!(
-        request_balance,
-        initial_amount.checked_sub(amount_to_send).unwrap()
-    );
-
-    // Truncated amount and refundable fees will stay in contract
-    let request_balance = app
-        .query_balance(contract_addr.clone(), denom.clone())
-        .unwrap();
-    assert_eq!(request_balance, amount_to_send);
-
-    // If we query the refundable tokens that the user can claim, we should see the amount that was truncated is claimable
-    let query_pending_refunds: PendingRefundsResponse = app
-        .query(
-            contract_addr.clone(),
-            &QueryMsg::PendingRefunds {
-                address: Addr::unchecked(sender),
-                start_after_key: None,
-                limit: None,
-            },
-        )
-        .unwrap();
-
-    // We verify that these tokens are refundable
-    assert_eq!(query_pending_refunds.pending_refunds.len(), 1);
-    assert_eq!(
-        query_pending_refunds.pending_refunds[0].coin,
-        coin(
-            amount_to_send
-                .checked_sub(Uint128::new(9999999999)) // Amount truncated is not refunded to user
-                .unwrap()
-                .u128(),
-            denom.clone()
-        )
-    );
-
-    // Claim it, should work
-    app.execute(
-        Addr::unchecked(sender),
-        contract_addr.clone(),
-        &ExecuteMsg::ClaimRefund {
-            pending_refund_id: query_pending_refunds.pending_refunds[0].id.clone(),
-        },
-        &[],
-    )
-    .unwrap();
-
-    // pending refunds should now be empty
-    let query_pending_refunds: PendingRefundsResponse = app
-        .query(
-            contract_addr.clone(),
-            &QueryMsg::PendingRefunds {
-                address: Addr::unchecked(sender),
-                start_after_key: None,
-                limit: None,
-            },
-        )
-        .unwrap();
-
-    // We verify that there are no pending refunds left
-    assert!(query_pending_refunds.pending_refunds.is_empty());
-
-    // Try to send again
-    app.execute(
-        Addr::unchecked(sender),
-        contract_addr.clone(),
-        &ExecuteMsg::SendToXRPL {
-            recipient: xrpl_receiver_address.clone(),
-            deliver_amount: None,
-        },
-        &coins(amount_to_send.u128(), denom.clone()),
-    )
-    .unwrap();
-
-    let query_pending_operations: PendingOperationsResponse = app
-        .query(
-            contract_addr.clone(),
-            &QueryMsg::PendingOperations {
-                start_after_key: None,
-                limit: None,
-            },
-        )
-        .unwrap();
-
-    // Send successfull evidence to remove from queue (tokens should be released on XRPL to the receiver)
-    app.execute(
-        Addr::unchecked(relayer_account),
-        contract_addr.clone(),
-        &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLTransactionResult {
-                tx_hash: Some(generate_hash()),
-                account_sequence: query_pending_operations.operations[0].account_sequence,
-                ticket_sequence: query_pending_operations.operations[0].ticket_sequence,
-                transaction_result: TransactionResult::Accepted,
-                operation_result: None,
-            },
-        },
-        &[],
-    )
-    .unwrap();
-
-    let query_pending_operations: PendingOperationsResponse = app
-        .query(
-            contract_addr.clone(),
-            &QueryMsg::PendingOperations {
-                start_after_key: None,
-                limit: None,
-            },
-        )
-        .unwrap();
-
-    assert_eq!(query_pending_operations.operations.len(), 0);
-
-    // Test sending the amount back from XRPL to Cosmos
-    // 100000 (1e5) is the minimum we can send back (15 - 10 (sending precision))
-    let amount_to_send_back = Uint128::new(100000);
-
-    // If we send the token with a different issuer (not multisig address) it should fail
-    let transfer_error = app
-        .execute(
-            Addr::unchecked(relayer_account),
-            contract_addr.clone(),
-            &ExecuteMsg::SaveEvidence {
-                evidence: Evidence::XRPLToCosmosTransfer {
-                    tx_hash: generate_hash(),
-                    issuer: generate_xrpl_address(),
-                    currency: cosmos_originated_token.xrpl_currency.clone(),
-                    amount: amount_to_send_back.clone(),
-                    recipient: Addr::unchecked(sender),
-                },
-            },
-            &[],
-        )
-        .unwrap_err();
-
-    assert!(transfer_error
-        .root_cause()
-        .to_string()
-        .contains(ContractError::TokenNotRegistered {}.to_string().as_str()));
-
-    // If we send the token with a different currency (one that is not the one in the registered token list) it should fail
-    let transfer_error = app
-        .execute(
-            Addr::unchecked(relayer_account),
-            contract_addr.clone(),
-            &ExecuteMsg::SaveEvidence {
-                evidence: Evidence::XRPLToCosmosTransfer {
-                    tx_hash: generate_hash(),
-                    issuer: bridge_xrpl_address.clone(),
-                    currency: "invalid_currency".to_string(),
-                    amount: amount_to_send_back.clone(),
-                    recipient: Addr::unchecked(sender),
-                },
-            },
-            &[],
-        )
-        .unwrap_err();
-
-    assert!(transfer_error
-        .root_cause()
-        .to_string()
-        .contains(ContractError::TokenNotRegistered {}.to_string().as_str()));
-
-    // Sending under the minimum should fail (minimum - 1)
-    let transfer_error = app
-        .execute(
-            Addr::unchecked(relayer_account),
-            contract_addr.clone(),
-            &ExecuteMsg::SaveEvidence {
-                evidence: Evidence::XRPLToCosmosTransfer {
-                    tx_hash: generate_hash(),
-                    issuer: bridge_xrpl_address.clone(),
-                    currency: cosmos_originated_token.xrpl_currency.clone(),
-                    amount: amount_to_send_back.checked_sub(Uint128::one()).unwrap(),
-                    recipient: Addr::unchecked(sender),
-                },
-            },
-            &[],
-        )
-        .unwrap_err();
-
-    assert!(transfer_error.root_cause().to_string().contains(
-        ContractError::AmountSentIsZeroAfterTruncation {}
-            .to_string()
-            .as_str()
-    ));
-
-    // Sending the right evidence should move tokens from the contract to the sender's account
-    app.execute(
-        Addr::unchecked(relayer_account),
-        contract_addr.clone(),
-        &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLToCosmosTransfer {
-                tx_hash: generate_hash(),
-                issuer: bridge_xrpl_address.clone(),
-                currency: cosmos_originated_token.xrpl_currency.clone(),
-                amount: amount_to_send_back.clone(),
-                recipient: Addr::unchecked(sender),
-            },
-        },
-        &[],
-    )
-    .unwrap();
-
-    // Check balance of sender and contract
-    let request_balance = app
-        .query_balance(Addr::unchecked(sender), denom.clone())
-        .unwrap();
-
-    assert_eq!(
-        request_balance,
-        initial_amount
-            .checked_sub(amount_to_send) // initial amount
-            .unwrap()
-            .checked_sub(Uint128::new(9999999999)) // Amount lost during first truncation that was rejected
-            .unwrap()
-            .checked_add(Uint128::new(10000000000)) // Amount that we sent back after conversion (1e10), the minimum
-            .unwrap()
-    );
-
-    let request_balance = app
-        .query_balance(contract_addr.clone(), denom.clone())
-        .unwrap();
-
-    assert_eq!(
-        request_balance,
-        amount_to_send
-            .checked_add(Uint128::new(9999999999)) // Amount that was kept during truncation of rejected operation
-            .unwrap()
-            .checked_sub(Uint128::new(10000000000)) // Amount sent from XRPL to the user
-            .unwrap()
-    );
 }
 
 #[test]
-fn send_from_cosmos_to_xrpl() {
+fn send_from_cosmos_to_xrp_with_rate_limit() {
     let (mut app, accounts) = MockApp::new(&[
         ("account0", &coins(100_000_000_000, FEE_DENOM)),
         ("account1", &coins(100_000_000_000, FEE_DENOM)),
@@ -1709,6 +992,9 @@ fn send_from_cosmos_to_xrpl() {
     let multisig_address = generate_xrpl_address();
 
     let token_factory_addr = app.create_tokenfactory(Addr::unchecked(signer)).unwrap();
+    let rate_limit_addr = app
+        .create_rate_limit_contract(Addr::unchecked(signer), &RateLimitInitMsg { paths: vec![] })
+        .unwrap();
 
     let contract_addr = app
         .create_bridge(
@@ -1723,7 +1009,7 @@ fn send_from_cosmos_to_xrpl() {
                 xrpl_base_fee,
                 token_factory_addr: token_factory_addr.clone(),
                 issue_token: true,
-                rate_limit_addr: None,
+                rate_limit_addr: Some(rate_limit_addr.clone()),
             },
         )
         .unwrap();
@@ -1749,6 +1035,23 @@ fn send_from_cosmos_to_xrpl() {
         .unwrap()
         .cosmos_denom
         .clone();
+
+    let xrp_key = build_xrpl_token_key(XRP_ISSUER, XRP_CURRENCY);
+    app.execute(
+        Addr::unchecked(signer),
+        contract_addr.clone(),
+        &ExecuteMsg::AddRateLimit {
+            xrpl_denom: xrp_key.clone(),
+            quotas: vec![QuotaMsg {
+                name: "daily".to_string(),
+                duration: 86400,
+                max_send: Uint128::new(1500000),
+                max_receive: Uint128::new(1500000),
+            }],
+        },
+        &[],
+    )
+    .unwrap();
 
     // Add enough tickets for all our test operations
     app.execute(
@@ -1834,25 +1137,6 @@ fn send_from_cosmos_to_xrpl() {
     assert_eq!(request_balance, amount_to_send_xrp);
 
     let xrpl_receiver_address = generate_xrpl_address();
-    // Trying to send XRP back with a deliver_amount should fail
-    let deliver_error = app
-        .execute(
-            Addr::unchecked(sender),
-            contract_addr.clone(),
-            &ExecuteMsg::SendToXRPL {
-                recipient: xrpl_receiver_address.clone(),
-                deliver_amount: Some(Uint128::one()),
-            },
-            &coins(amount_to_send_back.u128(), denom_xrp.clone()),
-        )
-        .unwrap_err();
-
-    assert!(deliver_error.root_cause().to_string().contains(
-        ContractError::DeliverAmountIsProhibited {}
-            .to_string()
-            .as_str()
-    ));
-
     // Send the XRP back to XRPL successfully
     app.execute(
         Addr::unchecked(sender),
@@ -1897,65 +1181,19 @@ fn send_from_cosmos_to_xrpl() {
         }
     );
 
-    // If we try to send tokens from Cosmos to XRPL using the multisig address as recipient, it should fail.
-    let bridge_error = app
-        .execute(
-            Addr::unchecked(sender),
-            contract_addr.clone(),
-            &ExecuteMsg::SendToXRPL {
-                recipient: multisig_address,
-                deliver_amount: None,
+    let rate_limits: Vec<RateLimit> = app
+        .query(
+            rate_limit_addr.clone(),
+            &RateLimitQueryMsg::GetQuotas {
+                contract: contract_addr.clone(),
+                channel_id: CHANNEL.to_string(),
+                denom: xrp_key.clone(),
             },
-            &coins(1, denom_xrp.clone()),
         )
-        .unwrap_err();
+        .unwrap();
 
-    assert!(bridge_error
-        .root_cause()
-        .to_string()
-        .contains(ContractError::ProhibitedAddress {}.to_string().as_str()));
-
-    // If we try to send tokens from Cosmos to XRPL using a prohibited address, it should fail.
-    let bridge_error = app
-        .execute(
-            Addr::unchecked(sender),
-            contract_addr.clone(),
-            &ExecuteMsg::SendToXRPL {
-                recipient: INITIAL_PROHIBITED_XRPL_ADDRESSES[0].to_string(),
-                deliver_amount: None,
-            },
-            &coins(1, denom_xrp.clone()),
-        )
-        .unwrap_err();
-
-    assert!(bridge_error
-        .root_cause()
-        .to_string()
-        .contains(ContractError::ProhibitedAddress {}.to_string().as_str()));
-
-    // Sending a CosmosToXRPLTransfer evidence with account sequence should fail.
-    let invalid_evidence = app
-        .execute(
-            Addr::unchecked(relayer_account),
-            contract_addr.clone(),
-            &ExecuteMsg::SaveEvidence {
-                evidence: Evidence::XRPLTransactionResult {
-                    tx_hash: Some(generate_hash()),
-                    account_sequence: Some(1),
-                    ticket_sequence: None,
-                    transaction_result: TransactionResult::Accepted,
-                    operation_result: None,
-                },
-            },
-            &[],
-        )
-        .unwrap_err();
-
-    assert!(invalid_evidence.root_cause().to_string().contains(
-        ContractError::InvalidTransactionResultEvidence {}
-            .to_string()
-            .as_str()
-    ));
+    assert_eq!(rate_limits[0].flow.inflow, Uint128::new(50000));
+    assert_eq!(rate_limits[0].flow.outflow, Uint128::new(10000));
 
     // Send successful evidence to remove from queue (tokens should be released on XRPL to the receiver)
     app.execute(
@@ -1999,7 +1237,6 @@ fn send_from_cosmos_to_xrpl() {
     assert_eq!(request_balance, Uint128::zero());
 
     // Now we will try to send back again but this time reject it, thus balance must be sent back to the sender.
-
     app.execute(
         Addr::unchecked(sender),
         contract_addr.clone(),
@@ -2010,6 +1247,20 @@ fn send_from_cosmos_to_xrpl() {
         &coins(amount_to_send_back.u128(), denom_xrp.clone()),
     )
     .unwrap();
+
+    let rate_limits: Vec<RateLimit> = app
+        .query(
+            rate_limit_addr.clone(),
+            &RateLimitQueryMsg::GetQuotas {
+                contract: contract_addr.clone(),
+                channel_id: CHANNEL.to_string(),
+                denom: xrp_key.clone(),
+            },
+        )
+        .unwrap();
+
+    assert_eq!(rate_limits[0].flow.inflow, Uint128::new(50000));
+    assert_eq!(rate_limits[0].flow.outflow, Uint128::new(20000));
 
     // Transaction was rejected
     app.execute(
@@ -2028,6 +1279,19 @@ fn send_from_cosmos_to_xrpl() {
     )
     .unwrap();
 
+    let rate_limits: Vec<RateLimit> = app
+        .query(
+            rate_limit_addr.clone(),
+            &RateLimitQueryMsg::GetQuotas {
+                contract: contract_addr.clone(),
+                channel_id: CHANNEL.to_string(),
+                denom: xrp_key.clone(),
+            },
+        )
+        .unwrap();
+
+    assert_eq!(rate_limits[0].flow.inflow, Uint128::new(50000));
+    assert_eq!(rate_limits[0].flow.outflow, Uint128::new(10000));
     // Since transaction result was Rejected, the tokens must have been sent to pending refunds
 
     let request_balance = app
@@ -2061,6 +1325,23 @@ fn send_from_cosmos_to_xrpl() {
     let max_holding_amount = Uint128::new(50000000000000000000); // 5e20
     let bridging_fee = Uint128::zero();
 
+    let xrp_key = build_xrpl_token_key(&issuer, &currency);
+    app.execute(
+        Addr::unchecked(signer),
+        contract_addr.clone(),
+        &ExecuteMsg::AddRateLimit {
+            xrpl_denom: xrp_key.clone(),
+            quotas: vec![QuotaMsg {
+                name: "daily".to_string(),
+                duration: 86400,
+                max_send: Uint128::new(15000000000000000000),
+                max_receive: Uint128::new(15000000000000000000),
+            }],
+        },
+        &[],
+    )
+    .unwrap();
+
     // First we need to register and activate it
     app.execute(
         Addr::unchecked(signer),
@@ -2068,9 +1349,9 @@ fn send_from_cosmos_to_xrpl() {
         &ExecuteMsg::RegisterXRPLToken {
             issuer: issuer.clone(),
             currency: currency.clone(),
-            sending_precision: sending_precision,
-            max_holding_amount: max_holding_amount,
-            bridging_fee: bridging_fee,
+            sending_precision,
+            max_holding_amount,
+            bridging_fee,
         },
         &coins(10_000_000u128, FEE_DENOM),
     )
@@ -2105,6 +1386,7 @@ fn send_from_cosmos_to_xrpl() {
     .unwrap();
 
     let amount_to_send = Uint128::new(10000000000000000000); // 1e20
+    let amount_to_send_back = Uint128::new(6000000000000000000);
     let final_balance = amount_to_send.checked_sub(amount_to_send_back).unwrap();
     // Bridge some tokens to the sender address
     app.execute(
@@ -2122,6 +1404,23 @@ fn send_from_cosmos_to_xrpl() {
         &[],
     )
     .unwrap();
+
+    // bridge one more time, error because rate limited
+    app.execute(
+        Addr::unchecked(relayer_account),
+        contract_addr.clone(),
+        &ExecuteMsg::SaveEvidence {
+            evidence: Evidence::XRPLToCosmosTransfer {
+                tx_hash: generate_hash(),
+                issuer: issuer.to_string(),
+                currency: currency.to_string(),
+                amount: amount_to_send.clone(),
+                recipient: Addr::unchecked(sender),
+            },
+        },
+        &[],
+    )
+    .unwrap_err();
 
     let query_xrpl_tokens: XRPLTokensResponse = app
         .query(
@@ -2145,48 +1444,6 @@ fn send_from_cosmos_to_xrpl() {
         .unwrap();
 
     assert_eq!(request_balance, amount_to_send);
-
-    // If we send more than one token in the funds we should get an error
-    let invalid_funds_error = app
-        .execute(
-            Addr::unchecked(sender),
-            contract_addr.clone(),
-            &ExecuteMsg::SendToXRPL {
-                recipient: xrpl_receiver_address.clone(),
-                deliver_amount: None,
-            },
-            &vec![
-                coin(amount_to_send_back.u128(), denom_xrpl_origin_token.clone()),
-                coin(1, FEE_DENOM),
-            ],
-        )
-        .unwrap_err();
-
-    assert!(invalid_funds_error
-        .root_cause()
-        .to_string()
-        .contains("Sent more than one denomination"));
-
-    // If we send to an invalid XRPL address we should get an error
-    let invalid_address_error = app
-        .execute(
-            Addr::unchecked(sender),
-            contract_addr.clone(),
-            &ExecuteMsg::SendToXRPL {
-                recipient: "invalid_address".to_string(),
-                deliver_amount: None,
-            },
-            &coins(amount_to_send_back.u128(), denom_xrpl_origin_token.clone()),
-        )
-        .unwrap_err();
-
-    assert!(invalid_address_error.root_cause().to_string().contains(
-        ContractError::InvalidXRPLAddress {
-            address: "invalid_address".to_string()
-        }
-        .to_string()
-        .as_str()
-    ));
 
     // We will send a successful transfer to XRPL considering the token has no transfer rate
 
@@ -2275,560 +1532,20 @@ fn send_from_cosmos_to_xrpl() {
 
     assert_eq!(request_balance, Uint128::zero());
 
-    // Now we will try to send back again but this time reject it, thus balance must be sent back to the sender
-    app.execute(
-        Addr::unchecked(sender),
-        contract_addr.clone(),
-        &ExecuteMsg::SendToXRPL {
-            recipient: xrpl_receiver_address.clone(),
-            deliver_amount: None,
-        },
-        &coins(amount_to_send_back.u128(), denom_xrpl_origin_token.clone()),
-    )
-    .unwrap();
-
-    // Send rejected should store tokens minus truncated amount in refundable amount for the sender
+    // can bridge from xrpl to cosmos
     app.execute(
         Addr::unchecked(relayer_account),
         contract_addr.clone(),
         &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLTransactionResult {
-                tx_hash: Some(generate_hash()),
-                account_sequence: None,
-                ticket_sequence: Some(5),
-                transaction_result: TransactionResult::Rejected,
-                operation_result: None,
+            evidence: Evidence::XRPLToCosmosTransfer {
+                tx_hash: generate_hash(),
+                issuer: issuer.to_string(),
+                currency: currency.to_string(),
+                amount: amount_to_send.clone(),
+                recipient: Addr::unchecked(sender),
             },
         },
         &[],
     )
     .unwrap();
-
-    let request_balance = app
-        .query_balance(Addr::unchecked(sender), denom_xrp.clone())
-        .unwrap();
-
-    assert_eq!(
-        request_balance,
-        final_balance_xrp.checked_sub(amount_to_send_back).unwrap()
-    );
-
-    // Let's check the pending refunds for the sender and also check that pagination works correctly.
-    let query_pending_refunds: PendingRefundsResponse = app
-        .query(
-            contract_addr.clone(),
-            &QueryMsg::PendingRefunds {
-                address: Addr::unchecked(sender),
-                start_after_key: None,
-                limit: None,
-            },
-        )
-        .unwrap();
-
-    // There was one pending refund from previous test, we are going to claim both
-    assert_eq!(query_pending_refunds.pending_refunds.len(), 2);
-
-    // Test with limit 1 and starting after first one
-    let query_pending_refunds_with_limit: PendingRefundsResponse = app
-        .query(
-            contract_addr.clone(),
-            &QueryMsg::PendingRefunds {
-                address: Addr::unchecked(sender),
-                start_after_key: None,
-                limit: Some(1),
-            },
-        )
-        .unwrap();
-
-    assert_eq!(query_pending_refunds_with_limit.pending_refunds.len(), 1);
-
-    // Test with limit 1 and starting from first key
-    let query_pending_refunds_with_limit_and_start_after_key: PendingRefundsResponse = app
-        .query(
-            contract_addr.clone(),
-            &QueryMsg::PendingRefunds {
-                address: Addr::unchecked(sender),
-                start_after_key: query_pending_refunds_with_limit.last_key,
-                limit: Some(1),
-            },
-        )
-        .unwrap();
-
-    assert_eq!(
-        query_pending_refunds_with_limit_and_start_after_key
-            .pending_refunds
-            .len(),
-        1
-    );
-    assert_eq!(
-        query_pending_refunds_with_limit_and_start_after_key.pending_refunds[0],
-        query_pending_refunds.pending_refunds[1]
-    );
-
-    // Let's claim all pending refunds and check that they are gone from the contract and in the senders address
-    for refund in query_pending_refunds.pending_refunds.iter() {
-        app.execute(
-            Addr::unchecked(sender),
-            contract_addr.clone(),
-            &ExecuteMsg::ClaimRefund {
-                pending_refund_id: refund.id.clone(),
-            },
-            &[],
-        )
-        .unwrap();
-    }
-
-    let request_balance = app
-        .query_balance(Addr::unchecked(sender), denom_xrp.clone())
-        .unwrap();
-
-    assert_eq!(request_balance, final_balance_xrp);
-
-    let request_balance = app
-        .query_balance(contract_addr.clone(), denom_xrp.clone())
-        .unwrap();
-    assert_eq!(request_balance, Uint128::zero());
-
-    // Let's test sending a token with optional amount
-
-    let max_amount = Uint128::new(9999999999999999);
-    let deliver_amount = Some(Uint128::new(6000));
-
-    // Store balance first so we can check it later
-    let request_initial_balance = app
-        .query_balance(Addr::unchecked(sender), denom_xrpl_origin_token.clone())
-        .unwrap();
-
-    // If we send amount that is higher than max amount, it should fail
-    let max_amount_error = app
-        .execute(
-            Addr::unchecked(sender),
-            contract_addr.clone(),
-            &ExecuteMsg::SendToXRPL {
-                recipient: xrpl_receiver_address.clone(),
-                deliver_amount: Some(max_amount.checked_add(Uint128::one()).unwrap()),
-            },
-            &coins(max_amount.u128(), denom_xrpl_origin_token.clone()),
-        )
-        .unwrap_err();
-
-    assert!(max_amount_error
-        .root_cause()
-        .to_string()
-        .contains(ContractError::InvalidDeliverAmount {}.to_string().as_str()));
-
-    // If we send a deliver amount that is an invalid XRPL amount, it should fail
-    let invalid_amount_error = app
-        .execute(
-            Addr::unchecked(sender),
-            contract_addr.clone(),
-            &ExecuteMsg::SendToXRPL {
-                recipient: xrpl_receiver_address.clone(),
-                deliver_amount: Some(Uint128::new(99999999999999999)),
-            },
-            &coins(1000000000000000000, denom_xrpl_origin_token.clone()),
-        )
-        .unwrap_err();
-
-    assert!(invalid_amount_error
-        .root_cause()
-        .to_string()
-        .contains(ContractError::InvalidXRPLAmount {}.to_string().as_str()));
-
-    // If we send an amount that is an invalid XRPL amount, it should fail
-    let invalid_amount_error = app
-        .execute(
-            Addr::unchecked(sender),
-            contract_addr.clone(),
-            &ExecuteMsg::SendToXRPL {
-                recipient: xrpl_receiver_address.clone(),
-                deliver_amount: Some(Uint128::new(10000000000000000)),
-            },
-            &coins(10000000000000001, denom_xrpl_origin_token.clone()),
-        )
-        .unwrap_err();
-
-    assert!(invalid_amount_error
-        .root_cause()
-        .to_string()
-        .contains(ContractError::InvalidXRPLAmount {}.to_string().as_str()));
-
-    // Send it correctly
-    app.execute(
-        Addr::unchecked(sender),
-        contract_addr.clone(),
-        &ExecuteMsg::SendToXRPL {
-            recipient: xrpl_receiver_address.clone(),
-            deliver_amount,
-        },
-        &coins(max_amount.u128(), denom_xrpl_origin_token.clone()),
-    )
-    .unwrap();
-
-    let query_pending_operations: PendingOperationsResponse = app
-        .query(
-            contract_addr.clone(),
-            &QueryMsg::PendingOperations {
-                start_after_key: None,
-                limit: None,
-            },
-        )
-        .unwrap();
-
-    assert_eq!(query_pending_operations.operations.len(), 1);
-    assert_eq!(
-        query_pending_operations.operations[0],
-        Operation {
-            id: query_pending_operations.operations[0].id.clone(),
-            version: 1,
-            ticket_sequence: Some(6),
-            account_sequence: None,
-            signatures: vec![],
-            operation_type: OperationType::CosmosToXRPLTransfer {
-                issuer: xrpl_originated_token.issuer.clone(),
-                currency: xrpl_originated_token.currency.clone(),
-                amount: deliver_amount.unwrap(),
-                max_amount: Some(max_amount),
-                sender: Addr::unchecked(sender),
-                recipient: xrpl_receiver_address.clone(),
-            },
-            xrpl_base_fee
-        }
-    );
-
-    // If we reject the operation, the refund should be stored for the amount of funds that were sent
-    app.execute(
-        Addr::unchecked(relayer_account),
-        contract_addr.clone(),
-        &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLTransactionResult {
-                tx_hash: Some(generate_hash()),
-                account_sequence: None,
-                ticket_sequence: Some(6),
-                transaction_result: TransactionResult::Rejected,
-                operation_result: None,
-            },
-        },
-        &[],
-    )
-    .unwrap();
-
-    // Check balances and pending refunds are all correct
-    let request_balance = app
-        .query_balance(Addr::unchecked(sender), denom_xrpl_origin_token.clone())
-        .unwrap();
-
-    assert_eq!(
-        request_balance,
-        request_initial_balance.checked_sub(max_amount).unwrap()
-    );
-
-    // Let's check the pending refunds for the sender and also check that pagination works correctly.
-    let query_pending_refunds: PendingRefundsResponse = app
-        .query(
-            contract_addr.clone(),
-            &QueryMsg::PendingRefunds {
-                address: Addr::unchecked(sender),
-                start_after_key: None,
-                limit: None,
-            },
-        )
-        .unwrap();
-
-    assert_eq!(query_pending_refunds.pending_refunds.len(), 1);
-    assert_eq!(
-        query_pending_refunds.pending_refunds[0].coin,
-        coin(max_amount.u128(), denom_xrpl_origin_token.clone())
-    );
-
-    // Claim it back
-
-    app.execute(
-        Addr::unchecked(sender),
-        contract_addr.clone(),
-        &ExecuteMsg::ClaimRefund {
-            pending_refund_id: query_pending_refunds.pending_refunds[0].id.clone(),
-        },
-        &[],
-    )
-    .unwrap();
-
-    // Check balance again
-    let request_balance = app
-        .query_balance(Addr::unchecked(sender), denom_xrpl_origin_token.clone())
-        .unwrap();
-
-    assert_eq!(request_balance, request_initial_balance);
-
-    // *** Test sending Cosmos originated tokens to XRPL
-
-    // Let's issue a token to the sender and register it.
-
-    let subunit = "utest".to_string();
-    let initial_amount = Uint128::new(1000000000);
-    let decimals = 6;
-
-    app.execute(
-        Addr::unchecked(signer),
-        contract_addr.clone(),
-        &ExecuteMsg::CreateCosmosToken {
-            subdenom: subunit.to_uppercase(),
-            initial_balances: vec![Cw20Coin {
-                address: sender.to_string(),
-                amount: initial_amount,
-            }],
-        },
-        &coins(10_000_000u128, FEE_DENOM),
-    )
-    .unwrap();
-
-    let denom = full_denom(&token_factory_addr, &subunit.to_uppercase());
-
-    app.execute(
-        Addr::unchecked(signer),
-        contract_addr.clone(),
-        &ExecuteMsg::RegisterCosmosToken {
-            denom: denom.clone(),
-            decimals,
-            sending_precision: 5,
-            max_holding_amount: Uint128::new(10000000),
-            bridging_fee: Uint128::zero(),
-        },
-        &[],
-    )
-    .unwrap();
-
-    let amount_to_send = Uint128::new(1000001); // 1000001 -> truncate -> 1e6 -> decimal conversion -> 1e15
-
-    // Bridge the token to the xrpl receiver address two times and check pending operations
-    app.execute(
-        Addr::unchecked(sender),
-        contract_addr.clone(),
-        &ExecuteMsg::SendToXRPL {
-            recipient: xrpl_receiver_address.clone(),
-            deliver_amount: None,
-        },
-        &coins(amount_to_send.u128(), denom.clone()),
-    )
-    .unwrap();
-
-    app.execute(
-        Addr::unchecked(sender),
-        contract_addr.clone(),
-        &ExecuteMsg::SendToXRPL {
-            recipient: xrpl_receiver_address.clone(),
-            deliver_amount: None,
-        },
-        &coins(amount_to_send.u128(), denom.clone()),
-    )
-    .unwrap();
-
-    let multisig_address = config.bridge_xrpl_address;
-
-    let query_cosmos_tokens: CosmosTokensResponse = app
-        .query(
-            contract_addr.clone(),
-            &QueryMsg::CosmosTokens {
-                start_after_key: None,
-                limit: None,
-            },
-        )
-        .unwrap();
-
-    let cosmos_originated_token = query_cosmos_tokens
-        .tokens
-        .iter()
-        .find(|t| t.denom == denom)
-        .unwrap();
-
-    let query_pending_operations: PendingOperationsResponse = app
-        .query(
-            contract_addr.clone(),
-            &QueryMsg::PendingOperations {
-                start_after_key: None,
-                limit: None,
-            },
-        )
-        .unwrap();
-
-    assert_eq!(query_pending_operations.operations.len(), 2);
-    let amount = amount_to_send
-        .checked_sub(Uint128::one()) //Truncated amount
-        .unwrap()
-        .checked_mul(Uint128::new(10u128.pow(9))) // XRPL Decimals - Cosmos Decimals -> (15 - 6) = 9
-        .unwrap();
-    assert_eq!(
-        query_pending_operations.operations[0],
-        Operation {
-            id: query_pending_operations.operations[0].id.clone(),
-            version: 1,
-            ticket_sequence: Some(7),
-            account_sequence: None,
-            signatures: vec![],
-            operation_type: OperationType::CosmosToXRPLTransfer {
-                issuer: multisig_address.clone(),
-                currency: cosmos_originated_token.xrpl_currency.clone(),
-                amount: amount.clone(),
-                max_amount: Some(amount.clone()),
-                sender: Addr::unchecked(sender),
-                recipient: xrpl_receiver_address.clone(),
-            },
-            xrpl_base_fee
-        }
-    );
-
-    assert_eq!(
-        query_pending_operations.operations[1],
-        Operation {
-            id: query_pending_operations.operations[1].id.clone(),
-            version: 1,
-            ticket_sequence: Some(8),
-            account_sequence: None,
-            signatures: vec![],
-            operation_type: OperationType::CosmosToXRPLTransfer {
-                issuer: multisig_address,
-                currency: cosmos_originated_token.xrpl_currency.clone(),
-                amount: amount.clone(),
-                max_amount: Some(amount.clone()),
-                sender: Addr::unchecked(sender),
-                recipient: xrpl_receiver_address,
-            },
-            xrpl_base_fee
-        }
-    );
-
-    // If we reject both operations, the tokens should be kept in pending refunds with different ids for the sender to claim (except truncated amount)
-    app.execute(
-        Addr::unchecked(relayer_account),
-        contract_addr.clone(),
-        &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLTransactionResult {
-                tx_hash: Some(generate_hash()),
-                account_sequence: None,
-                ticket_sequence: Some(7),
-                transaction_result: TransactionResult::Rejected,
-                operation_result: None,
-            },
-        },
-        &[],
-    )
-    .unwrap();
-
-    app.execute(
-        Addr::unchecked(relayer_account),
-        contract_addr.clone(),
-        &ExecuteMsg::SaveEvidence {
-            evidence: Evidence::XRPLTransactionResult {
-                tx_hash: Some(generate_hash()),
-                account_sequence: None,
-                ticket_sequence: Some(8),
-                transaction_result: TransactionResult::Rejected,
-                operation_result: None,
-            },
-        },
-        &[],
-    )
-    .unwrap();
-
-    let request_balance = app
-        .query_balance(Addr::unchecked(sender), denom.clone())
-        .unwrap();
-
-    // Refundable amount (amount to send x 2 - truncated amount x 2) won't be sent back until claimed individually
-    assert_eq!(
-        request_balance,
-        initial_amount
-            .checked_sub(amount_to_send)
-            .unwrap()
-            .checked_sub(amount_to_send)
-            .unwrap()
-    );
-
-    let query_pending_refunds: PendingRefundsResponse = app
-        .query(
-            contract_addr.clone(),
-            &QueryMsg::PendingRefunds {
-                address: Addr::unchecked(sender),
-                start_after_key: None,
-                limit: None,
-            },
-        )
-        .unwrap();
-
-    assert_eq!(query_pending_refunds.pending_refunds.len(), 2);
-
-    // Claiming pending refund should work for both operations
-    app.execute(
-        Addr::unchecked(sender),
-        contract_addr.clone(),
-        &ExecuteMsg::ClaimRefund {
-            pending_refund_id: query_pending_refunds.pending_refunds[0].id.clone(),
-        },
-        &[],
-    )
-    .unwrap();
-
-    app.execute(
-        Addr::unchecked(sender),
-        contract_addr.clone(),
-        &ExecuteMsg::ClaimRefund {
-            pending_refund_id: query_pending_refunds.pending_refunds[1].id.clone(),
-        },
-        &[],
-    )
-    .unwrap();
-
-    // Check that balance was correctly sent back
-    let request_balance = app
-        .query_balance(Addr::unchecked(sender), denom.clone())
-        .unwrap();
-
-    assert_eq!(
-        request_balance,
-        initial_amount.checked_sub(Uint128::new(2)).unwrap()
-    );
-
-    // Truncated amount will stay in contract
-    let request_balance = app
-        .query_balance(contract_addr.clone(), denom.clone())
-        .unwrap();
-    assert_eq!(request_balance, Uint128::new(2));
-
-    // Let's query all processed transactions
-    let query_processed_txs: ProcessedTxsResponse = app
-        .query(
-            contract_addr.clone(),
-            &QueryMsg::ProcessedTxs {
-                start_after_key: None,
-                limit: None,
-            },
-        )
-        .unwrap();
-
-    assert_eq!(query_processed_txs.processed_txs.len(), 11);
-
-    // Let's query with pagination
-    let query_processed_txs: ProcessedTxsResponse = app
-        .query(
-            contract_addr.clone(),
-            &QueryMsg::ProcessedTxs {
-                start_after_key: None,
-                limit: Some(4),
-            },
-        )
-        .unwrap();
-
-    assert_eq!(query_processed_txs.processed_txs.len(), 4);
-
-    let query_processed_txs: ProcessedTxsResponse = app
-        .query(
-            contract_addr.clone(),
-            &QueryMsg::ProcessedTxs {
-                start_after_key: query_processed_txs.last_key,
-                limit: None,
-            },
-        )
-        .unwrap();
-
-    assert_eq!(query_processed_txs.processed_txs.len(), 7);
 }

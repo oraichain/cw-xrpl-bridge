@@ -762,7 +762,12 @@ fn save_evidence(
                                     packet: Packet {
                                         channel: CHANNEL.to_string(),
                                         denom: key,
-                                        amount: amount_to_send,
+                                        amount: truncate_amount(
+                                            token.sending_precision,
+                                            decimals,
+                                            amount,
+                                        )?
+                                        .0,
                                     },
                                 },
                                 vec![],
@@ -824,7 +829,11 @@ fn save_evidence(
                                 packet: Packet {
                                     channel: CHANNEL.to_string(),
                                     denom: key,
-                                    amount: amount_to_send,
+                                    amount: convert_amount_decimals(
+                                        XRPL_TOKENS_DECIMALS,
+                                        token.decimals,
+                                        amount,
+                                    )?,
                                 },
                             },
                             vec![],
@@ -1085,6 +1094,7 @@ fn send_to_xrpl(
     let remainder;
     let issuer;
     let currency;
+    let increase_limit_amount;
     // We check if the token we are sending is an XRPL originated token or not
     if let Some(xrpl_token) = XRPL_TOKENS
         .idx
@@ -1109,6 +1119,8 @@ fn send_to_xrpl(
             decimals = XRPL_TOKENS_DECIMALS;
         }
 
+        (increase_limit_amount, _) =
+            truncate_amount(xrpl_token.sending_precision, decimals, funds.amount)?;
         // We calculate the amount after applying the bridging fees for that token
         let amount_after_bridge_fees =
             amount_after_bridge_fees(funds.amount, xrpl_token.bridging_fee)?;
@@ -1167,6 +1179,9 @@ fn send_to_xrpl(
         decimals = cosmos_token.decimals;
         issuer = config.bridge_xrpl_address;
         currency = cosmos_token.xrpl_currency;
+
+        (increase_limit_amount, _) =
+            truncate_amount(cosmos_token.sending_precision, decimals, funds.amount)?;
 
         // Since this is a Cosmos originated token with different decimals, we are first going to truncate according to sending precision and then we will convert
         // to corresponding XRPL decimals
@@ -1235,7 +1250,7 @@ fn send_to_xrpl(
                     packet: Packet {
                         channel: CHANNEL.to_string(),
                         denom: xrpl_denom,
-                        amount: amount_to_send,
+                        amount: increase_limit_amount,
                     },
                 },
                 vec![],

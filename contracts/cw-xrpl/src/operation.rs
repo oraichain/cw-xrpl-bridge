@@ -328,7 +328,7 @@ pub fn handle_cosmos_to_xrpl_transfer_confirmation(
         _ => return Err(ContractError::InvalidOperationResult {}),
     }
 
-    Ok(vec![])
+    Ok(msgs)
 }
 
 pub fn store_pending_refund(
