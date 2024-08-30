@@ -27,8 +27,7 @@ impl MockApp {
         let bridge_id;
         #[cfg(feature = "test-tube")]
         {
-            static CW_BYTES: &[u8] = include_bytes!("./testdata/cw-xrpl.wasm");
-            bridge_id = app.upload(CW_BYTES);
+            bridge_id = app.upload(include_bytes!("./testdata/cw-xrpl.wasm"));
         }
         #[cfg(not(feature = "test-tube"))]
         {
