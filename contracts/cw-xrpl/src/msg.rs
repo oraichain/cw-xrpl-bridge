@@ -39,7 +39,18 @@ pub struct InstantiateMsg {
 }
 
 #[cw_serde]
-pub struct MigrateMsg {}
+pub struct MigrateMsg {
+    pub relayers: Vec<Relayer>,
+    pub evidence_threshold: u32,
+    pub used_ticket_sequence_threshold: u32,
+    pub trust_set_limit_amount: Uint128,
+    pub bridge_xrpl_address: String,
+    pub bridge_state: BridgeState,
+    pub xrpl_base_fee: u64,
+    pub token_factory_addr: Addr,
+    pub rate_limit_addr: Option<Addr>,
+    pub osor_entry_point: Option<Addr>,
+}
 
 #[cw_ownable_execute]
 #[cw_serde]
