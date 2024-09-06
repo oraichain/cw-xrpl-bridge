@@ -47,6 +47,8 @@ pub struct Config {
     pub bridge_state: BridgeState,
     pub xrpl_base_fee: u64,
     pub token_factory_addr: Addr,
+    pub rate_limit_addr: Option<Addr>,
+    pub osor_entry_point: Option<Addr>,
 }
 
 #[cw_serde]
@@ -200,6 +202,14 @@ pub const FEE_REMAINDERS: Map<String, Uint128> = Map::new(TopKey::FeeRemainders.
 pub const PROHIBITED_XRPL_ADDRESSES: Map<String, Empty> =
     Map::new(TopKey::ProhibitedXRPLAddresses.as_str());
 
+pub const TEMP_UNIVERSAL_SWAP: Item<TempUniversalSwap> = Item::new("temp_universal_swap");
+
+#[cw_serde]
+pub struct TempUniversalSwap {
+    pub recovery_address: String,
+    pub return_amount: Coin,
+}
+
 pub enum ContractActions {
     Instantiation,
     CreateCosmosToken,
@@ -222,6 +232,9 @@ pub enum ContractActions {
     RotateKeys,
     CancelPendingOperation,
     UpdateUsedTicketSequenceThreshold,
+    AddRateLimit,
+    RemoveRateLimit,
+    ResetRateLimitQuota,
 }
 
 pub enum UserType {
@@ -253,6 +266,9 @@ impl UserType {
             ContractActions::RotateKeys => matches!(self, Self::Owner),
             ContractActions::CancelPendingOperation => matches!(self, Self::Owner),
             ContractActions::UpdateUsedTicketSequenceThreshold => matches!(self, Self::Owner),
+            ContractActions::AddRateLimit => matches!(self, Self::Owner),
+            ContractActions::RemoveRateLimit => matches!(self, Self::Owner),
+            ContractActions::ResetRateLimitQuota => matches!(self, Self::Owner),
         }
     }
 }
@@ -281,6 +297,9 @@ impl ContractActions {
             Self::RotateKeys => "rotate_keys",
             Self::CancelPendingOperation => "cancel_pending_operation",
             Self::UpdateUsedTicketSequenceThreshold => "update_used_ticket_sequence_threshold",
+            Self::AddRateLimit => "add_rate_limit",
+            Self::RemoveRateLimit => "remove_rate_limit",
+            Self::ResetRateLimitQuota => "reset_rate_limit_quota",
         }
     }
 }

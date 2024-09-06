@@ -70,6 +70,7 @@ fn enum_hashes() {
             currency: currency.clone(),
             amount: amount.clone(),
             recipient: recipient.clone(),
+            memo: None,
         },
         Evidence::XRPLToCosmosTransfer {
             tx_hash: generate_hash(),
@@ -77,6 +78,7 @@ fn enum_hashes() {
             currency: currency.clone(),
             amount: amount.clone(),
             recipient: recipient.clone(),
+            memo: None,
         },
         Evidence::XRPLToCosmosTransfer {
             tx_hash: hash.clone(),
@@ -84,6 +86,7 @@ fn enum_hashes() {
             currency: currency.clone(),
             amount: amount.clone(),
             recipient: recipient.clone(),
+            memo: None,
         },
         Evidence::XRPLToCosmosTransfer {
             tx_hash: hash.clone(),
@@ -91,6 +94,7 @@ fn enum_hashes() {
             currency: "new_currency".to_string(),
             amount: amount.clone(),
             recipient: recipient.clone(),
+            memo: None,
         },
         Evidence::XRPLToCosmosTransfer {
             tx_hash: hash.clone(),
@@ -98,6 +102,7 @@ fn enum_hashes() {
             currency: currency.clone(),
             amount: Uint128::one(),
             recipient: recipient.clone(),
+            memo: None,
         },
         Evidence::XRPLToCosmosTransfer {
             tx_hash: hash.clone(),
@@ -105,6 +110,7 @@ fn enum_hashes() {
             currency: currency.clone(),
             amount: amount.clone(),
             recipient: Addr::unchecked("new_recipient"),
+            memo: None,
         },
     ];
 

@@ -67,6 +67,8 @@ fn bridge_fee_collection_and_claiming() {
                 xrpl_base_fee,
                 token_factory_addr: token_factory_addr.clone(),
                 issue_token: true,
+                rate_limit_addr: None,
+                osor_entry_point: None,
             },
         )
         .unwrap();
@@ -236,6 +238,7 @@ fn bridge_fee_collection_and_claiming() {
                     currency: currency.clone(),
                     amount: Uint128::new(1000000000050000), // 1e15 + 5e4 --> This should take the bridging fee (5e4) and truncate nothing
                     recipient: Addr::unchecked(receiver),
+                    memo: None,
                 },
             },
             &[],
@@ -288,6 +291,7 @@ fn bridge_fee_collection_and_claiming() {
                     currency: currency.clone(),
                     amount: Uint128::new(1000000000040000), // 1e15 + 4e4 --> This should take the bridging fee -> 1999999999990000 and truncate -> 1999999999900000
                     recipient: Addr::unchecked(receiver),
+                    memo: None,
                 },
             },
             &[],
@@ -328,6 +332,7 @@ fn bridge_fee_collection_and_claiming() {
                     currency: currency.clone(),
                     amount: Uint128::new(1000000000000000), // 1e15 --> This should charge bridging fee -> 1999999999950000 and truncate -> 1999999999900000
                     recipient: Addr::unchecked(receiver),
+                    memo: None,
                 },
             },
             &[],
@@ -766,6 +771,7 @@ fn bridge_fee_collection_and_claiming() {
                     currency: cosmos_token.xrpl_currency.clone(),
                     amount: Uint128::new(650010000000000), // 650010000000000 will convert to 650010, which after charging bridging fees (300000) and truncating (10) will send 350000 to the receiver
                     recipient: Addr::unchecked(receiver),
+                    memo: None,
                 },
             },
             &[],
@@ -997,6 +1003,8 @@ fn bridge_halting_and_resuming() {
                 xrpl_base_fee,
                 token_factory_addr: token_factory_addr.clone(),
                 issue_token: true,
+                rate_limit_addr: None,
+                osor_entry_point: None,
             },
         )
         .unwrap();
@@ -1293,6 +1301,7 @@ fn bridge_halting_and_resuming() {
                     currency: "USD".to_string(),
                     amount: Uint128::new(100),
                     recipient: Addr::unchecked(signer),
+                    memo: None,
                 },
             },
             &[],

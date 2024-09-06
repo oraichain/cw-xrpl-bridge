@@ -56,6 +56,7 @@ fn ticket_recovery() {
                 xrpl_base_fee,
                 token_factory_addr: token_factory_addr.clone(),
                 issue_token: true,
+                rate_limit_addr: None,osor_entry_point: None,
             },
         )
         .unwrap();
@@ -671,6 +672,7 @@ fn rejected_ticket_allocation_with_no_tickets_left() {
                 xrpl_base_fee,
                 token_factory_addr: token_factory_addr.clone(),
                 issue_token: true,
+                rate_limit_addr: None,osor_entry_point: None,
             },
         )
         .unwrap();
@@ -851,6 +853,7 @@ fn ticket_return_invalid_transactions() {
                 xrpl_base_fee: 10,
                 token_factory_addr: token_factory_addr.clone(),
                 issue_token: true,
+                rate_limit_addr: None,osor_entry_point: None,
             },
         )
         .unwrap();

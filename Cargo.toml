@@ -44,6 +44,10 @@ tokenfactory = { git = "https://github.com/oraichain/token-bindings.git", rev = 
 token-bindings = { git = "https://github.com/oraichain/token-bindings.git", rev = "9796c74" }
 cosmwasm-testing-util = { git = "https://github.com/oraichain/cosmwasm-testing-util.git", rev = "143348c" }
 ripple-keypairs = "0.1.0"
+rate-limiter = { git = "https://github.com/oraichain/rate-limit-contract.git", rev = "fecf976", features = [
+    "library",
+] }
+skip = { git = "https://github.com/oraichain/osor-api-contracts.git", rev = "06559221" }
 
 [patch.crates-io]
 ripple-keypairs = { git = 'https://github.com/CoreumFoundation/ripple-keypairs-rust.git' }

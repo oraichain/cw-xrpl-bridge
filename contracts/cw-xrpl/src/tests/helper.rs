@@ -18,6 +18,7 @@ pub struct MockApp {
     #[deref_mut]
     app: TestMockApp,
     bridge_id: u64,
+    rate_limit_id: u64,
 }
 
 #[allow(dead_code)]
@@ -25,9 +26,11 @@ impl MockApp {
     pub fn new(init_balances: &[(&str, &[Coin])]) -> (Self, Vec<String>) {
         let (mut app, accounts) = TestMockApp::new(init_balances);
         let bridge_id;
+        let rate_limit_id;
         #[cfg(feature = "test-tube")]
         {
             bridge_id = app.upload(include_bytes!("./testdata/cw-xrpl.wasm"));
+            rate_limit_id = app.upload(include_bytes!("./testdata/rate-limiter.wasm"));
         }
         #[cfg(not(feature = "test-tube"))]
         {
@@ -38,8 +41,37 @@ impl MockApp {
                     crate::contract::query,
                 ),
             ));
+            rate_limit_id = app.upload(Box::new(
+                cosmwasm_testing_util::ContractWrapper::new_with_empty(
+                    rate_limiter::contract::execute,
+                    rate_limiter::contract::instantiate,
+                    rate_limiter::contract::query,
+                ),
+            ));
         }
-        (Self { app, bridge_id }, accounts)
+        (
+            Self {
+                app,
+                bridge_id,
+                rate_limit_id,
+            },
+            accounts,
+        )
+    }
+
+    pub fn create_rate_limit_contract(
+        &mut self,
+        sender: Addr,
+        init_msg: &rate_limiter::msg::InstantiateMsg,
+    ) -> MockResult<Addr> {
+        let code_id = self.rate_limit_id;
+        self.instantiate(
+            code_id,
+            sender,
+            init_msg,
+            &[], // denom creation fee
+            "rate-limit-contract",
+        )
     }
 
     /// external method

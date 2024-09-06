@@ -7,6 +7,7 @@ mod operation;
 mod ownership;
 mod precision;
 mod queries;
+mod rate_limit;
 mod register;
 mod send;
 mod ticket;

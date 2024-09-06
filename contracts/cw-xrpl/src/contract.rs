@@ -24,7 +24,8 @@ use crate::{
         BridgeState, Config, ContractActions, CosmosToken, TokenState, UserType, XRPLToken,
         AVAILABLE_TICKETS, CONFIG, COSMOS_TOKENS, FEES_COLLECTED, PENDING_OPERATIONS,
         PENDING_REFUNDS, PENDING_ROTATE_KEYS, PENDING_TICKET_UPDATE, PROCESSED_TXS,
-        PROHIBITED_XRPL_ADDRESSES, TX_EVIDENCES, USED_TICKETS_COUNTER, XRPL_TOKENS,
+        PROHIBITED_XRPL_ADDRESSES, TEMP_UNIVERSAL_SWAP, TX_EVIDENCES, USED_TICKETS_COUNTER,
+        XRPL_TOKENS,
     },
     tickets::{allocate_ticket, register_used_ticket},
     token::{
@@ -34,14 +35,20 @@ use crate::{
 };
 
 use cosmwasm_std::{
-    coins, entry_point, to_json_binary, wasm_execute, Addr, BankMsg, Binary, Coin, Deps, DepsMut,
-    Empty, Env, HexBinary, MessageInfo, Order, Response, StdResult, Storage, Uint128,
+    coins, entry_point, to_json_binary, wasm_execute, Addr, BankMsg, Binary, Coin, CosmosMsg, Deps,
+    DepsMut, Empty, Env, HexBinary, MessageInfo, Order, Reply, Response, StdResult, Storage,
+    SubMsg, SubMsgResult, Uint128,
 };
 use cw2::set_contract_version;
 use cw20::Cw20Coin;
 use cw_ownable::{get_ownership, initialize_owner, is_owner, Action};
 use cw_storage_plus::Bound;
 use cw_utils::one_coin;
+use rate_limiter::{
+    msg::{ExecuteMsg as RateLimitMsg, QuotaMsg},
+    packet::Packet,
+};
+use skip::entry_point::ExecuteMsg as EntryPointExecuteMsg;
 
 // version info for migration info
 pub const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -95,6 +102,9 @@ pub const INITIAL_PROHIBITED_XRPL_ADDRESSES: [&str; 5] = [
     "rrrrrrrrrrrrrrrrrrrn5RM1rHd", // NaN Address: Previous versions of ripple-lib generated this address when encoding the value NaN using the XRP Ledger's base58 string encoding format.
 ];
 
+pub const CHANNEL: &str = "channel-0"; // chanel default for rate limit
+pub const UNIVERSAL_SWAP_ERROR_ID: u64 = 1;
+
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: DepsMut,
@@ -145,6 +155,8 @@ pub fn instantiate(
         bridge_state: BridgeState::Active,
         xrpl_base_fee: msg.xrpl_base_fee,
         token_factory_addr: msg.token_factory_addr,
+        rate_limit_addr: msg.rate_limit_addr,
+        osor_entry_point: msg.osor_entry_point,
     };
 
     CONFIG.save(deps.storage, &config)?;
@@ -368,7 +380,42 @@ pub fn execute(
 
             Ok(Response::new().add_message(mint_msg))
         }
+        ExecuteMsg::AddRateLimit { xrpl_denom, quotas } => {
+            execute_add_rate_limit(deps, info, xrpl_denom, quotas)
+        }
+        ExecuteMsg::RemoveRateLimit { xrpl_denom } => {
+            execute_remove_rate_limit(deps, info, xrpl_denom)
+        }
+        ExecuteMsg::ResetRateLimitQuota {
+            xrpl_denom,
+            quota_id,
+        } => execute_reset_rate_limit_quota(deps, info, xrpl_denom, quota_id),
     }
+}
+
+#[entry_point]
+pub fn reply(deps: DepsMut, _env: Env, reply: Reply) -> Result<Response, ContractError> {
+    if let SubMsgResult::Err(err) = reply.result {
+        return match reply.id {
+            UNIVERSAL_SWAP_ERROR_ID => {
+                let universal_swap_data = TEMP_UNIVERSAL_SWAP.load(deps.storage)?;
+
+                let refund_msg = BankMsg::Send {
+                    to_address: universal_swap_data.recovery_address,
+                    amount: vec![universal_swap_data.return_amount],
+                };
+                TEMP_UNIVERSAL_SWAP.remove(deps.storage);
+
+                Ok(Response::new()
+                    .add_attribute("action", "refund_universal_swap")
+                    .add_attribute("error_trying_to_call_entrypoint_for_universal_swap", err)
+                    .add_message(refund_msg))
+            }
+            _ => Err(ContractError::UnknownReplyId { id: reply.id }),
+        };
+    }
+    // default response
+    Ok(Response::new())
 }
 
 fn update_ownership(
@@ -651,11 +698,13 @@ fn save_evidence(
             currency,
             amount,
             recipient,
+            memo,
         } => {
             if config.bridge_state == BridgeState::Halted {
                 return Err(ContractError::BridgeHalted {});
             }
             deps.api.addr_validate(recipient.as_ref())?;
+            let memo = memo.unwrap_or_default();
 
             // If the recipient of the operation is the bridge contract address, we error
             if recipient.eq(&env.contract.address) {
@@ -669,7 +718,7 @@ fn save_evidence(
 
                 // To transfer a token it must be registered and activated
                 let token = XRPL_TOKENS
-                    .load(deps.storage, key)
+                    .load(deps.storage, key.clone())
                     .map_err(|_| ContractError::TokenNotRegistered {})?;
 
                 if token.state.ne(&TokenState::Enabled) {
@@ -704,6 +753,9 @@ fn save_evidence(
 
                 // If enough evidences are provided (threshold reached), we collect fees and mint the token for the recipient
                 if threshold_reached {
+                    let mut msgs: Vec<CosmosMsg> = vec![];
+                    let mut sub_msgs: Vec<SubMsg> = vec![];
+
                     let fee_collected = handle_fee_collection(
                         deps.storage,
                         token.bridging_fee,
@@ -721,21 +773,65 @@ fn save_evidence(
                             },
                             vec![],
                         )?;
-                        response = response.add_message(mint_msg_fees);
+                        msgs.push(mint_msg_fees.into());
                     }
 
                     if !amount_to_send.is_zero() {
+                        let is_universal_swap =
+                            !memo.is_empty() && config.osor_entry_point.is_some();
+                        let recipient_to_mint = if is_universal_swap {
+                            env.contract.address
+                        } else {
+                            recipient.clone()
+                        };
+
                         let mint_msg_for_recipient = wasm_execute(
                             config.token_factory_addr,
                             &tokenfactory::msg::ExecuteMsg::MintTokens {
-                                denom: token.cosmos_denom,
+                                denom: token.cosmos_denom.clone(),
                                 amount: amount_to_send,
-                                mint_to_address: recipient.to_string(),
+                                mint_to_address: recipient_to_mint.to_string(),
                             },
                             vec![],
                         )?;
-                        response = response.add_message(mint_msg_for_recipient);
+                        // if universal swap , call entry point contract
+                        if is_universal_swap {
+                            sub_msgs.push(SubMsg::reply_on_error(
+                                wasm_execute(
+                                    config.osor_entry_point.unwrap(),
+                                    &EntryPointExecuteMsg::UniversalSwap { memo },
+                                    coins(amount_to_send.u128(), token.cosmos_denom),
+                                )?,
+                                UNIVERSAL_SWAP_ERROR_ID,
+                            ));
+                        }
+
+                        msgs.push(mint_msg_for_recipient.into());
+
+                        // handle rate limit
+                        if let Some(rate_limit_addr) = config.rate_limit_addr {
+                            msgs.push(
+                                wasm_execute(
+                                    rate_limit_addr,
+                                    &RateLimitMsg::RecvPacket {
+                                        packet: Packet {
+                                            channel: CHANNEL.to_string(),
+                                            denom: key,
+                                            amount: truncate_amount(
+                                                token.sending_precision,
+                                                decimals,
+                                                amount,
+                                            )?
+                                            .0,
+                                        },
+                                    },
+                                    vec![],
+                                )?
+                                .into(),
+                            );
+                        }
                     }
+                    response = response.add_messages(msgs).add_submessages(sub_msgs);
                 }
             } else {
                 // We check that the token is registered and enabled
@@ -767,6 +863,8 @@ fn save_evidence(
 
                 // If enough evidences are provided (threshold reached), we collect fees and send tokens from the bridge contract (it was holding them in escrow)
                 if threshold_reached {
+                    let mut msgs: Vec<CosmosMsg> = vec![];
+                    let mut sub_msgs: Vec<SubMsg> = vec![];
                     handle_fee_collection(
                         deps.storage,
                         token.bridging_fee,
@@ -774,12 +872,49 @@ fn save_evidence(
                         remainder,
                     )?;
 
+                    let is_universal_swap = !memo.is_empty() && config.osor_entry_point.is_some();
+
                     // TODO: should we support CW20 as well?
-                    let send_msg = BankMsg::Send {
-                        to_address: recipient.to_string(),
-                        amount: coins(amount_to_send.u128(), token.denom),
-                    };
-                    response = response.add_message(send_msg);
+                    if is_universal_swap {
+                        sub_msgs.push(SubMsg::reply_on_error(
+                            wasm_execute(
+                                config.osor_entry_point.unwrap(),
+                                &EntryPointExecuteMsg::UniversalSwap { memo },
+                                coins(amount_to_send.u128(), token.denom),
+                            )?,
+                            UNIVERSAL_SWAP_ERROR_ID,
+                        ));
+                    } else {
+                        let send_msg = BankMsg::Send {
+                            to_address: recipient.to_string(),
+                            amount: coins(amount_to_send.u128(), token.denom),
+                        };
+                        msgs.push(send_msg.into());
+                    }
+
+                    // handle rate limit
+                    if let Some(rate_limit_addr) = config.rate_limit_addr {
+                        let key = build_xrpl_token_key(&issuer, &currency);
+                        msgs.push(
+                            wasm_execute(
+                                rate_limit_addr,
+                                &RateLimitMsg::RecvPacket {
+                                    packet: Packet {
+                                        channel: CHANNEL.to_string(),
+                                        denom: key,
+                                        amount: convert_amount_decimals(
+                                            XRPL_TOKENS_DECIMALS,
+                                            token.decimals,
+                                            amount,
+                                        )?,
+                                    },
+                                },
+                                vec![],
+                            )?
+                            .into(),
+                        )
+                    }
+                    response = response.add_messages(msgs).add_submessages(sub_msgs);
                 }
             }
 
@@ -801,6 +936,7 @@ fn save_evidence(
             // An XRPL transaction uses an account sequence or a ticket sequence, but not both
             let operation_id = account_sequence.unwrap_or_else(|| ticket_sequence.unwrap());
             let operation = check_operation_exists(deps.storage, operation_id)?;
+            let mut messages: Vec<CosmosMsg> = vec![];
 
             // Validation for certain operation types that can't have account sequences
             match &operation.operation_type {
@@ -827,7 +963,9 @@ fn save_evidence(
                     &config.token_factory_addr,
                     &env.contract.address,
                     &mut response,
-                )?;
+                )?
+                .iter()
+                .for_each(|msg| messages.push(msg.clone()));
 
                 // If the operation was not Invalid, we must register a used ticket
                 if transaction_result.ne(&TransactionResult::Invalid) && ticket_sequence.is_some() {
@@ -849,7 +987,8 @@ fn save_evidence(
                 .add_attribute("operation_type", operation.operation_type.as_str())
                 .add_attribute("operation_id", operation_id.to_string())
                 .add_attribute("transaction_result", transaction_result.as_str())
-                .add_attribute("threshold_reached", threshold_reached.to_string());
+                .add_attribute("threshold_reached", threshold_reached.to_string())
+                .add_messages(messages);
 
             if let Some(tx_hash) = tx_hash {
                 response = response.add_attribute("tx_hash", tx_hash);
@@ -1031,6 +1170,7 @@ fn send_to_xrpl(
     let remainder;
     let issuer;
     let currency;
+    let increase_limit_amount;
     // We check if the token we are sending is an XRPL originated token or not
     if let Some(xrpl_token) = XRPL_TOKENS
         .idx
@@ -1055,6 +1195,8 @@ fn send_to_xrpl(
             decimals = XRPL_TOKENS_DECIMALS;
         }
 
+        (increase_limit_amount, _) =
+            truncate_amount(xrpl_token.sending_precision, decimals, funds.amount)?;
         // We calculate the amount after applying the bridging fees for that token
         let amount_after_bridge_fees =
             amount_after_bridge_fees(funds.amount, xrpl_token.bridging_fee)?;
@@ -1114,6 +1256,9 @@ fn send_to_xrpl(
         issuer = config.bridge_xrpl_address;
         currency = cosmos_token.xrpl_currency;
 
+        (increase_limit_amount, _) =
+            truncate_amount(cosmos_token.sending_precision, decimals, funds.amount)?;
+
         // Since this is a Cosmos originated token with different decimals, we are first going to truncate according to sending precision and then we will convert
         // to corresponding XRPL decimals
         let remainder;
@@ -1153,6 +1298,7 @@ fn send_to_xrpl(
         validate_xrpl_amount(max_amount.unwrap())?;
     }
 
+    let xrpl_denom = build_xrpl_token_key(&issuer, &currency);
     // Get a ticket and store the pending operation
     let ticket = allocate_ticket(deps.storage)?;
     create_pending_operation(
@@ -1170,11 +1316,31 @@ fn send_to_xrpl(
         },
     )?;
 
+    let mut msgs: Vec<CosmosMsg> = vec![];
+    let config = CONFIG.load(deps.storage)?;
+    if let Some(rate_limit_addr) = config.rate_limit_addr {
+        msgs.push(
+            wasm_execute(
+                rate_limit_addr,
+                &RateLimitMsg::SendPacket {
+                    packet: Packet {
+                        channel: CHANNEL.to_string(),
+                        denom: xrpl_denom,
+                        amount: increase_limit_amount,
+                    },
+                },
+                vec![],
+            )?
+            .into(),
+        )
+    }
+
     Ok(Response::new()
         .add_attribute("action", ContractActions::SendToXRPL.as_str())
         .add_attribute("sender", info.sender)
         .add_attribute("recipient", recipient)
-        .add_attribute("coin", funds.to_string()))
+        .add_attribute("coin", funds.to_string())
+        .add_messages(msgs))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1524,7 +1690,7 @@ fn cancel_pending_operation(
 
     let config = CONFIG.load(deps.storage)?;
     // We handle the operation with an invalid result
-    handle_operation(
+    let msgs = handle_operation(
         deps.storage,
         &operation,
         &operation_result,
@@ -1539,9 +1705,85 @@ fn cancel_pending_operation(
 
     Ok(response
         .add_attribute("action", ContractActions::CancelPendingOperation.as_str())
-        .add_attribute("sender", sender))
+        .add_attribute("sender", sender)
+        .add_messages(msgs))
 }
 
+fn execute_add_rate_limit(
+    deps: DepsMut,
+    info: MessageInfo,
+    xrpl_denom: String,
+    quotas: Vec<QuotaMsg>,
+) -> ContractResult<Response> {
+    check_authorization(
+        deps.as_ref().storage,
+        &info.sender,
+        &ContractActions::AddRateLimit,
+    )?;
+    let config = CONFIG.load(deps.storage)?;
+
+    Ok(Response::new()
+        .add_attribute("action", ContractActions::AddRateLimit.as_str())
+        .add_message(wasm_execute(
+            config.rate_limit_addr.unwrap().to_string(),
+            &RateLimitMsg::AddPath {
+                channel_id: CHANNEL.to_string(),
+                denom: xrpl_denom,
+                quotas,
+            },
+            vec![],
+        )?))
+}
+
+fn execute_remove_rate_limit(
+    deps: DepsMut,
+    info: MessageInfo,
+    xrpl_denom: String,
+) -> ContractResult<Response> {
+    check_authorization(
+        deps.as_ref().storage,
+        &info.sender,
+        &ContractActions::RemoveRateLimit,
+    )?;
+    let config = CONFIG.load(deps.storage)?;
+
+    Ok(Response::new()
+        .add_attribute("action", ContractActions::RemoveRateLimit.as_str())
+        .add_message(wasm_execute(
+            config.rate_limit_addr.unwrap().to_string(),
+            &RateLimitMsg::RemovePath {
+                channel_id: CHANNEL.to_string(),
+                denom: xrpl_denom,
+            },
+            vec![],
+        )?))
+}
+
+fn execute_reset_rate_limit_quota(
+    deps: DepsMut,
+    info: MessageInfo,
+    xrpl_denom: String,
+    quota_id: String,
+) -> ContractResult<Response> {
+    check_authorization(
+        deps.as_ref().storage,
+        &info.sender,
+        &ContractActions::ResetRateLimitQuota,
+    )?;
+    let config = CONFIG.load(deps.storage)?;
+
+    Ok(Response::new()
+        .add_attribute("action", ContractActions::ResetRateLimitQuota.as_str())
+        .add_message(wasm_execute(
+            config.rate_limit_addr.unwrap().to_string(),
+            &RateLimitMsg::ResetPathQuota {
+                channel_id: CHANNEL.to_string(),
+                denom: xrpl_denom,
+                quota_id,
+            },
+            vec![],
+        )?))
+}
 // ********** Queries **********
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
