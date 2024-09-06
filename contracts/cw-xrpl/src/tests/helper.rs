@@ -29,10 +29,8 @@ impl MockApp {
         let rate_limit_id;
         #[cfg(feature = "test-tube")]
         {
-            static CW_BYTES: &[u8] = include_bytes!("./testdata/cw-xrpl.wasm");
-            static RATE_LIMIT_BYTES: &[u8] = include_bytes!("./testdata/rate-limiter.wasm");
-            bridge_id = app.upload(CW_BYTES);
-            rate_limit_id = app.upload(RATE_LIMIT_BYTES);
+            bridge_id = app.upload(include_bytes!("./testdata/cw-xrpl.wasm"));
+            rate_limit_id = app.upload(include_bytes!("./testdata/rate-limiter.wasm"));
         }
         #[cfg(not(feature = "test-tube"))]
         {

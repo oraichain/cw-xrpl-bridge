@@ -342,7 +342,7 @@ pub fn execute(
         } => {
             update_used_ticket_sequence_threshold(deps, info.sender, used_ticket_sequence_threshold)
         }
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-tube"))]
         ExecuteMsg::BurnTokens {
             denom,
             amount,
@@ -361,7 +361,7 @@ pub fn execute(
 
             Ok(Response::new().add_message(burn_msg))
         }
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-tube"))]
         ExecuteMsg::MintTokens {
             denom,
             amount,
