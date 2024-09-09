@@ -27,6 +27,7 @@ use rate_limiter::{
 };
 
 #[test]
+#[cfg(not(feature = "test-tube"))]
 fn test_register_rate_limit() {
     let (mut app, accounts) = MockApp::new(&[
         ("account0", &coins(100_000_000_000, FEE_DENOM)),
